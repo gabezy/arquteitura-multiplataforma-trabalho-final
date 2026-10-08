@@ -1,0 +1,57 @@
+{
+  "realm": "omni-market",
+  "displayName": "Omni Market",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "accessTokenLifespan": 300,
+  "roles": {
+    "realm": [
+      { "name": "customer", "description": "Cliente do marketplace" },
+      { "name": "admin", "description": "Administrador do marketplace" }
+    ]
+  },
+  "defaultRoles": ["customer"],
+  "clients": [
+    {
+      "clientId": "bff-gateway",
+      "name": "BFF Gateway",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "bff-gateway-secret",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": true,
+      "redirectUris": ["http://localhost:8080/*"],
+      "webOrigins": ["+"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      }
+    }
+  ],
+  "users": [
+    {
+      "username": "customer",
+      "email": "customer@omni-market.local",
+      "firstName": "Customer",
+      "lastName": "Test",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [{ "type": "password", "value": "customer", "temporary": false }],
+      "realmRoles": ["customer"]
+    },
+    {
+      "username": "admin",
+      "email": "admin@omni-market.local",
+      "firstName": "Admin",
+      "lastName": "Test",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [{ "type": "password", "value": "admin", "temporary": false }],
+      "realmRoles": ["customer", "admin"]
+    }
+  ]
+}
