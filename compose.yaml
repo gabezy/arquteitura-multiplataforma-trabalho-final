@@ -21,6 +21,20 @@ services:
       retries: 15
       start_period: 30s
 
+  kong:
+    image: kong:3.9.3
+    container_name: kong-gateway
+    ports:
+      - "8000:8000"
+      - "8001:8001"
+    environment:
+      KONG_DATABASE: "off"
+      KONG_PROXY_LISTEN: 0.0.0.0:8000
+      KONG_ADMIN_LISTEN: "0.0.0.0:8001"
+      KONG_DECLARATIVE_CONFIG: /kong/declarative/kong.yaml
+    volumes:
+      - ./docker/kong/kong.yaml:/kong/declarative/kong.yaml:ro
+
   grafana:
     image: grafana/grafana:13.0
     container_name: grafana
@@ -28,8 +42,10 @@ services:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
       GF_SERVER_HTTP_PORT: 3000
-    ports:
-      - "3000:3000"
+      GF_SERVER_ROOT_URL: http://localhost:8000/grafana/
+      GF_SERVER_SERVE_FROM_SUB_PATH: "true"
+    expose:
+      - "3000"
     volumes:
       - grafana-data:/var/lib/grafana
       - ./docker/grafana/datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
@@ -38,8 +54,8 @@ services:
     image: grafana/loki:3.7.0
     container_name: loki
     command: ["-config.file=/etc/local-config.yaml"]
-    ports:
-      - "3100:3100"
+    expose:
+      - "3100"
     volumes:
       - loki-data:/loki
       - ./docker/loki/config.yaml:/etc/local-config.yaml
@@ -51,17 +67,17 @@ services:
     volumes:
       - tempo-data:/var/tempo
       - ./docker/tempo/config.yaml:/etc/tempo.yaml
-    ports:
-      - "3200:3200"
+    expose:
+      - "3200"
     
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.162.0
     container_name: otel-collector
     command: ["--config=/etc/otel-collector-config.yaml"]
-    ports:
-      - "4317:4317"
-      - "4318:4318"
-      - "55681:55681"
+    expose:
+      - "4317"
+      - "4318"
+      - "55681"
     volumes:
       - ./docker/otel-collector/config.yaml:/etc/otel-collector-config.yaml
     depends_on:

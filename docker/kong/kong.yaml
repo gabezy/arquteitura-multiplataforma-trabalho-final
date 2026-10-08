@@ -1,0 +1,23 @@
+_format_version: "3.0"
+_transform: true
+
+services:
+ - name: otel-collector
+   host: otel-collector
+   port: 4318
+   protocol: http
+   routes:
+     - name: traces-http
+       paths:
+         - /otel
+       strip_path: true
+ - name: grafana
+   host: grafana
+   port: 3000
+   protocol: http
+   routes:
+     - name: grafana
+       paths:
+         - /grafana
+       strip_path: false
+       preserve_host: true
