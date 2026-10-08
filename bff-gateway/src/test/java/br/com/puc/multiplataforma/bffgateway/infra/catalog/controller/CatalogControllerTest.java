@@ -6,6 +6,7 @@ import br.com.puc.multiplataforma.bffgateway.core.catalog.usecase.ImportExcelCat
 import br.com.puc.multiplataforma.bffgateway.infra.security.SecurityConfig;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.micrometer.tracing.test.autoconfigure.AutoConfigureTracing;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.mock.web.MockMultipartFile;
@@ -25,6 +26,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(CatalogController.class)
+@AutoConfigureTracing
 @Import(SecurityConfig.class)
 class CatalogControllerTest {
 
