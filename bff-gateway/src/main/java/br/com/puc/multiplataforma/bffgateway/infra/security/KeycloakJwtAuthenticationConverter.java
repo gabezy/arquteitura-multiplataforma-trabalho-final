@@ -26,9 +26,9 @@ public class KeycloakJwtAuthenticationConverter implements Converter<Jwt, Abstra
                 realmRoles(jwt).stream()
         ).toList();
 
-        var name = Objects.requireNonNullElse(jwt.getClaimAsString("preferred_username"), jwt.getClaimAsString("name"));
+        var name = Objects.requireNonNullElseGet(jwt.getClaimAsString("preferred_username"), jwt::getSubject);
 
-        return new JwtAuthenticationToken(jwt, authorities, Objects.requireNonNull(name));
+        return new JwtAuthenticationToken(jwt, authorities, name);
     }
 
     private Collection<GrantedAuthority> realmRoles(Jwt jwt) {

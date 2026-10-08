@@ -25,15 +25,31 @@ docker compose -f ../compose.yaml up -d    # Keycloak on http://localhost:8085
 
 ## Architecture: Clean Architecture
 
-Base package: `br.com.puc.multiplataforma.bffgateway`. It has two top-level layers, and dependencies point inward only:
+Base package: `br.com.puc.multiplataforma.bffgateway`. It has two top-level layers, and dependencies point inward only. Inside each layer, code is grouped **by domain first, then by technical role**:
 
-- `core/` — business rules: entities, use cases (`core/usecase`), and the port interfaces the use cases need (for example, gateways to downstream services). It must not depend on Spring, servlet, Jackson, or anything in `infra`. Use cases are plain Java classes with constructor injection. They are not annotated with `@Service`/`@Component`.
-- `infra/` — adapters and frameworks: REST controllers, security, exception handling, `RestClient` implementations of core ports, and Spring `@Configuration` that wires the use cases as `@Bean`s.
+```
+core/<domain>/            e.g. core/catalog
+  domain/                 entities and value objects (records that validate themselves)
+  exception/              domain exceptions
+  gateway/                port interfaces the use cases depend on (downstream services, file readers)
+  usecase/                one class per use case + its result record
+core/shared/              only for code used by more than one domain
+infra/<domain>/           e.g. infra/catalog
+  controller/ (+ dto/)    REST endpoints and HTTP DTOs
+  gateway/                implementations of core gateways (RestClient, mocks)
+  <adapter>/              other adapters, e.g. spreadsheet/ (Apache POI)
+  config/                 @Configuration that wires the domain's use cases and adapters as @Beans
+infra/security/, infra/exception/   cross-cutting concerns shared by all domains
+```
+
+- `core` must not depend on Spring, servlet, Jackson, or anything in `infra`. Use cases are plain Java classes with constructor injection. They are not annotated with `@Service`/`@Component`.
+- A new downstream domain (order, cart, …) gets its own `core/<domain>` and `infra/<domain>`. One domain must not reach into another domain's `infra`.
+- `MockCatalogGateway` stands in for the catalog service's REST API. To call the real API, add a `RestClient` implementation of `CatalogGateway` and switch the bean in `CatalogConfig`.
 
 Rules to keep when adding code:
 - Controllers convert HTTP DTOs to use-case input and back. They hold no business logic.
 - When a use case needs external data, add an interface in `core` and implement it in `infra`. `core` never calls `RestClient` directly.
-- Framework exceptions are translated in `infra/exception/ExceptionHandler` (extends `ResponseEntityExceptionHandler`). Core throws its own domain exceptions.
+- Core throws its own domain exceptions. `infra/exception/GlobalExceptionHandler` (extends `ResponseEntityExceptionHandler`) translates them into `ProblemDetail` responses.
 - Follow Clean Code: small, intention-revealing names, single responsibility per class/method, and no comments that restate the code.
 
 ## Security model
