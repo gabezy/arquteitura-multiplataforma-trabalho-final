@@ -77,12 +77,27 @@ services:
     expose:
       - "4317"
       - "4318"
+      - "8889"
       - "55681"
     volumes:
       - ./docker/otel-collector/config.yaml:/etc/otel-collector-config.yaml
     depends_on:
       - tempo
       - loki
+
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    container_name: prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=48h
+    expose:
+      - "9090"
+    volumes:
+      - prometheus-data:/prometheus
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    depends_on:
+      - otel-collector
 
   wiremock:
     image: wiremock/wiremock:3.13.2
@@ -100,3 +115,4 @@ volumes:
   grafana-data:
   loki-data:
   tempo-data:
+  prometheus-data:
