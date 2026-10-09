@@ -7,6 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 This monorepo holds the services of the "omni-market" system. Each service sits in its own top-level directory, is self-contained (its own build and wrapper), and has its own `CLAUDE.md` with service-specific commands and architecture:
 
 - `bff-gateway/` — backend-for-frontend / gateway (Spring Boot, OAuth2 resource server). See `bff-gateway/CLAUDE.md`.
+- `catalog-service/` — catalog service (Node.js, TypeScript, Express, OpenTelemetry). See `catalog-service/CLAUDE.md`.
 
 Shared local infrastructure lives at the root:
 
