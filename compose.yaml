@@ -84,6 +84,16 @@ services:
       - tempo
       - loki
 
+  wiremock:
+    image: wiremock/wiremock:3.13.2
+    container_name: wiremock
+    profiles:
+      - mock
+    ports:
+      - "8089:8080"
+    volumes:
+      - ./docker/wiremock/mappings:/home/wiremock/mappings
+      - ./docker/wiremock/__files:/home/wiremock/__files
 
 volumes:
   keycloak-data:
