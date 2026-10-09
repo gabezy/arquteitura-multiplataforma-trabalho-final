@@ -1,0 +1,102 @@
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.3.3
+    container_name: keycloak
+    command: start-dev --import-realm
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USER:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      KC_HTTP_PORT: 8080
+      KC_HOSTNAME: http://localhost:8085
+      KC_HEALTH_ENABLED: "true"
+    ports:
+      - "8085:8080"
+    volumes:
+      - keycloak-data:/opt/keycloak/data
+      - ./docker/keycloak/realms:/opt/keycloak/data/import:ro
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000 && echo -e 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && grep -q '\"UP\"' <&3"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 30s
+
+  kong:
+    image: kong:3.9.3
+    container_name: kong-gateway
+    ports:
+      - "8000:8000"
+      - "8001:8001"
+    environment:
+      KONG_DATABASE: "off"
+      KONG_PROXY_LISTEN: 0.0.0.0:8000
+      KONG_ADMIN_LISTEN: "0.0.0.0:8001"
+      KONG_DECLARATIVE_CONFIG: /kong/declarative/kong.yaml
+    volumes:
+      - ./docker/kong/kong.yaml:/kong/declarative/kong.yaml:ro
+
+  grafana:
+    image: grafana/grafana:13.0
+    container_name: grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_SERVER_HTTP_PORT: 3000
+      GF_SERVER_ROOT_URL: http://localhost:8000/grafana/
+      GF_SERVER_SERVE_FROM_SUB_PATH: "true"
+    expose:
+      - "3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./docker/grafana/datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
+  
+  loki:
+    image: grafana/loki:3.7.0
+    container_name: loki
+    command: ["-config.file=/etc/local-config.yaml"]
+    expose:
+      - "3100"
+    volumes:
+      - loki-data:/loki
+      - ./docker/loki/config.yaml:/etc/local-config.yaml
+  
+  tempo:
+    image: grafana/tempo:3.0.0
+    container_name: tempo
+    command: ["-config.file=/etc/tempo.yaml"]    
+    volumes:
+      - tempo-data:/var/tempo
+      - ./docker/tempo/config.yaml:/etc/tempo.yaml
+    expose:
+      - "3200"
+    
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.162.0
+    container_name: otel-collector
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    expose:
+      - "4317"
+      - "4318"
+      - "55681"
+    volumes:
+      - ./docker/otel-collector/config.yaml:/etc/otel-collector-config.yaml
+    depends_on:
+      - tempo
+      - loki
+
+  wiremock:
+    image: wiremock/wiremock:3.13.2
+    container_name: wiremock
+    profiles:
+      - mock
+    ports:
+      - "8089:8080"
+    volumes:
+      - ./docker/wiremock/mappings:/home/wiremock/mappings
+      - ./docker/wiremock/__files:/home/wiremock/__files
+
+volumes:
+  keycloak-data:
+  grafana-data:
+  loki-data:
+  tempo-data:

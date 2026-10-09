@@ -1,0 +1,58 @@
+{
+    "mappings": [
+        {
+            "priority": 1,
+            "request": {
+                "method": "POST",
+                "url": "/catalog/products",
+                "headers": {
+                    "Content-Type": {
+                        "contains": "application/json"
+                    }
+                },
+                "bodyPatterns": [
+                    {
+                        "matchesJsonSchema": {
+                            "type": "array",
+                            "minItems": 1,
+                            "items": {
+                                "type": "object",
+                                "required": ["sku", "name", "category", "price", "stock"],
+                                "properties": {
+                                    "sku": { "type": "string", "minLength": 1 },
+                                    "name": { "type": "string", "minLength": 1 },
+                                    "category": { "type": "string", "minLength": 1 },
+                                    "price": { "type": "number", "minimum": 0 },
+                                    "stock": { "type": "integer", "minimum": 0 }
+                                }
+                            }
+                        },
+                        "schemaVersion": "V202012"
+                    }
+                ]
+            },
+            "response": {
+                "status": 200,
+                "headers": {
+                    "Content-Type": "application/json"
+                }
+            }
+        },
+        {
+            "priority": 10,
+            "request": {
+                "method": "POST",
+                "url": "/catalog/products"
+            },
+            "response": {
+                "status": 400,
+                "headers": {
+                    "Content-Type": "application/json"
+                },
+                "jsonBody": {
+                    "message": "body must be a non-empty array of products with sku, name, category, price and stock"
+                }
+            }
+        }
+    ]
+}
