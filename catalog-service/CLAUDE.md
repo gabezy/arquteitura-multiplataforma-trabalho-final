@@ -17,9 +17,9 @@ docker compose -f ../compose.yaml up -d   # OTel collector (via Kong on :8000/ot
 npm run dev                               # tsx watch, with instrumentation preloaded
 npm run build && npm start                # compile to dist/ and run
 npm test                                  # all tests (Jest + ts-jest)
-npx jest test/infra/http/app.test.ts      # one file
+npx jest src/infra/http/app.spec.ts       # one file
 npx jest -t 'returns UP'                  # tests matching a name
-npm run typecheck                         # tsc over src and test
+npm run typecheck                         # tsc over src, including specs
 ```
 
 Config comes from env vars (see `.env.example`; `.env` is loaded if present): `PORT` (8082), `LOG_LEVEL`, `OTEL_SERVICE_NAME`, `OTEL_COLLECTOR_URL` (`http://localhost:8000/otel`, the same default as `bff-gateway`).
@@ -38,7 +38,7 @@ src/
     port/in/                  driving ports: use-case interfaces called by the outside world
     port/out/                 driven ports: what the core needs (repositories, other services, publishers)
     usecase/                  implementations of port/in that depend only on port/out
-  core/shared/                only for code used by more than one domain
+  core/shared/domain/         base classes (Entity, ValueObject) and value objects used by more than one domain
   infra/<domain>/             adapters for that domain
     http/ (+ dto/)            driving adapter: Express router that calls a port/in
     persistence/, client/, …  driven adapters: implementations of port/out
@@ -47,8 +47,9 @@ src/
   infra/config/               env loading (loadConfig)
   infra/observability/        OpenTelemetry SDK bootstrap and logger
   main.ts                     composition root: builds adapters, injects them into use cases, starts the server
-test/                         mirrors src/
 ```
+
+Tests are co-located with the code they test: `foo.ts` has its spec in `foo.spec.ts` in the same folder. There is no separate `test/` directory. `tsconfig.json` excludes `*.spec.ts` from the build, and Jest picks them up from `src/`.
 
 - Dependencies point inward only: adapters depend on ports, and `core` never imports Express, pino, OpenTelemetry, DB drivers, or anything in `infra`.
 - Use cases are plain classes that implement a `port/in` interface and receive their `port/out` dependencies through the constructor.

@@ -1,4 +1,4 @@
-import { loadConfig } from '../../../src/infra/config/env';
+import { loadConfig } from './env';
 
 describe('loadConfig', () => {
   it('uses defaults when env is empty', () => {

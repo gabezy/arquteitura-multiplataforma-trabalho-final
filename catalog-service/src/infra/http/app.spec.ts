@@ -1,6 +1,6 @@
 import request from 'supertest';
 import pino from 'pino';
-import { createApp } from '../../../src/infra/http/app';
+import { createApp } from './app';
 
 describe('app', () => {
   const app = createApp(pino({ level: 'silent' }));
