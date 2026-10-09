@@ -1,7 +1,9 @@
-package br.com.puc.multiplataforma.bffgateway.core.catalog.usecase;
+package br.com.puc.multiplataforma.bffgateway.core.catalog.usecase.importcalog;
 
 import br.com.puc.multiplataforma.bffgateway.core.catalog.domain.Product;
 import br.com.puc.multiplataforma.bffgateway.core.catalog.exception.InvalidCatalogException;
+import br.com.puc.multiplataforma.bffgateway.core.catalog.usecase.importcatalog.ImportCatalogResult;
+import br.com.puc.multiplataforma.bffgateway.core.catalog.usecase.importcatalog.ImportExcelCatalog;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;

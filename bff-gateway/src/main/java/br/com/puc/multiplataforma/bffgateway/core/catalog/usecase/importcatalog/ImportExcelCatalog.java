@@ -1,4 +1,4 @@
-package br.com.puc.multiplataforma.bffgateway.core.catalog.usecase;
+package br.com.puc.multiplataforma.bffgateway.core.catalog.usecase.importcatalog;
 
 import br.com.puc.multiplataforma.bffgateway.core.catalog.domain.Product;
 import br.com.puc.multiplataforma.bffgateway.core.catalog.exception.InvalidCatalogException;

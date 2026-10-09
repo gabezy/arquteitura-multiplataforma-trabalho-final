@@ -1,6 +1,6 @@
 package br.com.puc.multiplataforma.bffgateway.infra.catalog.controller;
 
-import br.com.puc.multiplataforma.bffgateway.core.catalog.usecase.ImportExcelCatalog;
+import br.com.puc.multiplataforma.bffgateway.core.catalog.usecase.importcatalog.ImportExcelCatalog;
 import br.com.puc.multiplataforma.bffgateway.infra.catalog.controller.dto.ImportCatalogResponse;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;

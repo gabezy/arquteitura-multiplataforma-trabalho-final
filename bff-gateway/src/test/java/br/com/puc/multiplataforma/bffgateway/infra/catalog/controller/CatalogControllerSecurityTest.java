@@ -1,7 +1,7 @@
 package br.com.puc.multiplataforma.bffgateway.infra.catalog.controller;
 
-import br.com.puc.multiplataforma.bffgateway.core.catalog.usecase.ImportCatalogResult;
-import br.com.puc.multiplataforma.bffgateway.core.catalog.usecase.ImportExcelCatalog;
+import br.com.puc.multiplataforma.bffgateway.core.catalog.usecase.importcatalog.ImportCatalogResult;
+import br.com.puc.multiplataforma.bffgateway.core.catalog.usecase.importcatalog.ImportExcelCatalog;
 import br.com.puc.multiplataforma.bffgateway.infra.security.SecurityConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
