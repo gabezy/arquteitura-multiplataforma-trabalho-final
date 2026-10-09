@@ -1,0 +1,65 @@
+name: bff-gateway
+
+# main only receives changes through merged pull requests (branch protection),
+# so a push to main is always a merge: it runs CI and then CD.
+# Any other branch runs CI only, on push and on pull request.
+on:
+  push:
+    paths:
+      - 'bff-gateway/**'
+      - '.github/workflows/bff-gateway.yml'
+      - '.github/workflows/_java-service.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'bff-gateway/**'
+      - '.github/workflows/bff-gateway.yml'
+      - '.github/workflows/_java-service.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  ci:
+    uses: ./.github/workflows/_java-service.yml
+    with:
+      service: bff-gateway
+
+  cd:
+    needs: ci
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      packages: write
+    defaults:
+      run:
+        working-directory: bff-gateway
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+          cache-dependency-path: bff-gateway/pom.xml
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Tests already passed in the ci job for this same commit.
+      - name: Build and push image
+        run: |
+          IMAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/omni-market-bff-gateway
+          ./mvnw -B spring-boot:build-image -DskipTests \
+            -Dspring-boot.build-image.imageName=$IMAGE:${{ github.sha }} \
+            -Dspring-boot.build-image.tags=$IMAGE:latest \
+            -Dspring-boot.build-image.publish=true
+
+      # TODO: deploy step once the target environment is defined.
