@@ -26,3 +26,9 @@ datasources:
         filterBySpanID: false
       serviceMap:
         datasourceUid: Prometheus
+
+  - name: Prometheus
+    uid: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
