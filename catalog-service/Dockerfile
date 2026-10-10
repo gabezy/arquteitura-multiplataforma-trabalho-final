@@ -36,5 +36,7 @@ EXPOSE 8082
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD wget -qO- "http://127.0.0.1:${PORT}/health" > /dev/null || exit 1
 
-# node runs as PID 1 (not npm) so SIGTERM reaches the shutdown handler in main.ts.
-CMD ["node", "--require", "./dist/infra/observability/instrumentation.js", "dist/main.js"]
+# Applies pending migrations, then exec replaces the shell so node runs as PID 1
+# and SIGTERM reaches the shutdown handler in main.ts. Knex records applied
+# migrations, so a restart only runs the new ones.
+CMD ["sh", "-c", "npm run --silent migrate:deploy && exec node --require ./dist/infra/observability/instrumentation.js dist/main.js"]
