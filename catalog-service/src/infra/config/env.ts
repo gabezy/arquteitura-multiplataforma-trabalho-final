@@ -14,7 +14,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     logLevel: env.LOG_LEVEL ?? 'info',
     serviceName: env.OTEL_SERVICE_NAME ?? 'catalog-service',
     otelCollectorUrl: env.OTEL_COLLECTOR_URL ?? 'http://localhost:8000/otel',
-    databaseUrl: env.DATABASE_URL ?? 'postgresql://user:password@localhost:5432/catalog',
+    databaseUrl: env.DATABASE_URL ?? 'postgresql://catalog:catalog@localhost:5432/catalog',
   };
 }
 
