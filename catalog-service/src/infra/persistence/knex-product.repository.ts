@@ -1,10 +1,10 @@
 import { Knex } from "knex";
-import { ProductEntity } from "../../core/product/domain/product.entity";
-import { ProductRepositoryPort } from "../../core/product/port/out/product.repository";
+import { ProductEntity } from "../../core/product/model/product.entity";
 import { Id } from "../../core/shared/domain/id";
 import { Price } from "../../core/shared/domain/price.vo";
 import { Quantity } from "../../core/shared/domain/quantity.vo";
-import { ProductAnalysisStatus } from "../../core/product/domain/product-analysis-status.vo";
+import { ProductAnalysisStatus } from "../../core/product/model/product-analysis-status.vo";
+import { ProductRepositoryPort } from "../../core/product/port/out/product.repository";
 
 interface ProductRow {
   id: string;
@@ -40,12 +40,13 @@ export class KnexProductRepository implements ProductRepositoryPort {
         })
     }
 
-    async findById(id: Id): Promise<ProductEntity> {
+    async findById(id: Id): Promise<ProductEntity | null> {
         const row = await this.knex(TABLE_NAME).where({ id: id.value }).first();
 
         if (!row) {
-            throw new Error(`Product with id ${id.value} not found`);
+            return null;
         }
+
         return this.toEntity(row);
     }
 

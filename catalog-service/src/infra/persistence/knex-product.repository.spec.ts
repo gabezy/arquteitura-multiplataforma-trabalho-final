@@ -1,11 +1,11 @@
 import path from "node:path";
 import knex, { Knex } from "knex";
-import { ProductAnalysisStatus } from "../../core/product/domain/product-analysis-status.vo";
-import { NewProductProps, ProductEntity } from "../../core/product/domain/product.entity";
 import { Id } from "../../core/shared/domain/id";
 import { Price } from "../../core/shared/domain/price.vo";
 import { Quantity } from "../../core/shared/domain/quantity.vo";
 import { KnexProductRepository } from "./knex-product.repository";
+import { NewProductProps, ProductEntity } from "../../core/product/model/product.entity";
+import { ProductAnalysisStatus } from "../../core/product/model/product-analysis-status.vo";
 
 const newProduct = (overrides: Partial<NewProductProps> = {}): ProductEntity =>
   ProductEntity.create({
@@ -16,7 +16,8 @@ const newProduct = (overrides: Partial<NewProductProps> = {}): ProductEntity =>
     ...overrides,
   });
 
-const expectSameProduct = (actual: ProductEntity, expected: ProductEntity): void => {
+const expectSameProduct = (actual: ProductEntity | null, expected: ProductEntity): void => {
+  if (!actual) throw new Error(`Product ${expected.id.value} not found`);
   expect(actual.id.equals(expected.id)).toBe(true);
   expect(actual.name).toBe(expected.name);
   expect(actual.description).toBe(expected.description);
@@ -37,7 +38,7 @@ describe("KnexProductRepository", () => {
       pool: { min: 1, max: 1 },
     });
     await db.migrate.latest({
-      directory: path.join(__dirname, "migrations"),
+      directory: path.resolve(__dirname, "./migrations"),
       loadExtensions: [".ts"],
     });
     repository = new KnexProductRepository(db);
@@ -69,8 +70,8 @@ describe("KnexProductRepository", () => {
       await repository.save(product);
 
       const found = await repository.findById(product.id);
-      expect(found.stock.value).toBe(15);
-      expect(found.analysisStatus).toBe(ProductAnalysisStatus.APPROVED);
+      expect(found?.stock.value).toBe(15);
+      expect(found?.analysisStatus).toBe(ProductAnalysisStatus.APPROVED);
       expect(await db("products").count({ total: "*" }).first()).toEqual({ total: 1 });
     });
   });
@@ -93,7 +94,7 @@ describe("KnexProductRepository", () => {
       product.rejectAnalysis();
       await repository.saveAll([product]);
 
-      expect((await repository.findById(product.id)).analysisStatus).toBe(ProductAnalysisStatus.REJECTED);
+      expect((await repository.findById(product.id))?.analysisStatus).toBe(ProductAnalysisStatus.REJECTED);
     });
 
     it("does nothing when the list is empty", async () => {
@@ -118,10 +119,8 @@ describe("KnexProductRepository", () => {
   });
 
   describe("findById", () => {
-    it("throws when the product does not exist", async () => {
-      const id = new Id();
-
-      await expect(repository.findById(id)).rejects.toThrow(`Product with id ${id.value} not found`);
+    it("returns null when the product does not exist", async () => {
+      expect(await repository.findById(new Id())).toBeNull();
     });
 
     it("throws when the stored analysis status is unknown", async () => {

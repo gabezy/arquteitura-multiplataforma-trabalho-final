@@ -12,5 +12,5 @@ export interface ProductOutput {
 }
 
 export interface FindProductPort {
-    execute(input: FindProductPortInput): Promise<ProductOutput>;
+    find(input: FindProductPortInput): Promise<ProductOutput>;
 }

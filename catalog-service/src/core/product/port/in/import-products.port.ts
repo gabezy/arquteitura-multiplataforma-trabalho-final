@@ -11,6 +11,6 @@ export interface ImportProduct {
 
 export interface ImportProductsPort {
 
-    execute(input: ImportProductsPortInput): Promise<void>;
+    import(input: ImportProductsPortInput): Promise<void>;
 
 }

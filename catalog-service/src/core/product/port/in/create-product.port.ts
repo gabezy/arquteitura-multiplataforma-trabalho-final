@@ -11,6 +11,6 @@ export interface AddProductPortOutput {
 
 export interface AddProductPort {
 
-    execute(input: AddProductPortInput): Promise<AddProductPortOutput>;
+    add(input: AddProductPortInput): Promise<AddProductPortOutput>;
 
 }

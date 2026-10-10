@@ -28,37 +28,38 @@ TypeScript is pinned to 6.x because `ts-jest` does not support TypeScript 7.
 
 ## Architecture: Hexagonal (Ports and Adapters)
 
-This service uses Hexagonal Architecture. `core` is the hexagon: business rules plus the ports that define how the outside world talks to it. `infra` holds the adapters that plug technology into those ports. Code is grouped by domain first, then by role.
+This service uses Hexagonal Architecture. `core` is the hexagon: business rules plus the ports that define how the outside world talks to it. `infra` holds the adapters that plug technology into those ports.
+
+The service is a single bounded context (Catalog), so there are no "modules" inside it. `core` is grouped by aggregate (`core/product/`, later `core/category/`, …). `infra` is grouped by technology (`http/`, `persistence/`), with a per-aggregate subfolder only where it helps (`infra/http/product/`). If the catalog ever needs modules with their own language and rules, that is a sign of a second bounded context, which belongs in another service.
 
 ```
 src/
-  core/<domain>/              the hexagon, framework-free
-    domain/                   entities and value objects (validate themselves)
-    exception/                domain exceptions
-    port/in/                  driving ports: use-case interfaces called by the outside world
-    port/out/                 driven ports: what the core needs (repositories, other services, publishers)
-    usecase/                  implementations of port/in that depend only on port/out
-  core/shared/domain/         base classes (Entity, ValueObject) and value objects used by more than one domain
-  infra/<domain>/             adapters for that domain
-    http/ (+ dto/)            driving adapter: Express router that calls a port/in
-    persistence/, client/, …  driven adapters: implementations of port/out
-    factory.ts                wires the domain's use cases to its adapters
-  infra/http/                 Express app factory (createApp), error handler, health route
-  infra/config/               env loading (loadConfig)
-  infra/observability/        OpenTelemetry SDK bootstrap and logger
-  main.ts                     composition root: builds adapters, injects them into use cases, starts the server
+  core/                          the hexagon, framework-free
+    <aggregate>/                 e.g. product/
+      model/                     entities, value objects, domain events and errors (validate themselves)
+      port/in/                   driving ports: interfaces called by the outside world
+      port/out/                  driven ports: what the core needs (repositories, other services, publishers)
+      <aggregate>.facade.ts      application service: implements port/in, depends only on port/out
+    shared/domain/               base classes (Entity, ValueObject) and value objects used by more than one aggregate
+  infra/                         adapters, grouped by technology
+    http/                        Express app (createApp), error handler, health route
+      <aggregate>/               controller + routes: driving adapter that calls port/in
+    persistence/                 Knex connection, migrations, repositories implementing port/out
+    config/                      env loading (loadConfig)
+    observability/               OpenTelemetry SDK bootstrap and logger
+    <aggregate>.factory.ts       wires the facade to its adapters and builds the controller
+  main.ts                        composition root: opens resources, calls the factories, starts the server
 ```
 
-Tests are co-located with the code they test: `foo.ts` has its spec in `foo.spec.ts` in the same folder. There is no separate `test/` directory. `tsconfig.json` excludes `*.spec.ts` from the build, and Jest picks them up from `src/`.
+Tests are co-located with the code they test: `foo.ts` has its spec in `foo.spec.ts` in the same folder. There is no separate `test/` directory. `tsconfig.json` excludes `*.spec.ts` from the build, and Jest picks them up from `src/`. `infra/persistence/*.spec.ts` runs against the `catalog-db` Postgres from `../compose.yaml`.
 
-- Dependencies point inward only: adapters depend on ports, and `core` never imports Express, pino, OpenTelemetry, DB drivers, or anything in `infra`.
-- Use cases are plain classes that implement a `port/in` interface and receive their `port/out` dependencies through the constructor.
-- Driving adapters (routers) depend on the `port/in` interface, not on the use-case class. They convert HTTP DTOs to use-case input and back, and hold no business logic.
-- Every external need (database, another service, a message broker) is a `port/out` interface in `core` with its implementation in `infra/<domain>`. Swapping technology means writing a new adapter. The core does not change.
-- One domain must not reach into another domain's `infra`. Cross-domain calls go through ports.
+- Dependencies point inward only: adapters depend on ports, and `core` never imports Express, Knex, pino, OpenTelemetry, or anything in `infra`.
+- Facades are plain classes that implement one or more `port/in` interfaces and receive their `port/out` dependencies through the constructor.
+- Controllers depend on the `port/in` interfaces, not on the facade class. They convert HTTP input to port input and back, always send a response, and hold no business logic. Handlers are arrow-function properties so they can be passed to the router without losing `this`.
+- Every external need (database, another service, a message broker) is a `port/out` interface in `core` with its implementation in `infra`. Swapping technology means writing a new adapter. The core does not change.
 - Core throws its own domain exceptions. `infra/http/error-handler.ts` translates them into `application/problem+json` responses.
-- Tests: unit-test use cases with in-memory fakes of the `port/out` interfaces, and test adapters at their boundary (routers with supertest, persistence against a real store).
-- Wire dependencies in `main.ts` (or `infra/<domain>/factory.ts`) and pass them into `createApp`, so tests can build the app with fakes.
+- Tests: unit-test facades with in-memory fakes of the `port/out` interfaces, and test adapters at their boundary (routes with supertest and fake `port/in`, persistence against the real Postgres).
+- Wire dependencies in `infra/<aggregate>.factory.ts` and call it from `main.ts`, so tests can build the app with fakes through `createApp`.
 - Follow Clean Code: small, intention-revealing names, single responsibility, no comments that restate the code.
 
 ## Observability
