@@ -1,9 +1,9 @@
-import path from "node:path";
 import knex, { Knex } from "knex";
 import { Id } from "../../core/shared/domain/id";
 import { Price } from "../../core/shared/domain/price.vo";
 import { Quantity } from "../../core/shared/domain/quantity.vo";
 import { KnexProductRepository } from "./knex-product.repository";
+import { createMigrationSource } from "./migration-source";
 import { NewProductProps, ProductEntity } from "../../core/product/model/product.entity";
 import { ProductAnalysisStatus } from "../../core/product/model/product-analysis-status.vo";
 
@@ -37,10 +37,7 @@ describe("KnexProductRepository", () => {
       useNullAsDefault: true,
       pool: { min: 1, max: 1 },
     });
-    await db.migrate.latest({
-      directory: path.resolve(__dirname, "./migrations"),
-      loadExtensions: [".ts"],
-    });
+    await db.migrate.latest({ migrationSource: createMigrationSource() });
     repository = new KnexProductRepository(db);
   });
 

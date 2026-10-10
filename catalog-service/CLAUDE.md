@@ -22,6 +22,19 @@ npx jest -t 'returns UP'                  # tests matching a name
 npm run typecheck                         # tsc over src, including specs
 ```
 
+Migrations (Knex, `src/infra/persistence/migrations/`):
+
+```bash
+npm run migrate                           # apply pending migrations from src/ (tsx)
+npm run migrate:status                    # list applied/pending
+npm run migrate:rollback                  # undo the last batch
+npm run migrate:make -- create_categories # new timestamped migration file
+npm run migrate:deploy                    # apply from dist/ (used by the Docker image on startup)
+```
+
+- `ExtensionlessMigrationSource` records migrations without the extension (`20261010132157_create_products_table`, not `.ts`/`.js`), so a database migrated from `src/` and from `dist/` stays consistent. Every runner (`migrate.ts`, `knexfile.ts`, specs) must use `createMigrationSource()`.
+- The Docker image runs `migrate:deploy` before starting the app. Deploys are rolling, so the old version keeps running on the new schema: write backward-compatible migrations (expand/contract: add nullable columns; rename or drop a column only after no running version uses it).
+
 Config comes from env vars (see `.env.example`; `.env` is loaded if present): `PORT` (8082), `LOG_LEVEL`, `OTEL_SERVICE_NAME`, `OTEL_COLLECTOR_URL` (`http://localhost:8000/otel`, the same default as `bff-gateway`).
 
 TypeScript is pinned to 6.x because `ts-jest` does not support TypeScript 7.

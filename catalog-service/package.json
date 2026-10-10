@@ -10,11 +10,11 @@
     "test": "jest",
     "test:coverage": "jest --coverage",
     "knex": "tsx --env-file-if-exists=.env node_modules/knex/bin/cli.js --knexfile knexfile.ts",
-    "migrate": "npm run knex -- migrate:latest",
+    "migrate": "tsx --env-file-if-exists=.env src/infra/persistence/migrate.ts",
     "migrate:rollback": "npm run knex -- migrate:rollback",
     "migrate:status": "npm run knex -- migrate:status",
-    "migrate:make": "npm run knex -- migrate:make -x ts",
-    "migrate:deploy": "knex migrate:latest --client pg --connection \"$DATABASE_URL\" --migrations-directory dist/infra/persistence/migrations"
+    "migrate:make": "npm run knex -- migrate:make -x ts --migrations-directory src/infra/persistence/migrations",
+    "migrate:deploy": "node dist/infra/persistence/migrate.js"
   },
   "author": "",
   "license": "MIT",
