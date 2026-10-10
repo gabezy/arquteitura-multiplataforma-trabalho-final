@@ -1,16 +1,16 @@
-export interface CreateProductPortInput {
+export interface AddProductPortInput {
     name: string;
     description: string;
     price: number;
     stock: number;
 }
 
-export interface CreateProductPortOutput {
+export interface AddProductPortOutput {
     id: string;
 }
 
-export interface CreateProductPort {
+export interface AddProductPort {
 
-    execute(input: CreateProductPortInput): Promise<CreateProductPortOutput>;
+    execute(input: AddProductPortInput): Promise<AddProductPortOutput>;
 
 }
