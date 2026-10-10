@@ -1,3 +1,4 @@
+import { ValidationError } from "./domain.error";
 import { ValueObject } from "./value.object";
 
 export class Quantity implements ValueObject<Quantity, number> {
@@ -6,7 +7,7 @@ export class Quantity implements ValueObject<Quantity, number> {
 
     constructor(quantity: number) {
         if (!Number.isInteger(quantity) || quantity < 0) {
-            throw new Error("Quantity must be a non-negative integer.");
+            throw new ValidationError("Quantity must be a non-negative integer.");
         }
 
         this._quantity = quantity;

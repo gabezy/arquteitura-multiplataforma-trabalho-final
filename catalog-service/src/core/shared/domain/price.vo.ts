@@ -1,3 +1,4 @@
+import { ValidationError } from "./domain.error";
 import { ValueObject } from "./value.object";
 
 export class Price implements ValueObject<Price, number> {
@@ -5,8 +6,8 @@ export class Price implements ValueObject<Price, number> {
     private _price: number;
 
     constructor(price: number) {
-        if (price < 0) {
-            throw new Error("Price cannot be negative");
+        if (!Number.isFinite(price) || price < 0) {
+            throw new ValidationError("Price must be a non-negative number.");
         }
         
         this._price = price;

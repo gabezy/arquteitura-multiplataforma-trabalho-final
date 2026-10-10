@@ -3,6 +3,7 @@ import { Price } from "../../shared/domain/price.vo";
 import { Quantity } from "../../shared/domain/quantity.vo";
 import { ProductAnalysisStatus } from "./product-analysis-status.vo";
 import { NewProductProps, ProductEntity } from "./product.entity";
+import { InsufficientStockError, InvalidProductError } from "./product.errors";
 
 const newProductProps = (overrides: Partial<NewProductProps> = {}): NewProductProps => ({
   name: "Notebook",
@@ -59,6 +60,7 @@ describe("ProductEntity", () => {
 
     it.each(["", "   "])("rejects name %p", (name) => {
       expect(() => ProductEntity.create(newProductProps({ name }))).toThrow("Product name is required.");
+      expect(() => ProductEntity.create(newProductProps({ name }))).toThrow(InvalidProductError);
     });
 
     it.each(["", "   "])("rejects description %p", (description) => {
@@ -140,6 +142,7 @@ describe("ProductEntity", () => {
       expect(() => product.removeStock(new Quantity(11))).toThrow(
         "Insufficient stock to remove the specified quantity.",
       );
+      expect(() => product.removeStock(new Quantity(11))).toThrow(InsufficientStockError);
       expect(product.stock.value).toBe(10);
     });
   });

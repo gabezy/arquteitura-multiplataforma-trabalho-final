@@ -1,3 +1,4 @@
+import { ValidationError } from "./domain.error";
 import { Quantity } from "./quantity.vo";
 
 describe("Quantity", () => {
@@ -8,6 +9,7 @@ describe("Quantity", () => {
 
     it.each([-1, 1.5, Number.NaN, Number.POSITIVE_INFINITY])("rejects %p", (value) => {
       expect(() => new Quantity(value)).toThrow("Quantity must be a non-negative integer.");
+      expect(() => new Quantity(value)).toThrow(ValidationError);
     });
   });
 

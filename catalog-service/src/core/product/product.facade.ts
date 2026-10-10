@@ -2,6 +2,7 @@ import { Id } from "../shared/domain/id";
 import { Price } from "../shared/domain/price.vo";
 import { Quantity } from "../shared/domain/quantity.vo";
 import { ProductEntity } from "./model/product.entity";
+import { ProductNotFoundError } from "./model/product.errors";
 import { AddProductPort, AddProductPortInput, AddProductPortOutput } from "./port/in/create-product.port";
 import { FindProductPort, FindProductPortInput, ProductOutput } from "./port/in/find-product.port";
 import { ImportProductsPort, ImportProductsPortInput } from "./port/in/import-products.port";
@@ -15,7 +16,7 @@ export class ProductFacade implements FindProductPort, ImportProductsPort, AddPr
         const output = await this.productRepository.findById(new Id(input.id));
         
         if (!output) {
-            throw new Error(`Product with id ${input.id} not found`);
+            throw new ProductNotFoundError(input.id);
         }
 
         return {

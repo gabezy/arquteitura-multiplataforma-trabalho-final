@@ -5,6 +5,7 @@ import { ProductController } from './product/product.controller';
 import { AddProductPort } from '../../core/product/port/in/create-product.port';
 import { FindProductPort, ProductOutput } from '../../core/product/port/in/find-product.port';
 import { ImportProductsPort } from '../../core/product/port/in/import-products.port';
+import { ProductNotFoundError } from '../../core/product/model/product.errors';
 
 const product: ProductOutput = {
   id: 'product-1',
@@ -69,6 +70,15 @@ describe('app', () => {
     expect(response.status).toBe(200);
     expect(response.body).toEqual(product);
     expect(findProductPort.find).toHaveBeenCalledWith({ id: 'product-1' });
+  });
+
+  it('GET /products/:id returns 404 when the product does not exist', async () => {
+    findProductPort.find.mockRejectedValue(new ProductNotFoundError('missing'));
+
+    const response = await request(app).get('/products/missing');
+
+    expect(response.status).toBe(404);
+    expect(response.body).toMatchObject({ status: 404, detail: 'Product with id missing not found.' });
   });
 
   it('returns 500 when a port fails', async () => {

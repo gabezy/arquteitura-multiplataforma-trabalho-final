@@ -3,6 +3,7 @@ import { Id } from "../../shared/domain/id";
 import { Quantity } from "../../shared/domain/quantity.vo";
 import { Price } from "../../shared/domain/price.vo";
 import { ProductAnalysisStatus } from "./product-analysis-status.vo";
+import { InsufficientStockError, InvalidProductError } from "./product.errors";
 
 export interface NewProductProps {
     name: string;
@@ -73,10 +74,10 @@ export class ProductEntity extends Entity<Id> {
 
     protected validate(): void {
         if (!this.name || this.name.trim().length === 0) {
-            throw new Error("Product name is required.");
+            throw new InvalidProductError("Product name is required.");
         }
         if (!this.description || this.description.trim().length === 0) {
-            throw new Error("Product description is required.");
+            throw new InvalidProductError("Product description is required.");
         }
     }
 
@@ -102,17 +103,17 @@ export class ProductEntity extends Entity<Id> {
 
     addStock(quantity: Quantity): void {
         if (quantity.isZero()) {
-            throw new Error("Quantity to add must be greater than zero.");
+            throw new InvalidProductError("Quantity to add must be greater than zero.");
         }
         this._stock = this._stock.add(quantity);
     }
 
     removeStock(quantity: Quantity): void {
         if (quantity.isZero()) {
-            throw new Error("Quantity to remove must be greater than zero.");
+            throw new InvalidProductError("Quantity to remove must be greater than zero.");
         }
         if (this._stock.isLessThan(quantity)) {
-            throw new Error("Insufficient stock to remove the specified quantity.");
+            throw new InsufficientStockError();
         }
         this._stock = this._stock.subtract(quantity);
     }
