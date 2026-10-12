@@ -1,7 +1,9 @@
 import express, { Express } from 'express';
 import pino from 'pino';
 import request from 'supertest';
+import { z } from 'zod';
 import { errorHandler } from './error-handler';
+import { RequestValidationError } from './validate';
 import { ConflictError, NotFoundError, ValidationError } from '../../core/shared/domain/domain.error';
 import { InsufficientStockError, InvalidProductError, ProductNotFoundError } from '../../core/product/model/product.errors';
 
@@ -34,6 +36,24 @@ describe('errorHandler', () => {
       status,
       detail: error.message,
       instance: '/boom',
+    });
+  });
+
+  it('maps a RequestValidationError to 400 with the invalid fields', async () => {
+    const parsed = z.object({ name: z.string() }).safeParse({});
+    if (parsed.success) throw new Error('expected the parse to fail');
+
+    const response = await request(appThrowing(new RequestValidationError(parsed.error))).post('/boom');
+
+    expect(response.status).toBe(400);
+    expect(response.headers['content-type']).toContain('application/problem+json');
+    expect(response.body).toEqual({
+      type: 'about:blank',
+      title: 'Bad Request',
+      status: 400,
+      detail: 'Request validation failed.',
+      instance: '/boom',
+      errors: [{ path: 'name', message: expect.any(String) }],
     });
   });
 
