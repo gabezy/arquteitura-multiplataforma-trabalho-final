@@ -5,10 +5,11 @@ import { ProductController } from './product/product.controller';
 import { AddProductPort } from '../../core/product/port/in/create-product.port';
 import { FindProductPort, ProductOutput } from '../../core/product/port/in/find-product.port';
 import { ImportProductsPort } from '../../core/product/port/in/import-products.port';
-import { ProductNotFoundError } from '../../core/product/model/product.errors';
+import { DuplicateSkuError, ProductNotFoundError } from '../../core/product/model/product.errors';
 
 const product: ProductOutput = {
   id: 'product-1',
+  sku: 'NB-001',
   name: 'Notebook',
   description: 'Notebook 16GB RAM',
   price: 4500,
@@ -16,7 +17,7 @@ const product: ProductOutput = {
   analysisStatus: 'PENDING',
 };
 
-const productInput = { name: 'Notebook', description: 'Notebook 16GB RAM', price: 4500, stock: 10 };
+const productInput = { sku: 'NB-001', name: 'Notebook', description: 'Notebook 16GB RAM', price: 4500, stock: 10 };
 
 describe('app', () => {
   const addProductPort: jest.Mocked<AddProductPort> = { add: jest.fn() };
@@ -79,6 +80,15 @@ describe('app', () => {
 
     expect(response.status).toBe(404);
     expect(response.body).toMatchObject({ status: 404, detail: 'Product with id missing not found.' });
+  });
+
+  it('POST /products returns 409 when the SKU already exists', async () => {
+    addProductPort.add.mockRejectedValue(new DuplicateSkuError(['NB-001']));
+
+    const response = await request(app).post('/products').send(productInput);
+
+    expect(response.status).toBe(409);
+    expect(response.body).toMatchObject({ status: 409, detail: 'Product with SKU NB-001 already exists.' });
   });
 
   it('returns 500 when a port fails', async () => {

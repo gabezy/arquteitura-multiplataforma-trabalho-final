@@ -13,3 +13,9 @@ export class InsufficientStockError extends ConflictError {
         super("Insufficient stock to remove the specified quantity.");
     }
 }
+
+export class DuplicateSkuError extends ConflictError {
+    constructor(readonly skus: string[]) {
+        super(`Product with SKU ${skus.join(", ")} already exists.`);
+    }
+}

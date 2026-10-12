@@ -4,6 +4,7 @@ export interface FindProductPortInput {
 
 export interface ProductOutput {
   id: string;
+  sku: string;
   name: string;
   description: string;
   price: number;

@@ -6,9 +6,14 @@ import { KnexProductRepository } from "./knex-product.repository";
 import { createMigrationSource } from "./migration-source";
 import { NewProductProps, ProductEntity } from "../../core/product/model/product.entity";
 import { ProductAnalysisStatus } from "../../core/product/model/product-analysis-status.vo";
+import { DuplicateSkuError } from "../../core/product/model/product.errors";
+import { Sku } from "../../core/product/model/sku.vo";
+
+let skuSequence = 0;
 
 const newProduct = (overrides: Partial<NewProductProps> = {}): ProductEntity =>
   ProductEntity.create({
+    sku: new Sku(`NB-${++skuSequence}`),
     name: "Notebook",
     description: "Notebook 16GB RAM",
     price: new Price(4500.9),
@@ -19,6 +24,7 @@ const newProduct = (overrides: Partial<NewProductProps> = {}): ProductEntity =>
 const expectSameProduct = (actual: ProductEntity | null, expected: ProductEntity): void => {
   if (!actual) throw new Error(`Product ${expected.id.value} not found`);
   expect(actual.id.equals(expected.id)).toBe(true);
+  expect(actual.sku.equals(expected.sku)).toBe(true);
   expect(actual.name).toBe(expected.name);
   expect(actual.description).toBe(expected.description);
   expect(actual.price.value).toBe(expected.price.value);
@@ -71,6 +77,15 @@ describe("KnexProductRepository", () => {
       expect(found?.analysisStatus).toBe(ProductAnalysisStatus.APPROVED);
       expect(await db("products").count({ total: "*" }).first()).toEqual({ total: 1 });
     });
+
+    it("rejects a product whose SKU belongs to another product", async () => {
+      await repository.save(newProduct({ sku: new Sku("NB-DUP") }));
+
+      await expect(repository.save(newProduct({ sku: new Sku("NB-DUP") }))).rejects.toThrow(
+        new DuplicateSkuError(["NB-DUP"]),
+      );
+      expect(await db("products").count({ total: "*" }).first()).toEqual({ total: 1 });
+    });
   });
 
   describe("saveAll", () => {
@@ -112,6 +127,35 @@ describe("KnexProductRepository", () => {
       await db.raw("DROP TRIGGER reject_broken_product");
 
       expect(await db("products").count({ total: "*" }).first()).toEqual({ total: 0 });
+    });
+
+    it("rejects the batch when a SKU belongs to another product and persists nothing new", async () => {
+      await repository.save(newProduct({ sku: new Sku("NB-DUP") }));
+
+      await expect(
+        repository.saveAll([newProduct({ sku: new Sku("NB-NEW") }), newProduct({ sku: new Sku("NB-DUP") })]),
+      ).rejects.toThrow(new DuplicateSkuError(["NB-DUP"]));
+      expect(await repository.findExistingSkus([new Sku("NB-NEW")])).toEqual([]);
+    });
+
+    it("rejects a batch that repeats a SKU", async () => {
+      await expect(
+        repository.saveAll([newProduct({ sku: new Sku("NB-DUP") }), newProduct({ sku: new Sku("NB-DUP") })]),
+      ).rejects.toThrow(DuplicateSkuError);
+    });
+  });
+
+  describe("findExistingSkus", () => {
+    it("returns only the SKUs that are already stored", async () => {
+      await repository.saveAll([newProduct({ sku: new Sku("NB-A") }), newProduct({ sku: new Sku("NB-B") })]);
+
+      const found = await repository.findExistingSkus([new Sku("NB-A"), new Sku("NB-C")]);
+
+      expect(found.map((sku) => sku.value)).toEqual(["NB-A"]);
+    });
+
+    it("returns an empty list for no SKUs", async () => {
+      expect(await repository.findExistingSkus([])).toEqual([]);
     });
   });
 

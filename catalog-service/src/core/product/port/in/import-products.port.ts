@@ -3,6 +3,7 @@ export interface ImportProductsPortInput {
 }
 
 export interface ImportProduct {
+    sku: string;
     name: string;
     description: string;
     price: number;

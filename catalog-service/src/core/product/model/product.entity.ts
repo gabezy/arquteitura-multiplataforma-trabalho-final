@@ -3,9 +3,11 @@ import { Id } from "../../shared/domain/id";
 import { Quantity } from "../../shared/domain/quantity.vo";
 import { Price } from "../../shared/domain/price.vo";
 import { ProductAnalysisStatus } from "./product-analysis-status.vo";
+import { Sku } from "./sku.vo";
 import { InsufficientStockError, InvalidProductError } from "./product.errors";
 
 export interface NewProductProps {
+    sku: Sku;
     name: string;
     description: string;
     price: Price;
@@ -14,6 +16,7 @@ export interface NewProductProps {
 
 export interface RestoreProductEntityProps {
     id: Id;
+    sku: Sku;
     name: string;
     description: string;
     price: Price;
@@ -23,6 +26,7 @@ export interface RestoreProductEntityProps {
 
 interface ProductEntityProps {
     id?: Id;
+    sku: Sku;
     name: string;
     description: string;
     price: Price;
@@ -32,6 +36,7 @@ interface ProductEntityProps {
 
 export class ProductEntity extends Entity<Id> {
 
+    private readonly _sku: Sku;
     private _name: string;
     private _description: string;
     private _price: Price;
@@ -40,6 +45,7 @@ export class ProductEntity extends Entity<Id> {
 
     public static create(props: NewProductProps): ProductEntity {
         const data: ProductEntityProps = {
+            sku: props.sku,
             name: props.name,
             description: props.description,
             price: props.price,
@@ -53,6 +59,7 @@ export class ProductEntity extends Entity<Id> {
     public static restore(props: RestoreProductEntityProps): ProductEntity {
         return new ProductEntity({
             id: props.id,
+            sku: props.sku,
             name: props.name,
             description: props.description,
             price: props.price,
@@ -63,6 +70,7 @@ export class ProductEntity extends Entity<Id> {
 
     private constructor(props: ProductEntityProps) {
         super(props.id ?? new Id());
+        this._sku = props.sku;
         this._name = props.name;
         this._description = props.description;
         this._price = props.price;
@@ -79,6 +87,10 @@ export class ProductEntity extends Entity<Id> {
         if (!this.description || this.description.trim().length === 0) {
             throw new InvalidProductError("Product description is required.");
         }
+    }
+
+    get sku(): Sku {
+        return this._sku;
     }
 
     get name(): string {

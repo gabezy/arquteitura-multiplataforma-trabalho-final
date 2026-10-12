@@ -4,8 +4,10 @@ import { Quantity } from "../../shared/domain/quantity.vo";
 import { ProductAnalysisStatus } from "./product-analysis-status.vo";
 import { NewProductProps, ProductEntity } from "./product.entity";
 import { InsufficientStockError, InvalidProductError } from "./product.errors";
+import { Sku } from "./sku.vo";
 
 const newProductProps = (overrides: Partial<NewProductProps> = {}): NewProductProps => ({
+  sku: new Sku("NB-001"),
   name: "Notebook",
   description: "Notebook 16GB RAM",
   price: new Price(4500),
@@ -29,8 +31,11 @@ describe("ProductEntity", () => {
       const price = new Price(4500);
       const stock = new Quantity(10);
 
-      const product = ProductEntity.create(newProductProps({ price, stock }));
+      const sku = new Sku("NB-001");
 
+      const product = ProductEntity.create(newProductProps({ sku, price, stock }));
+
+      expect(product.sku).toBe(sku);
       expect(product.name).toBe("Notebook");
       expect(product.description).toBe("Notebook 16GB RAM");
       expect(product.price).toBe(price);
@@ -75,14 +80,16 @@ describe("ProductEntity", () => {
       const id = new Id("product-1");
       const price = new Price(4500);
       const stock = new Quantity(10);
+      const sku = new Sku("NB-001");
 
       const product = ProductEntity.restore({
-        ...newProductProps({ price, stock }),
+        ...newProductProps({ sku, price, stock }),
         id,
         analysisStatus: ProductAnalysisStatus.APPROVED,
       });
 
       expect(product.id).toBe(id);
+      expect(product.sku).toBe(sku);
       expect(product.name).toBe("Notebook");
       expect(product.description).toBe("Notebook 16GB RAM");
       expect(product.price).toBe(price);
