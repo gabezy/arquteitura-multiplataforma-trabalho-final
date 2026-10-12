@@ -48,8 +48,8 @@ export class KnexProductRepository implements ProductRepositoryPort {
         );
     }
 
-    async findById(id: Id): Promise<ProductEntity | null> {
-        const row = await this.knex(TABLE_NAME).where({ id: id.value }).first();
+    async findBySku(sku: Sku): Promise<ProductEntity | null> {
+        const row = await this.knex(TABLE_NAME).where({ sku: sku.value }).first();
 
         if (!row) {
             return null;

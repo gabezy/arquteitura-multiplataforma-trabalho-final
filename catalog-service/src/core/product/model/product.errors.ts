@@ -3,8 +3,8 @@ import { ConflictError, NotFoundError, ValidationError } from "../../shared/doma
 export class InvalidProductError extends ValidationError {}
 
 export class ProductNotFoundError extends NotFoundError {
-    constructor(readonly productId: string) {
-        super(`Product with id ${productId} not found.`);
+    constructor(readonly sku: string) {
+        super(`Product with SKU ${sku} not found.`);
     }
 }
 

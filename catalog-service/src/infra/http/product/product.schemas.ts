@@ -19,6 +19,6 @@ export const importProductsSchema = z.object({
   items: z.array(productSchema).min(1).max(1000),
 }) satisfies z.ZodType<ImportProductsPortInput>;
 
-export const productIdParamsSchema = z.object({
-  id: z.uuid(),
+export const productSkuParamsSchema = z.object({
+  sku: z.string(),
 }) satisfies z.ZodType<FindProductPortInput>;

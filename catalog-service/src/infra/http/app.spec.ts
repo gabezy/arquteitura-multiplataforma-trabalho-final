@@ -47,12 +47,12 @@ describe('app', () => {
   });
 
   it('POST /products returns 201 with the product location', async () => {
-    addProductPort.add.mockResolvedValue({ id: PRODUCT_ID });
+    addProductPort.add.mockResolvedValue({ id: PRODUCT_ID, sku: 'NB-001' });
 
     const response = await request(app).post('/products').send(productInput);
 
     expect(response.status).toBe(201);
-    expect(response.headers.location).toBe(`/products/${PRODUCT_ID}`);
+    expect(response.headers.location).toBe('/products/sku/NB-001');
     expect(addProductPort.add).toHaveBeenCalledWith(productInput);
   });
 
@@ -65,23 +65,23 @@ describe('app', () => {
     expect(importProductsPort.import).toHaveBeenCalledWith({ items: [productInput] });
   });
 
-  it('GET /products/:id returns the product', async () => {
+  it('GET /products/sku/:sku returns the product', async () => {
     findProductPort.find.mockResolvedValue(product);
 
-    const response = await request(app).get(`/products/${PRODUCT_ID}`);
+    const response = await request(app).get('/products/sku/NB-001');
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual(product);
-    expect(findProductPort.find).toHaveBeenCalledWith({ id: PRODUCT_ID });
+    expect(findProductPort.find).toHaveBeenCalledWith({ sku: 'NB-001' });
   });
 
-  it('GET /products/:id returns 404 when the product does not exist', async () => {
-    findProductPort.find.mockRejectedValue(new ProductNotFoundError(PRODUCT_ID));
+  it('GET /products/sku/:sku returns 404 when the product does not exist', async () => {
+    findProductPort.find.mockRejectedValue(new ProductNotFoundError('NB-001'));
 
-    const response = await request(app).get(`/products/${PRODUCT_ID}`);
+    const response = await request(app).get('/products/sku/NB-001');
 
     expect(response.status).toBe(404);
-    expect(response.body).toMatchObject({ status: 404, detail: `Product with id ${PRODUCT_ID} not found.` });
+    expect(response.body).toMatchObject({ status: 404, detail: 'Product with SKU NB-001 not found.' });
   });
 
   it('POST /products returns 409 when the SKU already exists', async () => {
@@ -94,7 +94,7 @@ describe('app', () => {
   });
 
   it('POST /products drops fields that are not part of the input', async () => {
-    addProductPort.add.mockResolvedValue({ id: PRODUCT_ID });
+    addProductPort.add.mockResolvedValue({ id: PRODUCT_ID, sku: 'NB-001' });
 
     await request(app).post('/products').send({ ...productInput, id: 'forged', analysisStatus: 'APPROVED' });
 
@@ -114,7 +114,7 @@ describe('app', () => {
   });
 
   it('POST /products leaves business rules to the domain', async () => {
-    addProductPort.add.mockResolvedValue({ id: PRODUCT_ID });
+    addProductPort.add.mockResolvedValue({ id: PRODUCT_ID, sku: 'NB-001' });
 
     const response = await request(app).post('/products').send({ ...productInput, sku: 'x', price: -1 });
 
@@ -140,18 +140,10 @@ describe('app', () => {
     expect(response.body.errors).toEqual([expect.objectContaining({ path: 'items.1.stock' })]);
   });
 
-  it('GET /products/:id returns 400 when the id is not a UUID', async () => {
-    const response = await request(app).get('/products/not-a-uuid');
-
-    expect(response.status).toBe(400);
-    expect(response.body.errors).toEqual([expect.objectContaining({ path: 'id' })]);
-    expect(findProductPort.find).not.toHaveBeenCalled();
-  });
-
   it('returns 500 when a port fails', async () => {
     findProductPort.find.mockRejectedValue(new Error('boom'));
 
-    const response = await request(app).get(`/products/${PRODUCT_ID}`);
+    const response = await request(app).get('/products/sku/NB-001');
 
     expect(response.status).toBe(500);
   });

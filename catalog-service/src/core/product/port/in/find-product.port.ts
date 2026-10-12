@@ -1,5 +1,5 @@
 export interface FindProductPortInput {
-    id: string;
+    sku: string;
 }
 
 export interface ProductOutput {

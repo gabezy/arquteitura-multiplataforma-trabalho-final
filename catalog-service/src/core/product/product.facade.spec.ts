@@ -1,4 +1,3 @@
-import { Id } from "../shared/domain/id";
 import { ProductEntity } from "./model/product.entity";
 import { DuplicateSkuError, InvalidProductError, ProductNotFoundError } from "./model/product.errors";
 import { Sku } from "./model/sku.vo";
@@ -17,8 +16,8 @@ class InMemoryProductRepository implements ProductRepositoryPort {
     products.forEach((product) => this.products.set(product.id.value, product));
   }
 
-  async findById(id: Id): Promise<ProductEntity | null> {
-    return this.products.get(id.value) ?? null;
+  async findBySku(sku: Sku): Promise<ProductEntity | null> {
+    return [...this.products.values()].find((product) => product.sku.equals(sku)) ?? null;
   }
 
   async findExistingSkus(skus: Sku[]): Promise<Sku[]> {
@@ -46,10 +45,10 @@ describe("ProductFacade", () => {
   });
 
   describe("add", () => {
-    it("saves the product and returns its id", async () => {
-      const { id } = await facade.add(productInput());
+    it("saves the product and returns its id and SKU", async () => {
+      const { id, sku } = await facade.add(productInput());
 
-      expect(await facade.find({ id })).toEqual({
+      expect(await facade.find({ sku })).toEqual({
         id,
         sku: "NB-001",
         name: "Notebook",
@@ -61,9 +60,9 @@ describe("ProductFacade", () => {
     });
 
     it("stores the SKU in upper case", async () => {
-      const { id } = await facade.add(productInput({ sku: "nb-001" }));
+      const { sku } = await facade.add(productInput({ sku: "nb-001" }));
 
-      expect((await facade.find({ id })).sku).toBe("NB-001");
+      expect(sku).toBe("NB-001");
     });
 
     it("rejects a SKU that already exists", async () => {
@@ -111,8 +110,14 @@ describe("ProductFacade", () => {
   });
 
   describe("find", () => {
+    it("finds the product regardless of the SKU case", async () => {
+      await facade.add(productInput({ sku: "NB-001" }));
+
+      expect((await facade.find({ sku: "nb-001" })).sku).toBe("NB-001");
+    });
+
     it("throws when the product does not exist", async () => {
-      await expect(facade.find({ id: "missing" })).rejects.toThrow(ProductNotFoundError);
+      await expect(facade.find({ sku: "ARB-2131" })).rejects.toThrow(ProductNotFoundError);
     });
   });
 });

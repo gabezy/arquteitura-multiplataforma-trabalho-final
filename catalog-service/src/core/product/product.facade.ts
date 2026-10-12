@@ -1,4 +1,3 @@
-import { Id } from "../shared/domain/id";
 import { Price } from "../shared/domain/price.vo";
 import { Quantity } from "../shared/domain/quantity.vo";
 import { ProductEntity } from "./model/product.entity";
@@ -14,10 +13,10 @@ export class ProductFacade implements FindProductPort, ImportProductsPort, AddPr
     constructor(private readonly productRepository: ProductRepositoryPort) {}
 
     async find(input: FindProductPortInput): Promise<ProductOutput> {
-        const output = await this.productRepository.findById(new Id(input.id));
+        const output = await this.productRepository.findBySku(new Sku(input.sku));
 
         if (!output) {
-            throw new ProductNotFoundError(input.id);
+            throw new ProductNotFoundError(input.sku);
         }
 
         return {
@@ -48,7 +47,8 @@ export class ProductFacade implements FindProductPort, ImportProductsPort, AddPr
         await this.productRepository.save(product);
 
         return {
-            id: product.id.value
+            id: product.id.value,
+            sku: product.sku.value,
         };
     }
 

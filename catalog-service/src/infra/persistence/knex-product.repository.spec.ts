@@ -1,5 +1,4 @@
 import knex, { Knex } from "knex";
-import { Id } from "../../core/shared/domain/id";
 import { Price } from "../../core/shared/domain/price.vo";
 import { Quantity } from "../../core/shared/domain/quantity.vo";
 import { KnexProductRepository } from "./knex-product.repository";
@@ -61,7 +60,7 @@ describe("KnexProductRepository", () => {
 
       await repository.save(product);
 
-      expectSameProduct(await repository.findById(product.id), product);
+      expectSameProduct(await repository.findBySku(product.sku), product);
     });
 
     it("updates an existing product with the same id", async () => {
@@ -72,7 +71,7 @@ describe("KnexProductRepository", () => {
       product.approveAnalysis();
       await repository.save(product);
 
-      const found = await repository.findById(product.id);
+      const found = await repository.findBySku(product.sku);
       expect(found?.stock.value).toBe(15);
       expect(found?.analysisStatus).toBe(ProductAnalysisStatus.APPROVED);
       expect(await db("products").count({ total: "*" }).first()).toEqual({ total: 1 });
@@ -95,8 +94,8 @@ describe("KnexProductRepository", () => {
 
       await repository.saveAll([notebook, mouse]);
 
-      expectSameProduct(await repository.findById(notebook.id), notebook);
-      expectSameProduct(await repository.findById(mouse.id), mouse);
+      expectSameProduct(await repository.findBySku(notebook.sku), notebook);
+      expectSameProduct(await repository.findBySku(mouse.sku), mouse);
     });
 
     it("updates products that already exist", async () => {
@@ -106,7 +105,7 @@ describe("KnexProductRepository", () => {
       product.rejectAnalysis();
       await repository.saveAll([product]);
 
-      expect((await repository.findById(product.id))?.analysisStatus).toBe(ProductAnalysisStatus.REJECTED);
+      expect((await repository.findBySku(product.sku))?.analysisStatus).toBe(ProductAnalysisStatus.REJECTED);
     });
 
     it("does nothing when the list is empty", async () => {
@@ -159,9 +158,9 @@ describe("KnexProductRepository", () => {
     });
   });
 
-  describe("findById", () => {
+  describe("findBySku", () => {
     it("returns null when the product does not exist", async () => {
-      expect(await repository.findById(new Id())).toBeNull();
+      expect(await repository.findBySku(new Sku("NB-NOEXIST"))).toBeNull();
     });
 
     it("throws when the stored analysis status is unknown", async () => {
@@ -169,7 +168,7 @@ describe("KnexProductRepository", () => {
       await repository.save(product);
       await db("products").where({ id: product.id.value }).update({ analysis_status: "UNKNOWN" });
 
-      await expect(repository.findById(product.id)).rejects.toThrow("Invalid analysis status: UNKNOWN");
+      await expect(repository.findBySku(product.sku)).rejects.toThrow("Invalid analysis status: UNKNOWN");
     });
   });
 });

@@ -8,6 +8,7 @@ export interface AddProductPortInput {
 
 export interface AddProductPortOutput {
     id: string;
+    sku: string;
 }
 
 export interface AddProductPort {

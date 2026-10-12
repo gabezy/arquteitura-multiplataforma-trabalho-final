@@ -22,7 +22,7 @@ describe('errorHandler', () => {
     [new ValidationError('Price must be a non-negative number.'), 422, 'Unprocessable Entity'],
     [new InvalidProductError('Product name is required.'), 422, 'Unprocessable Entity'],
     [new NotFoundError('Category not found.'), 404, 'Not Found'],
-    [new ProductNotFoundError('product-1'), 404, 'Not Found'],
+    [new ProductNotFoundError('NB-001'), 404, 'Not Found'],
     [new ConflictError('Already approved.'), 409, 'Conflict'],
     [new InsufficientStockError(), 409, 'Conflict'],
   ])('maps %p to %i', async (error, status, title) => {
