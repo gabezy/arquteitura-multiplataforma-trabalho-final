@@ -7,7 +7,7 @@ describe('loadConfig', () => {
       port: 8082,
       logLevel: 'info',
       serviceName: 'catalog-service',
-      otelCollectorUrl: 'http://localhost:8000/otel',
+      otelCollectorUrl: 'http://localhost:4318',
       databaseUrl: "postgresql://catalog:catalog@localhost:5432/catalog",
     });
   });

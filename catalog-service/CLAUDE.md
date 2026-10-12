@@ -13,7 +13,7 @@ Shared infrastructure and monorepo-wide conventions are described in `../CLAUDE.
 Run the commands from this directory:
 
 ```bash
-docker compose -f ../compose.yaml up -d   # OTel collector (via Kong on :8000/otel), Grafana, etc.
+docker compose -f ../compose.yaml --profile obs up -d   # Postgres, Kafka, OTel collector (:4318), Grafana (:3000), etc.
 npm run dev                               # tsx watch, with instrumentation preloaded
 npm run build && npm start                # compile to dist/ and run
 npm test                                  # all tests (Jest + ts-jest)
@@ -35,7 +35,7 @@ npm run migrate:deploy                    # apply from dist/ (used by the Docker
 - `ExtensionlessMigrationSource` records migrations without the extension (`20261010132157_create_products_table`, not `.ts`/`.js`), so a database migrated from `src/` and from `dist/` stays consistent. Every runner (`migrate.ts`, `knexfile.ts`, specs) must use `createMigrationSource()`.
 - The Docker image runs `migrate:deploy` before starting the app. Deploys are rolling, so the old version keeps running on the new schema: write backward-compatible migrations (expand/contract: add nullable columns; rename or drop a column only after no running version uses it).
 
-Config comes from env vars (see `.env.example`; `.env` is loaded if present): `PORT` (8082), `LOG_LEVEL`, `OTEL_SERVICE_NAME`, `OTEL_COLLECTOR_URL` (`http://localhost:8000/otel`, the same default as `bff-gateway`).
+Config comes from env vars (see `.env.example`; `.env` is loaded if present): `PORT` (8082), `LOG_LEVEL`, `OTEL_SERVICE_NAME`, `OTEL_COLLECTOR_URL` (`http://localhost:4318`, the same default as `bff-gateway`).
 
 TypeScript is pinned to 6.x because `ts-jest` does not support TypeScript 7.
 

@@ -35,6 +35,10 @@ curl -s -X POST http://localhost:8085/realms/omni-market/protocol/openid-connect
 
 Realm changes go in `docker/keycloak/realms/omni-market-realm.json`. `--import-realm` skips a realm that already exists, so run `docker compose down -v` before restarting.
 
+**Kafka** (4.x, KRaft, single broker): apps on the host use `localhost:9092`, containers use `kafka:19092`. Kafka UI runs on http://localhost:8090.
+
+**Observability** (`--profile obs`): apps send OTLP over HTTP to the collector on http://localhost:4318. Grafana runs on http://localhost:3000 (`admin`/`admin`).
+
 ## Conventions (all services)
 
 - Each service follows Clean Architecture (framework-free `core`, adapters in `infra`) and Clean Code. The rules are detailed per service.
