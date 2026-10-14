@@ -1,5 +1,6 @@
 import { Knex } from "knex";
 import { Message, Producer, TopicMessages } from "kafkajs";
+import { TraceHeaders, withTraceHeaders } from "../observability/trace-context";
 
 const BATCH_SIZE = 100;
 const SOURCE = "/catalog-service";
@@ -15,6 +16,7 @@ interface PendingRow {
     aggregate_id: string;
     event_type: string;
     payload: unknown;
+    headers: TraceHeaders | null;
     occurred_at: Date;
 }
 
@@ -75,10 +77,31 @@ export class OutboxRelay {
                 return;
             }
 
-            await this.producer.sendBatch({ topicMessages: this.groupByTopic(rows) });
+            for (const group of this.splitByTraceContext(rows)) {
+                await withTraceHeaders(group[0].headers, () =>
+                    this.producer.sendBatch({ topicMessages: this.groupByTopic(group) }));
+            }
 
             await tx("outbox").whereIn("sequence", rows.map(row => row.sequence)).update({ published_at: tx.fn.now() });
         });
+    }
+
+    // The Kafka instrumentation parents every message of a sendBatch on the active context,
+    // so events recorded by different requests go in separate batches, each sent inside the
+    // trace that recorded them. Groups are consecutive and sent in turn, keeping the outbox order.
+    private splitByTraceContext(rows: PendingRow[]): PendingRow[][] {
+        const groups: PendingRow[][] = [];
+
+        for (const row of rows) {
+            const last = groups.at(-1);
+            if (last && last[0].headers?.traceparent === row.headers?.traceparent) {
+                last.push(row);
+            } else {
+                groups.push([row]);
+            }
+        }
+
+        return groups;
     }
 
     // Each event type has its own topic, named after its public type (catalog.product.created.v1).

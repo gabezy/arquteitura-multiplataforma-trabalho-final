@@ -1,5 +1,8 @@
 import knex, { Knex } from "knex";
 import { Producer, TopicMessages } from "kafkajs";
+import { context, propagation, ROOT_CONTEXT, trace, TraceFlags } from "@opentelemetry/api";
+import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-hooks";
+import { W3CTraceContextPropagator } from "@opentelemetry/core";
 import { PostgreSqlContainer, StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import { OutboxRelay } from "./outbox-relay";
 import { KnexOutboxRepository } from "../persistence/knex-outbox.repository";
@@ -159,6 +162,55 @@ describe("OutboxRelay", () => {
     expect(maxInFlight).toBe(2);
     expect(publishedIds).toHaveLength(MORE_THAN_ONE_BATCH);
     expect(new Set(publishedIds).size).toBe(MORE_THAN_ONE_BATCH);
+  });
+
+  describe("trace context", () => {
+    const FIRST_TRACE = "0af7651916cd43dd8448eb211c80319c";
+    const SECOND_TRACE = "4bf92f3577b34da6a3ce929d0e0e4736";
+
+    const inTrace = <T>(traceId: string, fn: () => Promise<T>) =>
+      context.with(
+        trace.setSpanContext(ROOT_CONTEXT, { traceId, spanId: "b7ad6b7169203331", traceFlags: TraceFlags.SAMPLED }),
+        fn,
+      );
+
+    beforeAll(() => {
+      context.setGlobalContextManager(new AsyncLocalStorageContextManager().enable());
+      propagation.setGlobalPropagator(new W3CTraceContextPropagator());
+    });
+
+    afterAll(() => {
+      context.disable();
+      propagation.disable();
+    });
+
+    it("sends each event inside the trace that recorded it, batching consecutive events of one trace", async () => {
+      const activeTraces: (string | undefined)[] = [];
+      sendBatch.mockImplementation(async () => {
+        activeTraces.push(trace.getSpanContext(context.active())?.traceId);
+      });
+      await inTrace(FIRST_TRACE, () =>
+        appendEvents("Product", new SomethingHappened(PRODUCT_ID, 1), new SomethingHappened(PRODUCT_ID, 2)),
+      );
+      await inTrace(SECOND_TRACE, () => appendEvents("Product", new SomethingHappened(PRODUCT_ID, 3)));
+
+      await relay();
+
+      expect(activeTraces).toEqual([FIRST_TRACE, SECOND_TRACE]);
+      expect(sendBatch.mock.calls[0][0].topicMessages[0].messages).toHaveLength(2);
+    });
+
+    it("starts a new trace for events recorded outside of one", async () => {
+      let activeTrace: string | undefined = "not called";
+      sendBatch.mockImplementation(async () => {
+        activeTrace = trace.getSpanContext(context.active())?.traceId;
+      });
+      await appendEvents("Product", new SomethingHappened(PRODUCT_ID, 1));
+
+      await inTrace(FIRST_TRACE, relay);
+
+      expect(activeTrace).toBeUndefined();
+    });
   });
 
   describe("start", () => {
