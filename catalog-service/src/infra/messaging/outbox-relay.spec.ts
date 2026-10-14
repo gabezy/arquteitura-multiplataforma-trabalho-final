@@ -1,12 +1,14 @@
 import knex, { Knex } from "knex";
-import { Producer } from "kafkajs";
+import { Producer, TopicMessages } from "kafkajs";
+import { PostgreSqlContainer, StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import { OutboxRelay } from "./outbox-relay";
 import { KnexOutboxRepository } from "../persistence/knex-outbox.repository";
 import { createMigrationSource } from "../persistence/migration-source";
 import { DomainEvent } from "../../core/shared/domain/domain.event";
 
-const DATABASE_URL = process.env.DATABASE_URL ?? "postgresql://catalog:catalog@localhost:5432/catalog";
-const SCHEMA = "outbox_relay_spec";
+// Same image as catalog-db in ../compose.yaml: the relay relies on SKIP LOCKED and jsonb.
+const POSTGRES_IMAGE = "postgres:18-alpine";
+const CONTAINER_STARTUP_MS = 60_000;
 const PRODUCT_ID = "0b9f4c2e-6a1d-4f3b-9c8e-2d7a5e1f4b6c";
 
 class SomethingHappened extends DomainEvent {
@@ -26,6 +28,7 @@ class OtherThingHappened extends DomainEvent {
 }
 
 describe("OutboxRelay", () => {
+  let container: StartedPostgreSqlContainer;
   let db: Knex;
   let outbox: KnexOutboxRepository;
   const sendBatch = jest.fn();
@@ -35,15 +38,14 @@ describe("OutboxRelay", () => {
     db.transaction((tx) => outbox.append(tx, aggregateType, events));
 
   beforeAll(async () => {
-    db = knex({ client: "pg", connection: DATABASE_URL, searchPath: [SCHEMA] });
-    await db.raw("DROP SCHEMA IF EXISTS ?? CASCADE", [SCHEMA]);
-    await db.raw("CREATE SCHEMA ??", [SCHEMA]);
-    await db.migrate.latest({ migrationSource: createMigrationSource(), schemaName: SCHEMA });
+    container = await new PostgreSqlContainer(POSTGRES_IMAGE).start();
+    db = knex({ client: "pg", connection: container.getConnectionUri() });
+    await db.migrate.latest({ migrationSource: createMigrationSource() });
     outbox = new KnexOutboxRepository((event) => ({
       type: `test.${event.eventName}.v1`,
       data: event instanceof SomethingHappened ? { value: event.value } : {},
     }));
-  });
+  }, CONTAINER_STARTUP_MS);
 
   beforeEach(() => sendBatch.mockReset());
 
@@ -52,8 +54,8 @@ describe("OutboxRelay", () => {
   });
 
   afterAll(async () => {
-    await db.raw("DROP SCHEMA IF EXISTS ?? CASCADE", [SCHEMA]);
-    await db.destroy();
+    await db?.destroy();
+    await container?.stop();
   });
 
   const relay = () => new OutboxRelay(db, producer).relay();
@@ -126,6 +128,37 @@ describe("OutboxRelay", () => {
     await relay();
 
     expect(sendBatch).not.toHaveBeenCalled();
+  });
+
+  it("lets concurrent relays split the pending events without publishing any twice", async () => {
+    const MORE_THAN_ONE_BATCH = 150;
+    await appendEvents(
+      "Product",
+      ...Array.from({ length: MORE_THAN_ONE_BATCH }, (_, i) => new SomethingHappened(PRODUCT_ID, i)),
+    );
+    // The first batch is held until the second relay also reaches Kafka. Without
+    // SKIP LOCKED the second relay waits on the first one's rows, so they never overlap.
+    const HOLD_LIMIT_MS = 1000;
+    let inFlight = 0;
+    let maxInFlight = 0;
+    let releaseBatches: () => void = () => {};
+    const bothRelaysInFlight = new Promise<void>((resolve) => (releaseBatches = resolve));
+    sendBatch.mockImplementation(async () => {
+      inFlight++;
+      maxInFlight = Math.max(maxInFlight, inFlight);
+      if (inFlight === 2) releaseBatches();
+      await Promise.race([bothRelaysInFlight, new Promise((resolve) => setTimeout(resolve, HOLD_LIMIT_MS))]);
+      inFlight--;
+    });
+
+    await Promise.all([new OutboxRelay(db, producer).relay(), new OutboxRelay(db, producer).relay()]);
+
+    const publishedIds = sendBatch.mock.calls.flatMap(([batch]) =>
+      batch.topicMessages.flatMap((topic: TopicMessages) => topic.messages.map((message) => message.headers?.ce_id)),
+    );
+    expect(maxInFlight).toBe(2);
+    expect(publishedIds).toHaveLength(MORE_THAN_ONE_BATCH);
+    expect(new Set(publishedIds).size).toBe(MORE_THAN_ONE_BATCH);
   });
 
   describe("start", () => {

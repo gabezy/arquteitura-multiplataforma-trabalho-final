@@ -68,7 +68,7 @@ src/
   main.ts                        composition root: opens resources, calls the factories, starts the server
 ```
 
-Tests are co-located with the code they test: `foo.ts` has its spec in `foo.spec.ts` in the same folder. There is no separate `test/` directory. `tsconfig.json` excludes `*.spec.ts` from the build, and Jest picks them up from `src/`. `infra/persistence/*.spec.ts` runs against an in-memory SQLite. `infra/messaging/outbox-relay.spec.ts` needs the `catalog-db` Postgres from `../compose.yaml` (it uses `SKIP LOCKED` and `jsonb`) and works in a throwaway `outbox_relay_spec` schema, so start `catalog-db` before `npm test`.
+Tests are co-located with the code they test: `foo.ts` has its spec in `foo.spec.ts` in the same folder. There is no separate `test/` directory. `tsconfig.json` excludes `*.spec.ts` from the build, and Jest picks them up from `src/`. `infra/persistence/*.spec.ts` runs against an in-memory SQLite. `infra/messaging/outbox-relay.spec.ts` needs a real Postgres (it uses `SKIP LOCKED` and `jsonb`), so it starts a throwaway `postgres:18-alpine` container with Testcontainers: Docker must be running for `npm test`, but `catalog-db` does not.
 
 - Dependencies point inward only: adapters depend on ports, and `core` never imports Express, Knex, pino, OpenTelemetry, or anything in `infra`.
 - Facades are plain classes that implement one or more `port/in` interfaces and receive their `port/out` dependencies through the constructor.
