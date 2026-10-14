@@ -19,3 +19,9 @@ export class DuplicateSkuError extends ConflictError {
         super(`Product with SKU ${skus.join(", ")} already exists.`);
     }
 }
+
+export class AnalysisAlreadyCompletedError extends ConflictError {
+    constructor(readonly sku: string, readonly status: string) {
+        super(`Analysis of product ${sku} was already completed as ${status}.`);
+    }
+}

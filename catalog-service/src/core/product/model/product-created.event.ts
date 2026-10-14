@@ -1,11 +1,12 @@
 import { DomainEvent } from "../../shared/domain/domain.event";
 
-export class ProductCreatedEvent extends DomainEvent {
+export class ProductCreated extends DomainEvent {
 
-    readonly eventName = 'ProductCreatedEvent';
+    readonly eventName = 'ProductCreated';
 
     constructor(
-        aggregateId: string, 
+        aggregateId: string,
+        readonly sku: string,
         readonly name: string,
         readonly description: string,
         readonly price: number,

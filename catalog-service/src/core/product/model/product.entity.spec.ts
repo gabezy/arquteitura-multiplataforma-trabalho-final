@@ -3,7 +3,9 @@ import { Price } from "../../shared/domain/price.vo";
 import { Quantity } from "../../shared/domain/quantity.vo";
 import { ProductAnalysisStatus } from "./product-analysis-status.vo";
 import { NewProductProps, ProductEntity } from "./product.entity";
-import { InsufficientStockError, InvalidProductError } from "./product.errors";
+import { AnalysisAlreadyCompletedError, InsufficientStockError, InvalidProductError } from "./product.errors";
+import { ProductCreated } from "./product-created.event";
+import { ProductAnalysisApproved, ProductAnalysisRejected } from "./product-analysis.events";
 import { Sku } from "./sku.vo";
 
 const newProductProps = (overrides: Partial<NewProductProps> = {}): NewProductProps => ({
@@ -24,6 +26,9 @@ const restoreWithId = (id: string, overrides: Partial<NewProductProps> = {}): Pr
     id: new Id(id),
     analysisStatus: ProductAnalysisStatus.PENDING,
   });
+
+const productWithAnalysis = (analysisStatus: ProductAnalysisStatus): ProductEntity =>
+  ProductEntity.restore({ ...newProductProps(), id: new Id("product-1"), analysisStatus });
 
 describe("ProductEntity", () => {
   describe("create", () => {
@@ -53,6 +58,32 @@ describe("ProductEntity", () => {
       const product = ProductEntity.create(newProductProps());
 
       expect(product.analysisStatus).toBe(ProductAnalysisStatus.PENDING);
+    });
+
+    it("records that the product was created", () => {
+      const product = ProductEntity.create(newProductProps());
+
+      const events = product.pullDomainEvents();
+
+      expect(events).toHaveLength(1);
+      expect(events[0]).toBeInstanceOf(ProductCreated);
+      expect(events[0]).toMatchObject({
+        eventName: "ProductCreated",
+        aggregateId: product.id.value,
+        sku: "NB-001",
+        name: "Notebook",
+        description: "Notebook 16GB RAM",
+        price: 4500,
+        stock: 10,
+      });
+    });
+
+    it("hands out its events only once", () => {
+      const product = ProductEntity.create(newProductProps());
+
+      product.pullDomainEvents();
+
+      expect(product.pullDomainEvents()).toEqual([]);
     });
 
     it("accepts zero stock", () => {
@@ -95,6 +126,10 @@ describe("ProductEntity", () => {
       expect(product.price).toBe(price);
       expect(product.stock).toBe(stock);
       expect(product.analysisStatus).toBe(ProductAnalysisStatus.APPROVED);
+    });
+
+    it("records no event", () => {
+      expect(restoreWithId("product-1").pullDomainEvents()).toEqual([]);
     });
 
     it("rejects an invalid product", () => {
@@ -155,22 +190,77 @@ describe("ProductEntity", () => {
   });
 
   describe("approveAnalysis", () => {
-    it("changes the analysis status to APPROVED", () => {
-      const product = ProductEntity.create(newProductProps());
+    it("approves a product pending analysis", () => {
+      const product = productWithAnalysis(ProductAnalysisStatus.PENDING);
 
       product.approveAnalysis();
 
       expect(product.analysisStatus).toBe(ProductAnalysisStatus.APPROVED);
     });
+
+    it("records that the analysis was approved", () => {
+      const product = productWithAnalysis(ProductAnalysisStatus.PENDING);
+
+      product.approveAnalysis();
+
+      const events = product.pullDomainEvents();
+      expect(events).toHaveLength(1);
+      expect(events[0]).toBeInstanceOf(ProductAnalysisApproved);
+      expect(events[0]).toMatchObject({ aggregateId: "product-1", sku: "NB-001" });
+    });
+
+    it("ignores an approval of an already approved product", () => {
+      const product = productWithAnalysis(ProductAnalysisStatus.APPROVED);
+
+      product.approveAnalysis();
+
+      expect(product.analysisStatus).toBe(ProductAnalysisStatus.APPROVED);
+      expect(product.pullDomainEvents()).toEqual([]);
+    });
+
+    it("rejects approving a rejected product", () => {
+      const product = productWithAnalysis(ProductAnalysisStatus.REJECTED);
+
+      expect(() => product.approveAnalysis()).toThrow(AnalysisAlreadyCompletedError);
+      expect(() => product.approveAnalysis()).toThrow("Analysis of product NB-001 was already completed as REJECTED.");
+      expect(product.analysisStatus).toBe(ProductAnalysisStatus.REJECTED);
+      expect(product.pullDomainEvents()).toEqual([]);
+    });
   });
 
   describe("rejectAnalysis", () => {
-    it("changes the analysis status to REJECTED", () => {
-      const product = ProductEntity.create(newProductProps());
+    it("rejects a product pending analysis", () => {
+      const product = productWithAnalysis(ProductAnalysisStatus.PENDING);
 
       product.rejectAnalysis();
 
       expect(product.analysisStatus).toBe(ProductAnalysisStatus.REJECTED);
+    });
+
+    it("records that the analysis was rejected", () => {
+      const product = productWithAnalysis(ProductAnalysisStatus.PENDING);
+
+      product.rejectAnalysis();
+
+      const events = product.pullDomainEvents();
+      expect(events).toHaveLength(1);
+      expect(events[0]).toBeInstanceOf(ProductAnalysisRejected);
+      expect(events[0]).toMatchObject({ aggregateId: "product-1", sku: "NB-001" });
+    });
+
+    it("ignores a rejection of an already rejected product", () => {
+      const product = productWithAnalysis(ProductAnalysisStatus.REJECTED);
+
+      product.rejectAnalysis();
+
+      expect(product.pullDomainEvents()).toEqual([]);
+    });
+
+    it("rejects rejecting an approved product", () => {
+      const product = productWithAnalysis(ProductAnalysisStatus.APPROVED);
+
+      expect(() => product.rejectAnalysis()).toThrow(AnalysisAlreadyCompletedError);
+      expect(product.analysisStatus).toBe(ProductAnalysisStatus.APPROVED);
     });
   });
 

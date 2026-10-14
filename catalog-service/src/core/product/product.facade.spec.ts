@@ -1,5 +1,5 @@
 import { ProductEntity } from "./model/product.entity";
-import { DuplicateSkuError, InvalidProductError, ProductNotFoundError } from "./model/product.errors";
+import { AnalysisAlreadyCompletedError, DuplicateSkuError, InvalidProductError, ProductNotFoundError } from "./model/product.errors";
 import { Sku } from "./model/sku.vo";
 import { AddProductPortInput } from "./port/in/create-product.port";
 import { ProductRepositoryPort } from "./port/out/product.repository";
@@ -118,6 +118,34 @@ describe("ProductFacade", () => {
 
     it("throws when the product does not exist", async () => {
       await expect(facade.find({ sku: "ARB-2131" })).rejects.toThrow(ProductNotFoundError);
+    });
+  });
+
+  describe("completeAnalysis", () => {
+    it.each([
+      ["APPROVED", "APPROVED"],
+      ["REJECTED", "REJECTED"],
+    ] as const)("stores a %s analysis", async (status, expected) => {
+      await facade.add(productInput());
+
+      await facade.completeAnalysis({ sku: "NB-001", status });
+
+      expect((await facade.find({ sku: "NB-001" })).analysisStatus).toBe(expected);
+    });
+
+    it("throws when the product does not exist", async () => {
+      await expect(facade.completeAnalysis({ sku: "ARB-2131", status: "APPROVED" })).rejects.toThrow(
+        ProductNotFoundError,
+      );
+    });
+
+    it("throws when the analysis was already completed with another result", async () => {
+      await facade.add(productInput());
+      await facade.completeAnalysis({ sku: "NB-001", status: "APPROVED" });
+
+      await expect(facade.completeAnalysis({ sku: "NB-001", status: "REJECTED" })).rejects.toThrow(
+        AnalysisAlreadyCompletedError,
+      );
     });
   });
 });

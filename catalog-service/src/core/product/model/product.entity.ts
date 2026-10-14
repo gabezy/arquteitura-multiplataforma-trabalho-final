@@ -3,9 +3,10 @@ import { Quantity } from "../../shared/domain/quantity.vo";
 import { Price } from "../../shared/domain/price.vo";
 import { ProductAnalysisStatus } from "./product-analysis-status.vo";
 import { Sku } from "./sku.vo";
-import { InsufficientStockError, InvalidProductError } from "./product.errors";
+import { AnalysisAlreadyCompletedError, InsufficientStockError, InvalidProductError } from "./product.errors";
 import { AggregateRoot } from "../../shared/domain/aggregate.root";
-import { ProductCreatedEvent } from "./product-created.event";
+import { ProductCreated } from "./product-created.event";
+import { ProductAnalysisApproved, ProductAnalysisRejected } from "./product-analysis.events";
 
 export interface NewProductProps {
     sku: Sku;
@@ -50,8 +51,9 @@ export class ProductEntity extends AggregateRoot<Id> {
             analysisStatus: ProductAnalysisStatus.PENDING,
         });
 
-        product.record(new ProductCreatedEvent(
+        product.record(new ProductCreated(
             product.id.value,
+            product.sku.value,
             product.name,
             product.description,
             product.price.value,
@@ -136,11 +138,28 @@ export class ProductEntity extends AggregateRoot<Id> {
     }
 
     approveAnalysis(): void {
-        this._analysisStatus = ProductAnalysisStatus.APPROVED;
+        if (this.completeAnalysisAs(ProductAnalysisStatus.APPROVED)) {
+            this.record(new ProductAnalysisApproved(this.id.value, this._sku.value));
+        }
     }
 
     rejectAnalysis(): void {
-        this._analysisStatus = ProductAnalysisStatus.REJECTED;
+        if (this.completeAnalysisAs(ProductAnalysisStatus.REJECTED)) {
+            this.record(new ProductAnalysisRejected(this.id.value, this._sku.value));
+        }
+    }
+
+    // A product is analysed once. Repeating the same result is a no-op, so a redelivered
+    // message has no effect; reversing the result is a conflict.
+    private completeAnalysisAs(result: ProductAnalysisStatus): boolean {
+        if (this._analysisStatus.equals(result)) {
+            return false;
+        }
+        if (!this._analysisStatus.equals(ProductAnalysisStatus.PENDING)) {
+            throw new AnalysisAlreadyCompletedError(this._sku.value, this._analysisStatus.value);
+        }
+        this._analysisStatus = result;
+        return true;
     }
 
 }
