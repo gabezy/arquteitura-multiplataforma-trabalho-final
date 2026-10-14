@@ -46,13 +46,12 @@ describe('app', () => {
     expect(response.status).toBe(404);
   });
 
-  it('POST /products returns 201 with the product location', async () => {
+  it('POST /products returns 202', async () => {
     addProductPort.add.mockResolvedValue({ id: PRODUCT_ID, sku: 'NB-001' });
 
     const response = await request(app).post('/products').send(productInput);
 
-    expect(response.status).toBe(201);
-    expect(response.headers.location).toBe('/products/sku/NB-001');
+    expect(response.status).toBe(202);
     expect(addProductPort.add).toHaveBeenCalledWith(productInput);
   });
 
@@ -118,7 +117,7 @@ describe('app', () => {
 
     const response = await request(app).post('/products').send({ ...productInput, sku: 'x', price: -1 });
 
-    expect(response.status).toBe(201);
+    expect(response.status).toBe(202);
   });
 
   it.each([

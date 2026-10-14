@@ -15,7 +15,7 @@ export class ProductController {
 
     addProduct = async (req: Request<NoParams, unknown, AddProductPortInput>, res: Response): Promise<void> => {
         const product = await this.addProductPort.add(req.body);
-        res.status(201).location(`/products/sku/${product.sku}`).end();
+        res.status(202).end();
     };
 
     import = async (req: Request<NoParams, unknown, ImportProductsPortInput>, res: Response): Promise<void> => {
