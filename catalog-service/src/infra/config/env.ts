@@ -4,6 +4,8 @@ export interface AppConfig {
   serviceName: string;
   otelCollectorUrl: string;
   databaseUrl: string;
+  produtoCriadoTopic: string;
+  produtoAnalisadoTopic: string;
 }
 
 const DEFAULT_PORT = 8082;
@@ -15,6 +17,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     serviceName: env.OTEL_SERVICE_NAME ?? 'catalog-service',
     otelCollectorUrl: env.OTEL_COLLECTOR_URL ?? 'http://localhost:4318',
     databaseUrl: env.DATABASE_URL ?? 'postgresql://catalog:catalog@localhost:5432/catalog',
+    produtoCriadoTopic: env.PRODUTO_CRIADO_TOPIC ?? 'produto.criado.v1',
+    produtoAnalisadoTopic: env.PRODUTO_ANALISADO_TOPIC ?? 'produto.analisado.v1',
   };
 }
 

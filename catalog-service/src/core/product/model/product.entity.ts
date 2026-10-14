@@ -1,10 +1,11 @@
-import { Entity } from "../../shared/domain/entity";
 import { Id } from "../../shared/domain/id";
 import { Quantity } from "../../shared/domain/quantity.vo";
 import { Price } from "../../shared/domain/price.vo";
 import { ProductAnalysisStatus } from "./product-analysis-status.vo";
 import { Sku } from "./sku.vo";
 import { InsufficientStockError, InvalidProductError } from "./product.errors";
+import { AggregateRoot } from "../../shared/domain/aggregate.root";
+import { ProductCreatedEvent } from "./product-created.event";
 
 export interface NewProductProps {
     sku: Sku;
@@ -34,7 +35,7 @@ interface ProductEntityProps {
     analysisStatus: ProductAnalysisStatus;
 }
 
-export class ProductEntity extends Entity<Id> {
+export class ProductEntity extends AggregateRoot<Id> {
 
     private readonly _sku: Sku;
     private _name: string;
@@ -44,16 +45,20 @@ export class ProductEntity extends Entity<Id> {
     private _analysisStatus: ProductAnalysisStatus;
 
     public static create(props: NewProductProps): ProductEntity {
-        const data: ProductEntityProps = {
-            sku: props.sku,
-            name: props.name,
-            description: props.description,
-            price: props.price,
-            stock: props.stock,
+        const product = new ProductEntity({
+            ...props,
             analysisStatus: ProductAnalysisStatus.PENDING,
-        };
+        });
 
-        return new ProductEntity(data);
+        product.record(new ProductCreatedEvent(
+            product.id.value,
+            product.name,
+            product.description,
+            product.price.value,
+            product.stock.value
+        ));
+
+        return product;
     }
 
     public static restore(props: RestoreProductEntityProps): ProductEntity {

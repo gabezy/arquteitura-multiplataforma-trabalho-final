@@ -7,6 +7,7 @@ import { Price } from "../../core/shared/domain/price.vo";
 import { Quantity } from "../../core/shared/domain/quantity.vo";
 import { ProductAnalysisStatus } from "../../core/product/model/product-analysis-status.vo";
 import { ProductRepositoryPort } from "../../core/product/port/out/product.repository";
+import { KnexOutboxRepository } from "./knex-outbox.repository";
 
 interface ProductRow {
   id: string;
@@ -23,13 +24,17 @@ const SKU_UNIQUE_INDEX = 'products_sku_unique';
 
 export class KnexProductRepository implements ProductRepositoryPort {
 
-    constructor(private readonly knex: Knex) {}
+    constructor(private readonly knex: Knex, private readonly outbox: KnexOutboxRepository) {}
 
     async save(product: ProductEntity): Promise<void> {
         await this.rejectingDuplicateSkus([product], () =>
-            this.knex(TABLE_NAME).insert(this.toRow(product))
-                .onConflict('id')
-                .merge()
+            this.knex.transaction(async tx => {
+                await tx(TABLE_NAME).insert(this.toRow(product))
+                    .onConflict('id')
+                    .merge();
+
+                await this.outbox.append(tx, 'Product', product.pullDomainEvents());
+            })
         );
     }
 
@@ -44,6 +49,9 @@ export class KnexProductRepository implements ProductRepositoryPort {
                 await tx(TABLE_NAME).insert(rows)
                     .onConflict('id')
                     .merge();
+
+                const events = products.flatMap(product => product.pullDomainEvents());
+                await this.outbox.append(tx, 'Product', events);
             })
         );
     }
