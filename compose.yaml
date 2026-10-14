@@ -70,6 +70,17 @@ services:
       retries: 10
       start_period: 20s
 
+  kafka-init:
+    image: apache/kafka:4.3.1
+    container_name: kafka-init
+    entrypoint: ["/bin/sh", "/scripts/create-topics.sh"]
+    restart: "no"
+    volumes:
+      - ./docker/kafka/create-topics.sh:/scripts/create-topics.sh:ro
+    depends_on:
+      kafka:
+        condition: service_healthy
+
   kafka-ui:
     image: kafbat/kafka-ui:v1.5.0
     container_name: kafka-ui

@@ -4,8 +4,6 @@ import { Message, Producer, TopicMessages } from "kafkajs";
 const BATCH_SIZE = 100;
 const SOURCE = "/catalog-service";
 
-export type TopicsByAggregate = Record<string, string>;
-
 export interface RelayLoopOptions {
     intervalMs: number;
     onError: (err: unknown) => void;
@@ -14,7 +12,6 @@ export interface RelayLoopOptions {
 interface PendingRow {
     sequence: string;
     event_id: string;
-    aggregate_type: string;
     aggregate_id: string;
     event_type: string;
     payload: unknown;
@@ -27,11 +24,7 @@ export class OutboxRelay {
     private loop?: Promise<void>;
     private wakeUp?: () => void;
 
-    constructor(
-        private readonly knex: Knex,
-        private readonly producer: Producer,
-        private readonly topics: TopicsByAggregate,
-    ) {}
+    constructor(private readonly knex: Knex, private readonly producer: Producer) {}
 
     // Each round starts only after the previous one ends, so rounds never overlap
     // and a slow broker cannot reorder events.
@@ -88,23 +81,16 @@ export class OutboxRelay {
         });
     }
 
+    // Each event type has its own topic, named after its public type (catalog.product.created.v1).
     private groupByTopic(rows: PendingRow[]): TopicMessages[] {
         const messagesByTopic = new Map<string, Message[]>();
 
         for (const row of rows) {
-            const topic = this.topicOf(row.aggregate_type);
+            const topic = row.event_type;
             messagesByTopic.set(topic, [...(messagesByTopic.get(topic) ?? []), this.toMessage(row)]);
         }
 
         return [...messagesByTopic].map(([topic, messages]) => ({ topic, messages }));
-    }
-
-    private topicOf(aggregateType: string): string {
-        const topic = this.topics[aggregateType];
-        if (!topic) {
-            throw new Error(`No topic for aggregate ${aggregateType}.`);
-        }
-        return topic;
     }
 
     // CloudEvents binary mode: attributes go in ce_* headers, the value is the event data.

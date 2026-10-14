@@ -5,7 +5,6 @@ export interface AppConfig {
   otelCollectorUrl: string;
   databaseUrl: string;
   kafkaBrokers: string[];
-  productEventsTopic: string;
   produtoAnalisadoTopic: string;
   productAnalysisDeadLetterTopic: string;
 }
@@ -20,7 +19,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     otelCollectorUrl: env.OTEL_COLLECTOR_URL ?? 'http://localhost:4318',
     databaseUrl: env.DATABASE_URL ?? 'postgresql://catalog:catalog@localhost:5432/catalog',
     kafkaBrokers: parseBrokers(env.KAFKA_BROKERS),
-    productEventsTopic: env.PRODUCT_EVENTS_TOPIC ?? 'catalog.product.events.v1',
     produtoAnalisadoTopic: env.PRODUTO_ANALISADO_TOPIC ?? 'produto.analisado.v1',
     productAnalysisDeadLetterTopic: env.PRODUCT_ANALYSIS_DLQ_TOPIC ?? 'catalog.product-analysis.dlq',
   };

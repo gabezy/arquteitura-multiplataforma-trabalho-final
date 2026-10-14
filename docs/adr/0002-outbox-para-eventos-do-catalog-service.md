@@ -9,7 +9,7 @@
 
 ## Contexto
 
-- **Necessidade:** eventos de produto (hoje `ProductCreated`, publicado como `catalog.product.created.v1` no tópico `catalog.product.events.v1`) são consumidos pelo `compliance-service` (análise do produto, status `PENDING` → `APPROVED`/`REJECTED`) e pelo `marketplace-gateway`.
+- **Necessidade:** eventos de produto (hoje `ProductCreated`, `ProductAnalysisApproved` e `ProductAnalysisRejected`, cada um no próprio tópico, nomeado pelo tipo público: `catalog.product.created.v1`, `catalog.product.approved.v1`, `catalog.product.rejected.v1`) são consumidos pelo `compliance-service` (análise do produto, status `PENDING` → `APPROVED`/`REJECTED`) e pelo `marketplace-gateway`.
 - **O que não pode dar errado:** produto salvo sem evento publicado, ou evento publicado de produto cuja transação sofreu rollback (dual write entre Postgres e Kafka).
 - **Stack:** catalog-service em Node/TypeScript, Postgres via Knex, Kafka 4.x via `kafkajs`.
 - **Prazo:** 3 semanas, time de 7 integrantes.
@@ -19,7 +19,7 @@
 Adotaremos o Transactional Outbox com relay por polling no próprio catalog-service, para garantir que entidade e evento sejam gravados atomicamente na mesma transação do Postgres.
 
 - `save`/`saveAll` gravam produto e eventos na tabela `outbox` na mesma transação.
-- O relay lê `published_at IS NULL` ordenado por `sequence`, publica no Kafka com `aggregate_id` como chave e marca `published_at`.
+- O relay lê `published_at IS NULL` ordenado por `sequence`, publica cada evento no tópico do seu tipo com `aggregate_id` como chave e marca `published_at`.
 - Entrega at-least-once: consumidores deduplicam por `event_id`.
 
 ## Alternativas consideradas
@@ -35,7 +35,7 @@ Adotaremos o Transactional Outbox com relay por polling no próprio catalog-serv
 
 **Positivas:**
 - Nenhum evento perdido nem fantasma: evento existe se e somente se a transação do produto commitou.
-- Ordem por agregado preservada (`sequence` + `aggregate_id` como chave de partição).
+- Ordem por produto preservada dentro de cada tipo de evento (`sequence` + `aggregate_id` como chave de partição). Entre tipos diferentes (tópicos diferentes) não há ordem garantida.
 - Tabela já no formato do Outbox Event Router do Debezium, então migrar para CDC não muda domínio nem repositório.
 
 **Negativas:**

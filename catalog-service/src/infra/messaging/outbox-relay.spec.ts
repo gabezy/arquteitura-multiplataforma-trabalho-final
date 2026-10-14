@@ -7,13 +7,20 @@ import { DomainEvent } from "../../core/shared/domain/domain.event";
 
 const DATABASE_URL = process.env.DATABASE_URL ?? "postgresql://catalog:catalog@localhost:5432/catalog";
 const SCHEMA = "outbox_relay_spec";
-const PRODUCT_TOPIC = "catalog.product.events.v1";
 const PRODUCT_ID = "0b9f4c2e-6a1d-4f3b-9c8e-2d7a5e1f4b6c";
 
 class SomethingHappened extends DomainEvent {
   readonly eventName = "SomethingHappened";
 
   constructor(aggregateId: string, readonly value: number) {
+    super(aggregateId);
+  }
+}
+
+class OtherThingHappened extends DomainEvent {
+  readonly eventName = "OtherThingHappened";
+
+  constructor(aggregateId: string) {
     super(aggregateId);
   }
 }
@@ -33,8 +40,8 @@ describe("OutboxRelay", () => {
     await db.raw("CREATE SCHEMA ??", [SCHEMA]);
     await db.migrate.latest({ migrationSource: createMigrationSource(), schemaName: SCHEMA });
     outbox = new KnexOutboxRepository((event) => ({
-      type: "test.something.happened.v1",
-      data: { value: (event as SomethingHappened).value },
+      type: `test.${event.eventName}.v1`,
+      data: event instanceof SomethingHappened ? { value: event.value } : {},
     }));
   });
 
@@ -49,18 +56,30 @@ describe("OutboxRelay", () => {
     await db.destroy();
   });
 
-  const relay = () => new OutboxRelay(db, producer, { Product: PRODUCT_TOPIC }).relay();
+  const relay = () => new OutboxRelay(db, producer).relay();
 
-  it("publishes pending events to the topic of their aggregate, keyed by aggregate id", async () => {
-    await appendEvents("Product", new SomethingHappened(PRODUCT_ID, 42));
+  it("publishes each pending event to the topic named after its type, keyed by aggregate id", async () => {
+    await appendEvents(
+      "Product",
+      new SomethingHappened(PRODUCT_ID, 42),
+      new OtherThingHappened(PRODUCT_ID),
+      new SomethingHappened(PRODUCT_ID, 43),
+    );
 
     await relay();
 
     expect(sendBatch).toHaveBeenCalledWith({
       topicMessages: [
         {
-          topic: PRODUCT_TOPIC,
-          messages: [expect.objectContaining({ key: PRODUCT_ID, value: JSON.stringify({ value: 42 }) })],
+          topic: "test.SomethingHappened.v1",
+          messages: [
+            expect.objectContaining({ key: PRODUCT_ID, value: JSON.stringify({ value: 42 }) }),
+            expect.objectContaining({ key: PRODUCT_ID, value: JSON.stringify({ value: 43 }) }),
+          ],
+        },
+        {
+          topic: "test.OtherThingHappened.v1",
+          messages: [expect.objectContaining({ key: PRODUCT_ID, value: JSON.stringify({}) })],
         },
       ],
     });
@@ -77,7 +96,7 @@ describe("OutboxRelay", () => {
       ce_specversion: "1.0",
       ce_id: event.eventId,
       ce_source: "/catalog-service",
-      ce_type: "test.something.happened.v1",
+      ce_type: "test.SomethingHappened.v1",
       ce_subject: PRODUCT_ID,
       ce_time: event.occurredOn.toISOString(),
       "content-type": "application/json",
@@ -103,15 +122,6 @@ describe("OutboxRelay", () => {
     expect(sendBatch).toHaveBeenCalledTimes(2);
   });
 
-  it("keeps events pending when their aggregate has no topic", async () => {
-    await appendEvents("Category", new SomethingHappened(PRODUCT_ID, 1));
-
-    await expect(relay()).rejects.toThrow("No topic for aggregate Category.");
-
-    expect(sendBatch).not.toHaveBeenCalled();
-    expect(await db("outbox").whereNull("published_at").count({ total: "*" }).first()).toEqual({ total: "1" });
-  });
-
   it("does not call Kafka when nothing is pending", async () => {
     await relay();
 
@@ -123,7 +133,7 @@ describe("OutboxRelay", () => {
     let running: OutboxRelay | undefined;
 
     const startRelay = (onError: (err: unknown) => void = () => {}) => {
-      running = new OutboxRelay(db, producer, { Product: PRODUCT_TOPIC });
+      running = new OutboxRelay(db, producer);
       running.start({ intervalMs: INTERVAL_MS, onError });
       return running;
     };

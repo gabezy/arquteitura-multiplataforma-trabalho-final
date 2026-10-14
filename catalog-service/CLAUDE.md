@@ -38,7 +38,6 @@ npm run migrate:deploy                    # apply from dist/ (used by the Docker
 Config comes from env vars (see `.env.example`; `.env` is loaded if present): `PORT` (8082), `LOG_LEVEL`, `OTEL_SERVICE_NAME`, `OTEL_COLLECTOR_URL` (`http://localhost:4318`, the same default as `bff-gateway`), `DATABASE_URL`, and Kafka:
 
 - `KAFKA_BROKERS`: comma-separated list, default `localhost:9092`. Inside a compose container use `kafka:19092` (see `../CLAUDE.md`).
-- `PRODUCT_EVENTS_TOPIC` (`catalog.product.events.v1`): where the catalog publishes its product events.
 - `PRODUTO_ANALISADO_TOPIC` (`produto.analisado.v1`): analysis results consumed from the compliance-service.
 - `PRODUCT_ANALYSIS_DLQ_TOPIC` (`catalog.product-analysis.dlq`): analysis messages that can never be processed.
 
@@ -95,5 +94,6 @@ Domain events reach Kafka through a transactional outbox (see `../docs/adr/0002-
 
 - Aggregates extend `AggregateRoot` and `record(...)` domain events. The repository saves the aggregate and `pullDomainEvents()` into the `outbox` table in the same transaction. The core never sees Kafka.
 - `KnexOutboxRepository` stores the integration event, not the domain event. Every domain event that leaves the service needs a mapping in `infra/messaging/<aggregate>.integration-events.ts` (public, versioned type such as `catalog.product.created.v1`). An unmapped event throws.
-- `OutboxRelay` publishes pending rows with `aggregate_id` as the key and CloudEvents `ce_*` headers, routing by `aggregate_type`. A new aggregate needs its topic in the relay map in `main.ts`. Delivery is at-least-once.
+- `OutboxRelay` publishes each pending row to the topic named after its public type (one topic per event, e.g. `catalog.product.created.v1`), with `aggregate_id` as the key and CloudEvents `ce_*` headers. Delivery is at-least-once. Order is kept per product within one event type only, not across types.
+- A new published event needs its topic in `../docker/kafka/create-topics.sh`.
 - Consumers are driving adapters: they validate the message with zod, translate it to a `port/in` input, send messages that can never succeed (invalid, or a `DomainError`) to a dead letter topic, and rethrow anything else so Kafka redelivers it.

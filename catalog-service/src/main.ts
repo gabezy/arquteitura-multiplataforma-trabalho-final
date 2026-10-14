@@ -23,7 +23,7 @@ const { productController, productAnalysisConsumer } = createProductModule({
   },
   logger,
 });
-const relay = new OutboxRelay(db, producer, { Product: config.productEventsTopic });
+const relay = new OutboxRelay(db, producer);
 
 async function start(): Promise<void> {
   await producer.connect();
