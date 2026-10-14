@@ -1,6 +1,6 @@
 package br.com.puc.multiplataforma.bffgateway.core.catalog.usecase.importcatalog;
 
-import br.com.puc.multiplataforma.bffgateway.core.catalog.domain.Product;
+import br.com.puc.multiplataforma.bffgateway.core.catalog.domain.NewProduct;
 import br.com.puc.multiplataforma.bffgateway.core.catalog.exception.InvalidCatalogException;
 import br.com.puc.multiplataforma.bffgateway.core.catalog.gateway.CatalogGateway;
 import br.com.puc.multiplataforma.bffgateway.core.catalog.gateway.CatalogSpreadsheetReader;
@@ -21,25 +21,25 @@ public class ImportExcelCatalog {
     }
 
     public ImportCatalogResult execute(InputStream spreadsheet) {
-        List<Product> products = spreadsheetReader.read(spreadsheet);
-        ensureNotEmpty(products);
-        ensureUniqueSkus(products);
+        List<NewProduct> newProducts = spreadsheetReader.read(spreadsheet);
+        ensureNotEmpty(newProducts);
+        ensureUniqueSkus(newProducts);
 
-        catalogGateway.importProducts(products);
+        catalogGateway.importProducts(newProducts);
 
-        return new ImportCatalogResult(products.size());
+        return new ImportCatalogResult(newProducts.size());
     }
 
-    private static void ensureNotEmpty(List<Product> products) {
-        if (products.isEmpty()) {
+    private static void ensureNotEmpty(List<NewProduct> newProducts) {
+        if (newProducts.isEmpty()) {
             throw new InvalidCatalogException("spreadsheet has no products");
         }
     }
 
-    private static void ensureUniqueSkus(List<Product> products) {
+    private static void ensureUniqueSkus(List<NewProduct> newProducts) {
         Set<String> seenSkus = new HashSet<>();
-        List<String> errors = products.stream()
-                .map(Product::sku)
+        List<String> errors = newProducts.stream()
+                .map(NewProduct::sku)
                 .filter(sku -> !seenSkus.add(sku))
                 .distinct()
                 .map(sku -> "duplicated sku: " + sku)

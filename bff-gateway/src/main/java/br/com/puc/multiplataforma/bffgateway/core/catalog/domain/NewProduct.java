@@ -4,12 +4,11 @@ import br.com.puc.multiplataforma.bffgateway.core.catalog.exception.InvalidProdu
 
 import java.math.BigDecimal;
 
-public record Product(String sku, String name, String description, BigDecimal price, String category, int stock) {
+public record NewProduct(String sku, String name, String description, BigDecimal price, int stock) {
 
-    public Product {
+    public NewProduct {
         requireText(sku, "sku");
         requireText(name, "name");
-        requireText(category, "category");
         if (price == null) {
             throw new InvalidProductException("price is required");
         }

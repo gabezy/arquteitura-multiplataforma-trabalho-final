@@ -1,6 +1,6 @@
 package br.com.puc.multiplataforma.bffgateway.infra.catalog.spreadsheet;
 
-import br.com.puc.multiplataforma.bffgateway.core.catalog.domain.Product;
+import br.com.puc.multiplataforma.bffgateway.core.catalog.domain.NewProduct;
 import br.com.puc.multiplataforma.bffgateway.core.catalog.exception.InvalidCatalogException;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -20,7 +20,7 @@ import static org.assertj.core.api.InstanceOfAssertFactories.LIST;
 
 class PoiCatalogSpreadsheetReaderTest {
 
-    private static final Object[] HEADER = {"sku", "name", "description", "price", "category", "stock"};
+    private static final Object[] HEADER = {"sku", "name", "description", "price", "stock"};
 
     private final PoiCatalogSpreadsheetReader reader = new PoiCatalogSpreadsheetReader();
 
@@ -28,27 +28,27 @@ class PoiCatalogSpreadsheetReaderTest {
     void readsProductsFromNumericAndTextCells() throws IOException {
         InputStream spreadsheet = spreadsheet(
                 HEADER,
-                new Object[]{"SKU-1", "Notebook", "16GB RAM", 4999.9, "electronics", 10.0},
-                new Object[]{1234.0, "Mouse", "", "79,90", "accessories", "5"}
+                new Object[]{"SKU-1", "Notebook", "16GB RAM", 4999.9, 10.0},
+                new Object[]{1234.0, "Mouse", "", "79,90", "5"}
         );
 
-        List<Product> products = reader.read(spreadsheet);
+        List<NewProduct> newProducts = reader.read(spreadsheet);
 
-        assertThat(products).containsExactly(
-                new Product("SKU-1", "Notebook", "16GB RAM", BigDecimal.valueOf(4999.9), "electronics", 10),
-                new Product("1234", "Mouse", "", new BigDecimal("79.90"), "accessories", 5)
+        assertThat(newProducts).containsExactly(
+                new NewProduct("SKU-1", "Notebook", "16GB RAM", BigDecimal.valueOf(4999.9), 10),
+                new NewProduct("1234", "Mouse", "", new BigDecimal("79.90"), 5)
         );
     }
 
     @Test
     void mapsColumnsByHeaderNameIgnoringOrderAndCase() throws IOException {
         InputStream spreadsheet = spreadsheet(
-                new Object[]{"Stock", "PRICE", "Category", "Description", "Name", "SKU"},
-                new Object[]{3.0, 10.0, "books", "Hardcover", "Clean Code", "SKU-1"}
+                new Object[]{"Stock", "PRICE", "Description", "Name", "SKU"},
+                new Object[]{3.0, 10.0, "Hardcover", "Clean Code", "SKU-1"}
         );
 
         assertThat(reader.read(spreadsheet)).containsExactly(
-                new Product("SKU-1", "Clean Code", "Hardcover", BigDecimal.valueOf(10.0), "books", 3)
+                new NewProduct("SKU-1", "Clean Code", "Hardcover", BigDecimal.valueOf(10.0), 3)
         );
     }
 
@@ -56,8 +56,8 @@ class PoiCatalogSpreadsheetReaderTest {
     void skipsBlankRows() throws IOException {
         InputStream spreadsheet = spreadsheet(
                 HEADER,
-                new Object[]{"", "", "", "", "", ""},
-                new Object[]{"SKU-1", "Notebook", "", 10.0, "electronics", 1.0}
+                new Object[]{"", "", "", "", ""},
+                new Object[]{"SKU-1", "Notebook", "", 10.0, 1.0}
         );
 
         assertThat(reader.read(spreadsheet)).hasSize(1);
@@ -70,17 +70,17 @@ class PoiCatalogSpreadsheetReaderTest {
         assertThatThrownBy(() -> reader.read(spreadsheet))
                 .isInstanceOf(InvalidCatalogException.class)
                 .extracting("errors").asInstanceOf(LIST)
-                .containsExactly("missing columns: description, category, stock");
+                .containsExactly("missing columns: description, stock");
     }
 
     @Test
     void reportsEveryInvalidRowWithItsSpreadsheetRowNumber() throws IOException {
         InputStream spreadsheet = spreadsheet(
                 HEADER,
-                new Object[]{"", "Notebook", "", 10.0, "electronics", 1.0},
-                new Object[]{"SKU-2", "Mouse", "", "abc", "accessories", 1.0},
-                new Object[]{"SKU-3", "Keyboard", "", 10.0, "accessories", 1.5},
-                new Object[]{"SKU-4", "Monitor", "", 10.0, "electronics", ""}
+                new Object[]{"", "Notebook", "", 10.0, 1.0},
+                new Object[]{"SKU-2", "Mouse", "", "abc", 1.0},
+                new Object[]{"SKU-3", "Keyboard", "", 10.0, 1.5},
+                new Object[]{"SKU-4", "Monitor", "", 10.0, ""}
         );
 
         assertThatThrownBy(() -> reader.read(spreadsheet))
