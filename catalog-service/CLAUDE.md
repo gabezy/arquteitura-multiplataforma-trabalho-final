@@ -35,7 +35,12 @@ npm run migrate:deploy                    # apply from dist/ (used by the Docker
 - `ExtensionlessMigrationSource` records migrations without the extension (`20261010132157_create_products_table`, not `.ts`/`.js`), so a database migrated from `src/` and from `dist/` stays consistent. Every runner (`migrate.ts`, `knexfile.ts`, specs) must use `createMigrationSource()`.
 - The Docker image runs `migrate:deploy` before starting the app. Deploys are rolling, so the old version keeps running on the new schema: write backward-compatible migrations (expand/contract: add nullable columns; rename or drop a column only after no running version uses it).
 
-Config comes from env vars (see `.env.example`; `.env` is loaded if present): `PORT` (8082), `LOG_LEVEL`, `OTEL_SERVICE_NAME`, `OTEL_COLLECTOR_URL` (`http://localhost:4318`, the same default as `bff-gateway`).
+Config comes from env vars (see `.env.example`; `.env` is loaded if present): `PORT` (8082), `LOG_LEVEL`, `OTEL_SERVICE_NAME`, `OTEL_COLLECTOR_URL` (`http://localhost:4318`, the same default as `bff-gateway`), `DATABASE_URL`, and Kafka:
+
+- `KAFKA_BROKERS`: comma-separated list, default `localhost:9092`. Inside a compose container use `kafka:19092` (see `../CLAUDE.md`).
+- `PRODUCT_EVENTS_TOPIC` (`catalog.product.events.v1`): where the catalog publishes its product events.
+- `PRODUTO_ANALISADO_TOPIC` (`produto.analisado.v1`): analysis results consumed from the compliance-service.
+- `PRODUCT_ANALYSIS_DLQ_TOPIC` (`catalog.product-analysis.dlq`): analysis messages that can never be processed.
 
 TypeScript is pinned to 6.x because `ts-jest` does not support TypeScript 7.
 
@@ -64,7 +69,7 @@ src/
   main.ts                        composition root: opens resources, calls the factories, starts the server
 ```
 
-Tests are co-located with the code they test: `foo.ts` has its spec in `foo.spec.ts` in the same folder. There is no separate `test/` directory. `tsconfig.json` excludes `*.spec.ts` from the build, and Jest picks them up from `src/`. `infra/persistence/*.spec.ts` runs against the `catalog-db` Postgres from `../compose.yaml`.
+Tests are co-located with the code they test: `foo.ts` has its spec in `foo.spec.ts` in the same folder. There is no separate `test/` directory. `tsconfig.json` excludes `*.spec.ts` from the build, and Jest picks them up from `src/`. `infra/persistence/*.spec.ts` runs against an in-memory SQLite. `infra/messaging/outbox-relay.spec.ts` needs the `catalog-db` Postgres from `../compose.yaml` (it uses `SKIP LOCKED` and `jsonb`) and works in a throwaway `outbox_relay_spec` schema, so start `catalog-db` before `npm test`.
 
 - Dependencies point inward only: adapters depend on ports, and `core` never imports Express, Knex, pino, OpenTelemetry, or anything in `infra`.
 - Facades are plain classes that implement one or more `port/in` interfaces and receive their `port/out` dependencies through the constructor.
@@ -83,3 +88,12 @@ Tests are co-located with the code they test: `foo.ts` has its spec in `foo.spec
 - Logs: use the pino `Logger` passed into the app. `instrumentation-pino` adds `trace_id`/`span_id` and sends each record to the collector over OTLP.
 - Custom metrics/spans: use `metrics.getMeter(...)` / `trace.getTracer(...)` from `@opentelemetry/api` inside `infra`, never in `core`.
 - Tests do not load the SDK, so the API calls are no-ops there.
+
+## Messaging (Kafka)
+
+Domain events reach Kafka through a transactional outbox (see `../docs/adr/0002-outbox-para-eventos-do-catalog-service.md`):
+
+- Aggregates extend `AggregateRoot` and `record(...)` domain events. The repository saves the aggregate and `pullDomainEvents()` into the `outbox` table in the same transaction. The core never sees Kafka.
+- `KnexOutboxRepository` stores the integration event, not the domain event. Every domain event that leaves the service needs a mapping in `infra/messaging/<aggregate>.integration-events.ts` (public, versioned type such as `catalog.product.created.v1`). An unmapped event throws.
+- `OutboxRelay` publishes pending rows with `aggregate_id` as the key and CloudEvents `ce_*` headers, routing by `aggregate_type`. A new aggregate needs its topic in the relay map in `main.ts`. Delivery is at-least-once.
+- Consumers are driving adapters: they validate the message with zod, translate it to a `port/in` input, send messages that can never succeed (invalid, or a `DomainError`) to a dead letter topic, and rethrow anything else so Kafka redelivers it.
