@@ -1,6 +1,6 @@
 package br.com.puc.multiplataforma.bffgateway.infra.catalog.spreadsheet;
 
-import br.com.puc.multiplataforma.bffgateway.core.catalog.domain.Product;
+import br.com.puc.multiplataforma.bffgateway.core.catalog.domain.NewProduct;
 import br.com.puc.multiplataforma.bffgateway.core.catalog.exception.InvalidCatalogException;
 import br.com.puc.multiplataforma.bffgateway.core.catalog.exception.InvalidProductException;
 import br.com.puc.multiplataforma.bffgateway.core.catalog.gateway.CatalogSpreadsheetReader;
@@ -28,14 +28,13 @@ public class PoiCatalogSpreadsheetReader implements CatalogSpreadsheetReader {
     private static final String NAME = "name";
     private static final String DESCRIPTION = "description";
     private static final String PRICE = "price";
-    private static final String CATEGORY = "category";
     private static final String STOCK = "stock";
-    private static final List<String> REQUIRED_COLUMNS = List.of(SKU, NAME, DESCRIPTION, PRICE, CATEGORY, STOCK);
+    private static final List<String> REQUIRED_COLUMNS = List.of(SKU, NAME, DESCRIPTION, PRICE, STOCK);
 
     private final DataFormatter formatter = new DataFormatter(Locale.ROOT);
 
     @Override
-    public List<Product> read(InputStream spreadsheet) {
+    public List<NewProduct> read(InputStream spreadsheet) {
         try (Workbook workbook = open(spreadsheet)) {
             return readProducts(firstSheet(workbook));
         } catch (IOException e) {
@@ -58,14 +57,14 @@ public class PoiCatalogSpreadsheetReader implements CatalogSpreadsheetReader {
         return workbook.getSheetAt(0);
     }
 
-    private List<Product> readProducts(Sheet sheet) {
+    private List<NewProduct> readProducts(Sheet sheet) {
         Row header = sheet.getRow(sheet.getFirstRowNum());
         if (header == null) {
             throw new InvalidCatalogException("spreadsheet has no header row");
         }
         Map<String, Integer> columns = mapColumns(header);
 
-        List<Product> products = new ArrayList<>();
+        List<NewProduct> newProducts = new ArrayList<>();
         List<String> errors = new ArrayList<>();
         for (int rowIndex = header.getRowNum() + 1; rowIndex <= sheet.getLastRowNum(); rowIndex++) {
             Row row = sheet.getRow(rowIndex);
@@ -73,7 +72,7 @@ public class PoiCatalogSpreadsheetReader implements CatalogSpreadsheetReader {
                 continue;
             }
             try {
-                products.add(toProduct(row, columns));
+                newProducts.add(toProduct(row, columns));
             } catch (InvalidProductException e) {
                 errors.add("row %d: %s".formatted(rowIndex + 1, e.getMessage()));
             }
@@ -82,7 +81,7 @@ public class PoiCatalogSpreadsheetReader implements CatalogSpreadsheetReader {
         if (!errors.isEmpty()) {
             throw new InvalidCatalogException(errors);
         }
-        return products;
+        return newProducts;
     }
 
     private Map<String, Integer> mapColumns(Row header) {
@@ -112,13 +111,12 @@ public class PoiCatalogSpreadsheetReader implements CatalogSpreadsheetReader {
         return true;
     }
 
-    private Product toProduct(Row row, Map<String, Integer> columns) {
-        return new Product(
+    private NewProduct toProduct(Row row, Map<String, Integer> columns) {
+        return new NewProduct(
                 text(row.getCell(columns.get(SKU))),
                 text(row.getCell(columns.get(NAME))),
                 text(row.getCell(columns.get(DESCRIPTION))),
                 decimal(row.getCell(columns.get(PRICE)), PRICE),
-                text(row.getCell(columns.get(CATEGORY))),
                 integer(row.getCell(columns.get(STOCK)), STOCK)
         );
     }

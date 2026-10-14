@@ -7,6 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 This monorepo holds the services of the "omni-market" system. Each service sits in its own top-level directory, is self-contained (its own build and wrapper), and has its own `CLAUDE.md` with service-specific commands and architecture:
 
 - `bff-gateway/` — backend-for-frontend / gateway (Spring Boot, OAuth2 resource server). See `bff-gateway/CLAUDE.md`.
+- `catalog-service/` — catalog service (Node.js, TypeScript, Express, OpenTelemetry). See `catalog-service/CLAUDE.md`.
 
 Shared local infrastructure lives at the root:
 
@@ -33,6 +34,12 @@ curl -s -X POST http://localhost:8085/realms/omni-market/protocol/openid-connect
 ```
 
 Realm changes go in `docker/keycloak/realms/omni-market-realm.json`. `--import-realm` skips a realm that already exists, so run `docker compose down -v` before restarting.
+
+**Kafka** (4.x, KRaft, single broker): apps on the host use `localhost:9092`, containers use `kafka:19092`. Kafka UI runs on http://localhost:8090.
+
+Topics are created by the one-shot `kafka-init` service, which runs `docker/kafka/create-topics.sh` once the broker is healthy. A service that publishes or consumes a new topic adds it to that script. The script is idempotent (`--if-not-exists`), so `docker compose up -d kafka-init` applies new topics without touching existing ones.
+
+**Observability** (`--profile obs`): apps send OTLP over HTTP to the collector on http://localhost:4318. Grafana runs on http://localhost:3000 (`admin`/`admin`).
 
 ## Conventions (all services)
 

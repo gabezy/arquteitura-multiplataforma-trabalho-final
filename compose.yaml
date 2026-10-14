@@ -21,19 +21,77 @@ services:
       retries: 15
       start_period: 30s
 
-  kong:
-    image: kong:3.9.3
-    container_name: kong-gateway
-    ports:
-      - "8000:8000"
-      - "8001:8001"
+  catalog-db:
+    image: postgres:18-alpine
+    container_name: catalog-db
     environment:
-      KONG_DATABASE: "off"
-      KONG_PROXY_LISTEN: 0.0.0.0:8000
-      KONG_ADMIN_LISTEN: "0.0.0.0:8001"
-      KONG_DECLARATIVE_CONFIG: /kong/declarative/kong.yaml
+      POSTGRES_DB: ${CATALOG_DB_NAME:-catalog}
+      POSTGRES_USER: ${CATALOG_DB_USER:-catalog}
+      POSTGRES_PASSWORD: ${CATALOG_DB_PASSWORD:-catalog}
+    ports:
+      - "5432:5432"
     volumes:
-      - ./docker/kong/kong.yaml:/kong/declarative/kong.yaml:ro
+      - catalog-db-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  kafka:
+    image: apache/kafka:4.3.1
+    container_name: kafka
+    environment:
+      CLUSTER_ID: ${KAFKA_CLUSTER_ID:-dnEkEjWqSQ-ww5Fe2gkszA}
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      # Containers reach the broker at kafka:19092, apps on the host at localhost:9092.
+      KAFKA_LISTENERS: INTERNAL://:19092,EXTERNAL://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:19092,EXTERNAL://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      KAFKA_NUM_PARTITIONS: 3
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+    ports:
+      - "9092:9092"
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 > /dev/null 2>&1"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 20s
+
+  kafka-init:
+    image: apache/kafka:4.3.1
+    container_name: kafka-init
+    entrypoint: ["/bin/sh", "/scripts/create-topics.sh"]
+    restart: "no"
+    volumes:
+      - ./docker/kafka/create-topics.sh:/scripts/create-topics.sh:ro
+    depends_on:
+      kafka:
+        condition: service_healthy
+
+  kafka-ui:
+    image: kafbat/kafka-ui:v1.5.0
+    container_name: kafka-ui
+    environment:
+      KAFKA_CLUSTERS_0_NAME: omni-market
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:19092
+    ports:
+      - "8090:8080"
+    depends_on:
+      kafka:
+        condition: service_healthy
 
   grafana:
     image: grafana/grafana:13.0
@@ -42,10 +100,10 @@ services:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
       GF_SERVER_HTTP_PORT: 3000
-      GF_SERVER_ROOT_URL: http://localhost:8000/grafana/
-      GF_SERVER_SERVE_FROM_SUB_PATH: "true"
-    expose:
-      - "3000"
+    profiles:
+      - obs
+    ports:
+      - "3000:3000"
     volumes:
       - grafana-data:/var/lib/grafana
       - ./docker/grafana/datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
@@ -54,6 +112,8 @@ services:
     image: grafana/loki:3.7.0
     container_name: loki
     command: ["-config.file=/etc/local-config.yaml"]
+    profiles:
+      - obs
     expose:
       - "3100"
     volumes:
@@ -64,6 +124,8 @@ services:
     image: grafana/tempo:3.0.0
     container_name: tempo
     command: ["-config.file=/etc/tempo.yaml"]    
+    profiles:
+      - obs
     volumes:
       - tempo-data:/var/tempo
       - ./docker/tempo/config.yaml:/etc/tempo.yaml
@@ -74,11 +136,13 @@ services:
     image: otel/opentelemetry-collector-contrib:0.162.0
     container_name: otel-collector
     command: ["--config=/etc/otel-collector-config.yaml"]
+    profiles:
+      - obs
+    ports:
+      - "4317:4317"
+      - "4318:4318"
     expose:
-      - "4317"
-      - "4318"
       - "8889"
-      - "55681"
     volumes:
       - ./docker/otel-collector/config.yaml:/etc/otel-collector-config.yaml
     depends_on:
@@ -88,6 +152,8 @@ services:
   prometheus:
     image: prom/prometheus:v3.5.0
     container_name: prometheus
+    profiles:
+      - obs
     command:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.retention.time=48h
@@ -112,6 +178,8 @@ services:
 
 volumes:
   keycloak-data:
+  catalog-db-data:
+  kafka-data:
   grafana-data:
   loki-data:
   tempo-data:

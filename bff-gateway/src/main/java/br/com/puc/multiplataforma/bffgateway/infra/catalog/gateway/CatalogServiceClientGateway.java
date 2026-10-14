@@ -1,6 +1,6 @@
 package br.com.puc.multiplataforma.bffgateway.infra.catalog.gateway;
 
-import br.com.puc.multiplataforma.bffgateway.core.catalog.domain.Product;
+import br.com.puc.multiplataforma.bffgateway.core.catalog.domain.NewProduct;
 import br.com.puc.multiplataforma.bffgateway.core.catalog.gateway.CatalogGateway;
 import br.com.puc.multiplataforma.bffgateway.infra.security.AuthenticatedUserHeaderInterceptor;
 import org.slf4j.Logger;
@@ -14,8 +14,11 @@ public class CatalogServiceClientGateway implements CatalogGateway {
     private static final Logger log = LoggerFactory.getLogger(CatalogServiceClientGateway.class);
 
     private final RestClient restClient;
+    private final CatalogGatewayMapper mapper;
 
-    public CatalogServiceClientGateway(RestClient.Builder builder, String catalogServiceUrl) {
+    public CatalogServiceClientGateway(RestClient.Builder builder, CatalogGatewayMapper mapper,
+                                       String catalogServiceUrl) {
+        this.mapper = mapper;
         this.restClient = builder
                 .baseUrl(catalogServiceUrl)
                 .requestInterceptor(new AuthenticatedUserHeaderInterceptor())
@@ -23,13 +26,13 @@ public class CatalogServiceClientGateway implements CatalogGateway {
     }
 
     @Override
-    public void importProducts(List<Product> products) {
-        log.info("Importing products: {}", products.size());
+    public void importProducts(List<NewProduct> newProducts) {
+        log.info("Importing products: {}", newProducts.size());
 
         restClient
                 .post()
-                .uri("/catalog/products")
-                .body(products)
+                .uri("/products/import")
+                .body(mapper.toImportProducts(newProducts))
                 .retrieve()
                 .toBodilessEntity();
     }

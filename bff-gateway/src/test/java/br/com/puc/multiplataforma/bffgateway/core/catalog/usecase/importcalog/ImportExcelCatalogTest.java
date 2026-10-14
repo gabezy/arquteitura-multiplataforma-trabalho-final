@@ -1,6 +1,6 @@
 package br.com.puc.multiplataforma.bffgateway.core.catalog.usecase.importcalog;
 
-import br.com.puc.multiplataforma.bffgateway.core.catalog.domain.Product;
+import br.com.puc.multiplataforma.bffgateway.core.catalog.domain.NewProduct;
 import br.com.puc.multiplataforma.bffgateway.core.catalog.exception.InvalidCatalogException;
 import br.com.puc.multiplataforma.bffgateway.core.catalog.usecase.importcatalog.ImportCatalogResult;
 import br.com.puc.multiplataforma.bffgateway.core.catalog.usecase.importcatalog.ImportExcelCatalog;
@@ -20,44 +20,44 @@ class ImportExcelCatalogTest {
 
     private static final InputStream SPREADSHEET = new ByteArrayInputStream(new byte[0]);
 
-    private final List<Product> sentProducts = new ArrayList<>();
+    private final List<NewProduct> sentNewProducts = new ArrayList<>();
 
     @Test
     void sendsProductsReadFromSpreadsheetToCatalog() {
-        List<Product> products = List.of(product("SKU-1"), product("SKU-2"));
-        ImportExcelCatalog useCase = new ImportExcelCatalog(_ -> products, sentProducts::addAll);
+        List<NewProduct> newProducts = List.of(product("SKU-1"), product("SKU-2"));
+        ImportExcelCatalog useCase = new ImportExcelCatalog(_ -> newProducts, sentNewProducts::addAll);
 
         ImportCatalogResult result = useCase.execute(SPREADSHEET);
 
         assertThat(result.importedProducts()).isEqualTo(2);
-        assertThat(sentProducts).containsExactlyElementsOf(products);
+        assertThat(sentNewProducts).containsExactlyElementsOf(newProducts);
     }
 
     @Test
     void rejectsSpreadsheetWithoutProducts() {
-        ImportExcelCatalog useCase = new ImportExcelCatalog(_ -> List.of(), sentProducts::addAll);
+        ImportExcelCatalog useCase = new ImportExcelCatalog(_ -> List.of(), sentNewProducts::addAll);
 
         assertThatThrownBy(() -> useCase.execute(SPREADSHEET))
                 .isInstanceOf(InvalidCatalogException.class)
                 .extracting("errors").asInstanceOf(LIST)
                 .containsExactly("spreadsheet has no products");
-        assertThat(sentProducts).isEmpty();
+        assertThat(sentNewProducts).isEmpty();
     }
 
     @Test
     void rejectsDuplicatedSkus() {
-        List<Product> products = List.of(product("SKU-1"), product("SKU-1"), product("SKU-2"));
-        ImportExcelCatalog useCase = new ImportExcelCatalog(_ -> products, sentProducts::addAll);
+        List<NewProduct> newProducts = List.of(product("SKU-1"), product("SKU-1"), product("SKU-2"));
+        ImportExcelCatalog useCase = new ImportExcelCatalog(_ -> newProducts, sentNewProducts::addAll);
 
         assertThatThrownBy(() -> useCase.execute(SPREADSHEET))
                 .isInstanceOf(InvalidCatalogException.class)
                 .extracting("errors").asInstanceOf(LIST)
                 .containsExactly("duplicated sku: SKU-1");
-        assertThat(sentProducts).isEmpty();
+        assertThat(sentNewProducts).isEmpty();
     }
 
-    private static Product product(String sku) {
-        return new Product(sku, "Product " + sku, "", new BigDecimal("10.00"), "category", 1);
+    private static NewProduct product(String sku) {
+        return new NewProduct(sku, "Product " + sku, "", new BigDecimal("10.00"), 1);
     }
 
 }
