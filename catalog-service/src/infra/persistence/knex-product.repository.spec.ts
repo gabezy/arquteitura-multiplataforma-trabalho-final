@@ -2,6 +2,8 @@ import knex, { Knex } from "knex";
 import { Price } from "../../core/shared/domain/price.vo";
 import { Quantity } from "../../core/shared/domain/quantity.vo";
 import { KnexProductRepository } from "./knex-product.repository";
+import { KnexOutboxRepository } from "./knex-outbox.repository";
+import { toProductIntegrationEvent } from "../messaging/product.integration-events";
 import { createMigrationSource } from "./migration-source";
 import { NewProductProps, ProductEntity } from "../../core/product/model/product.entity";
 import { ProductAnalysisStatus } from "../../core/product/model/product-analysis-status.vo";
@@ -43,11 +45,12 @@ describe("KnexProductRepository", () => {
       pool: { min: 1, max: 1 },
     });
     await db.migrate.latest({ migrationSource: createMigrationSource() });
-    repository = new KnexProductRepository(db);
+    repository = new KnexProductRepository(db, new KnexOutboxRepository(toProductIntegrationEvent));
   });
 
   afterEach(async () => {
     await db("products").truncate();
+    await db("outbox").truncate();
   });
 
   afterAll(async () => {
@@ -84,6 +87,46 @@ describe("KnexProductRepository", () => {
         new DuplicateSkuError(["NB-DUP"]),
       );
       expect(await db("products").count({ total: "*" }).first()).toEqual({ total: 1 });
+    });
+
+    it("writes the recorded events to the outbox as integration events", async () => {
+      const product = newProduct();
+
+      await repository.save(product);
+
+      const rows = await db("outbox").select();
+      expect(rows).toEqual([
+        expect.objectContaining({
+          aggregate_type: "Product",
+          aggregate_id: product.id.value,
+          event_type: "catalog.product.created.v1",
+        }),
+      ]);
+      expect(JSON.parse(rows[0].payload)).toEqual({
+        productId: product.id.value,
+        sku: product.sku.value,
+        name: "Notebook",
+        description: "Notebook 16GB RAM",
+        price: 4500.9,
+        stock: 10,
+      });
+    });
+
+    it("does not write the events again when the product is saved twice", async () => {
+      const product = newProduct();
+
+      await repository.save(product);
+      await repository.save(product);
+
+      expect(await db("outbox").count({ total: "*" }).first()).toEqual({ total: 1 });
+    });
+
+    it("writes no event when the product is rejected", async () => {
+      await repository.save(newProduct({ sku: new Sku("NB-DUP") }));
+
+      await expect(repository.save(newProduct({ sku: new Sku("NB-DUP") }))).rejects.toThrow(DuplicateSkuError);
+
+      expect(await db("outbox").count({ total: "*" }).first()).toEqual({ total: 1 });
     });
   });
 
@@ -126,6 +169,17 @@ describe("KnexProductRepository", () => {
       await db.raw("DROP TRIGGER reject_broken_product");
 
       expect(await db("products").count({ total: "*" }).first()).toEqual({ total: 0 });
+      expect(await db("outbox").count({ total: "*" }).first()).toEqual({ total: 0 });
+    });
+
+    it("writes the events of every product to the outbox", async () => {
+      const notebook = newProduct();
+      const mouse = newProduct();
+
+      await repository.saveAll([notebook, mouse]);
+
+      const rows = await db("outbox").select("aggregate_id").orderBy("sequence");
+      expect(rows.map((row) => row.aggregate_id)).toEqual([notebook.id.value, mouse.id.value]);
     });
 
     it("rejects the batch when a SKU belongs to another product and persists nothing new", async () => {

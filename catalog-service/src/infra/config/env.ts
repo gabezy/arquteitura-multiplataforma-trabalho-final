@@ -4,8 +4,10 @@ export interface AppConfig {
   serviceName: string;
   otelCollectorUrl: string;
   databaseUrl: string;
-  produtoCriadoTopic: string;
+  kafkaBrokers: string[];
+  productEventsTopic: string;
   produtoAnalisadoTopic: string;
+  productAnalysisDeadLetterTopic: string;
 }
 
 const DEFAULT_PORT = 8082;
@@ -17,8 +19,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     serviceName: env.OTEL_SERVICE_NAME ?? 'catalog-service',
     otelCollectorUrl: env.OTEL_COLLECTOR_URL ?? 'http://localhost:4318',
     databaseUrl: env.DATABASE_URL ?? 'postgresql://catalog:catalog@localhost:5432/catalog',
-    produtoCriadoTopic: env.PRODUTO_CRIADO_TOPIC ?? 'produto.criado.v1',
+    kafkaBrokers: parseBrokers(env.KAFKA_BROKERS),
+    productEventsTopic: env.PRODUCT_EVENTS_TOPIC ?? 'catalog.product.events.v1',
     produtoAnalisadoTopic: env.PRODUTO_ANALISADO_TOPIC ?? 'produto.analisado.v1',
+    productAnalysisDeadLetterTopic: env.PRODUCT_ANALYSIS_DLQ_TOPIC ?? 'catalog.product-analysis.dlq',
   };
 }
 
@@ -29,4 +33,8 @@ function parsePort(value: string | undefined): number {
     throw new Error(`Invalid PORT: ${value}`);
   }
   return port;
+}
+
+function parseBrokers(value: string | undefined): string[] {
+  return (value ?? 'localhost:9092').split(',').map(broker => broker.trim());
 }

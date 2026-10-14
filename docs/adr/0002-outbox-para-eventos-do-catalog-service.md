@@ -9,7 +9,7 @@
 
 ## Contexto
 
-- **Necessidade:** eventos de produto (hoje `ProductCreatedEvent`) são consumidos pelo `compliance-service` (análise do produto, status `PENDING` → `APPROVED`/`REJECTED`) e pelo `marketplace-gateway`.
+- **Necessidade:** eventos de produto (hoje `ProductCreated`, publicado como `catalog.product.created.v1` no tópico `catalog.product.events.v1`) são consumidos pelo `compliance-service` (análise do produto, status `PENDING` → `APPROVED`/`REJECTED`) e pelo `marketplace-gateway`.
 - **O que não pode dar errado:** produto salvo sem evento publicado, ou evento publicado de produto cuja transação sofreu rollback (dual write entre Postgres e Kafka).
 - **Stack:** catalog-service em Node/TypeScript, Postgres via Knex, Kafka 4.x via `kafkajs`.
 - **Prazo:** 3 semanas, time de 7 integrantes.
