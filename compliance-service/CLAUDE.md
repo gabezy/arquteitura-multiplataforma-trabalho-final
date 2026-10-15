@@ -30,6 +30,19 @@ uv run ruff check && uv run ruff format   # lint and format
 uv run alembic revision -m "add x"        # new migration in src/compliance_service/infra/persistence/migrations/versions/
 ```
 
+Docker image (`Dockerfile`, multi-stage with uv; the runtime image has only the `.venv` and `alembic.ini`):
+
+```bash
+docker build -t compliance-service .
+docker run --rm --network <compose-network> -p 8083:8083 \
+  -e DATABASE_URL=postgresql+asyncpg://compliance:compliance@compliance-db:5432/compliance \
+  -e KAFKA_BROKERS=kafka:19092 -e OTEL_COLLECTOR_URL=http://otel-collector:4318 compliance-service
+```
+
+The container runs `alembic upgrade head` before starting. Deploys are rolling, so the old version keeps running on the new schema: write backward-compatible migrations (expand/contract). `alembic.ini` points at the migrations as a package resource (`compliance_service.infra.persistence:migrations`), so the same file works from the source tree and from the installed package.
+
+CI/CD: `.github/workflows/compliance-service.yml` calls `_python-service.yml` (`uv sync --locked`, ruff, pytest with Testcontainers, Docker build without push). A push to `main` also publishes `ghcr.io/<owner>/omni-market-compliance-service:{sha,latest}`. Run `uv lock` after changing dependencies, or `--locked` fails in CI.
+
 Config comes from env vars (see `.env.example`; `.env` is loaded if present): `PORT`, `LOG_LEVEL`, `OTEL_SERVICE_NAME`, `OTEL_COLLECTOR_URL`, `DATABASE_URL` (`compliance-db` on localhost:5433), `KAFKA_BROKERS`, `PRODUCT_CREATED_TOPIC`, `PRODUTO_ANALISADO_TOPIC`, `PRODUCT_CREATED_DLQ_TOPIC`, `PRICE_CEILING`, `DESCRIPTION_MIN_LENGTH`.
 
 ## Architecture: Hexagonal (Ports and Adapters)
