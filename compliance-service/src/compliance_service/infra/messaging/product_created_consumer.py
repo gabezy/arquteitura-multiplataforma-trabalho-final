@@ -4,6 +4,7 @@ from collections.abc import Awaitable, Callable
 from typing import Protocol
 
 from aiokafka import TopicPartition
+from aiokafka.errors import CommitFailedError, IllegalStateError
 from opentelemetry import metrics, propagate, trace
 
 from compliance_service.core.shared.domain.errors import DomainError
@@ -43,9 +44,17 @@ class ProductCreatedConsumer:
         self._max_backoff = max_backoff
         self._sleep = sleep
 
+    # Only cancellation stops the loop, so a broker hiccup never silently ends consumption.
     async def run(self) -> None:
+        backoff = self._initial_backoff
         while True:
-            await self.process(await self._consumer.getone())
+            try:
+                await self.process(await self._consumer.getone())
+                backoff = self._initial_backoff
+            except Exception:
+                logger.exception("Consumer loop failed; retrying in %.1fs", backoff)
+                await self._sleep(backoff)
+                backoff = min(backoff * 2, self._max_backoff)
 
     # A message that can never succeed goes to the dead letter topic. Anything else is retried in
     # place, so the offset is committed only once the message is handled.
@@ -59,7 +68,12 @@ class ProductCreatedConsumer:
                 logger.exception("Failed to process %s; retrying in %.1fs", _position(record), backoff)
                 await self._sleep(backoff)
                 backoff = min(backoff * 2, self._max_backoff)
-        await self._consumer.commit({TopicPartition(record.topic, record.partition): record.offset + 1})
+        try:
+            await self._consumer.commit({TopicPartition(record.topic, record.partition): record.offset + 1})
+        except (CommitFailedError, IllegalStateError) as err:
+            # The partition moved to another member (rebalance, or a retry longer than the poll interval).
+            # The new owner gets the record again and the inbox skips it.
+            logger.warning("Could not commit %s: %s", _position(record), err)
 
     async def _handle(self, record: KafkaRecord) -> None:
         carrier = {name: value.decode(errors="replace") for name, value in record.headers if value is not None}

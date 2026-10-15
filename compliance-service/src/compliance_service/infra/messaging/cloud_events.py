@@ -17,6 +17,8 @@ PRODUTO_ANALISADO_TYPE = "produto.analisado.v1"
 SOURCE = "compliance-service"
 
 _FORMAT = JSONFormat()
+# from_binary fills in a missing id or specversion. A generated id would defeat deduplication.
+_REQUIRED_HEADERS = ("ce_specversion", "ce_id", "ce_source", "ce_type")
 
 
 class UnprocessableMessageError(Exception):
@@ -51,11 +53,12 @@ class OutgoingMessage:
 def read_product_created(
     headers: Sequence[tuple[str, bytes | None]], key: bytes | None, value: bytes | None
 ) -> ProductCreatedEvent:
-    message = KafkaMessage(
-        headers={name: header for name, header in headers if header is not None},
-        key=key,
-        value=value or b"",
-    )
+    present = {name: header for name, header in headers if header is not None}
+    missing = [name for name in _REQUIRED_HEADERS if not present.get(name)]
+    if missing:
+        raise UnprocessableMessageError(f"Missing CloudEvent headers: {', '.join(missing)}.")
+
+    message = KafkaMessage(headers=present, key=key, value=value or b"")
     try:
         event = from_binary(message, _FORMAT)
     except (BaseCloudEventException, ValueError) as err:

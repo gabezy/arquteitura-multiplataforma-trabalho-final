@@ -54,6 +54,13 @@ class TestReadProductCreated:
         with pytest.raises(UnprocessableMessageError):
             read(make_record(headers=[("content-type", b"application/json")]))
 
+    @pytest.mark.parametrize("header", ["ce_id", "ce_source", "ce_type", "ce_specversion"])
+    def test_rejects_a_message_missing_a_required_header(self, make_record, catalog_headers, header):
+        headers = [(name, value) for name, value in catalog_headers if name != header]
+
+        with pytest.raises(UnprocessableMessageError, match=header):
+            read(make_record(headers=headers))
+
     def test_rejects_invalid_json(self, make_record):
         with pytest.raises(UnprocessableMessageError):
             read(make_record(value=b"not json"))

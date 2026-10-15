@@ -1,9 +1,11 @@
+import asyncio
 import json
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 
 import pytest
 from aiokafka import TopicPartition
+from aiokafka.errors import CommitFailedError, KafkaConnectionError
 from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
@@ -54,18 +56,37 @@ class FakeUnitOfWork:
 
 
 class FakeKafkaConsumer:
-    def __init__(self) -> None:
+    def __init__(self, records=(), commit_error: Exception | None = None) -> None:
         self.commits = []
+        self._records = list(records)
+        self._commit_error = commit_error
+
+    async def getone(self):
+        if not self._records:
+            raise asyncio.CancelledError
+        item = self._records.pop(0)
+        if isinstance(item, Exception):
+            raise item
+        return item
 
     async def commit(self, offsets):
+        if self._commit_error:
+            error, self._commit_error = self._commit_error, None
+            raise error
         self.commits.append(offsets)
 
 
 class Harness:
-    def __init__(self, producer, failures: int = 0, processed: set[str] | None = None) -> None:
+    def __init__(
+        self,
+        producer,
+        failures: int = 0,
+        processed: set[str] | None = None,
+        kafka: FakeKafkaConsumer | None = None,
+    ) -> None:
         self.processed = processed if processed is not None else set()
         self.analyze_product = FakeAnalyzeProduct(failures)
-        self.kafka = FakeKafkaConsumer()
+        self.kafka = kafka or FakeKafkaConsumer()
         self.producer = producer
         self.sleeps: list[float] = []
 
@@ -158,6 +179,26 @@ async def test_backs_off_exponentially_up_to_the_cap(producer, make_record):
     await harness.consumer.process(make_record())
 
     assert harness.sleeps == [1.0, 2.0, 4.0, 8.0, 16.0, 30.0, 30.0]
+
+
+async def test_survives_an_offset_commit_rejected_after_a_rebalance(producer, make_record):
+    harness = Harness(producer, kafka=FakeKafkaConsumer(commit_error=CommitFailedError("rebalanced")))
+
+    await harness.consumer.process(make_record())
+
+    assert harness.processed == {"e-1"}
+    assert harness.kafka.commits == []
+
+
+async def test_keeps_consuming_after_a_broker_error(producer, make_record):
+    kafka = FakeKafkaConsumer(records=[KafkaConnectionError("broker down"), make_record()])
+    harness = Harness(producer, kafka=kafka)
+
+    with pytest.raises(asyncio.CancelledError):
+        await harness.consumer.run()
+
+    assert harness.processed == {"e-1"}
+    assert harness.sleeps == [1.0]
 
 
 @pytest.fixture(scope="module")

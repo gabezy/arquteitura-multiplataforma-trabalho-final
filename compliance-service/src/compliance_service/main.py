@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager, suppress
+from contextlib import asynccontextmanager
 
 import uvicorn
 from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
@@ -18,6 +18,7 @@ from compliance_service.infra.observability.telemetry import instrument_app, ins
 from compliance_service.infra.persistence.database import create_engine, create_session_factory
 from compliance_service.infra.product_factory import build_rules, build_unit_of_work_factory
 from compliance_service.infra.system_clock import SystemClock
+from compliance_service.infra.tasks import cancel_and_wait
 
 CONSUMER_GROUP = "compliance-service"
 
@@ -32,7 +33,7 @@ def _log_consumer_exit(task: asyncio.Task) -> None:
 
 
 @asynccontextmanager
-async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     engine = create_engine(settings.database_url)
     instrument_engine(engine)
     producer = AIOKafkaProducer(bootstrap_servers=settings.kafka_bootstrap_servers, acks="all")
@@ -59,14 +60,13 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     )
     task = asyncio.create_task(consumer.run())
     task.add_done_callback(_log_consumer_exit)
+    app.state.consumer_task = task
     logger.info("Consuming %s", settings.product_created_topic)
 
     try:
         yield
     finally:
-        task.cancel()
-        with suppress(asyncio.CancelledError):
-            await task
+        await cancel_and_wait(task)
         await kafka_consumer.stop()
         await producer.stop()
         await engine.dispose()
