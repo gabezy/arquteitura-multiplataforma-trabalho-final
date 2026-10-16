@@ -20,4 +20,7 @@ create catalog.product.rejected.v1 3
 create produto.analisado.v1 3
 create catalog.product-analysis.dlq 1 retention.ms=1209600000 # 14 days to inspect and replay
 
+# compliance-service
+create compliance.product-created.dlq 1 retention.ms=1209600000 # 14 days to inspect and replay
+
 /opt/kafka/bin/kafka-topics.sh --bootstrap-server "$BOOTSTRAP_SERVER" --list

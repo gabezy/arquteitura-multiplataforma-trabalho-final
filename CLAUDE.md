@@ -8,6 +8,7 @@ This monorepo holds the services of the "omni-market" system. Each service sits 
 
 - `bff-gateway/` — backend-for-frontend / gateway (Spring Boot, OAuth2 resource server). See `bff-gateway/CLAUDE.md`.
 - `catalog-service/` — catalog service (Node.js, TypeScript, Express, OpenTelemetry). See `catalog-service/CLAUDE.md`.
+- `compliance-service/` — simulated product compliance checks (Python, FastAPI, uv). See `compliance-service/CLAUDE.md`.
 
 Shared local infrastructure lives at the root:
 
@@ -38,6 +39,8 @@ Realm changes go in `docker/keycloak/realms/omni-market-realm.json`. `--import-r
 **Kafka** (4.x, KRaft, single broker): apps on the host use `localhost:9092`, containers use `kafka:19092`. Kafka UI runs on http://localhost:8090.
 
 Topics are created by the one-shot `kafka-init` service, which runs `docker/kafka/create-topics.sh` once the broker is healthy. A service that publishes or consumes a new topic adds it to that script. The script is idempotent (`--if-not-exists`), so `docker compose up -d kafka-init` applies new topics without touching existing ones.
+
+**Postgres**: one container per service. `catalog-db` on localhost:5432 (`catalog`/`catalog`), `compliance-db` on localhost:5433 (`compliance`/`compliance`).
 
 **Observability** (`--profile obs`): apps send OTLP over HTTP to the collector on http://localhost:4318. Grafana runs on http://localhost:3000 (`admin`/`admin`).
 

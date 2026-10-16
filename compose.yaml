@@ -39,6 +39,24 @@ services:
       retries: 5
       start_period: 10s
 
+  compliance-db:
+    image: postgres:18-alpine
+    container_name: compliance-db
+    environment:
+      POSTGRES_DB: ${COMPLIANCE_DB_NAME:-compliance}
+      POSTGRES_USER: ${COMPLIANCE_DB_USER:-compliance}
+      POSTGRES_PASSWORD: ${COMPLIANCE_DB_PASSWORD:-compliance}
+    ports:
+      - "5433:5432"
+    volumes:
+      - compliance-db-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   kafka:
     image: apache/kafka:4.3.1
     container_name: kafka
@@ -179,6 +197,7 @@ services:
 volumes:
   keycloak-data:
   catalog-db-data:
+  compliance-db-data:
   kafka-data:
   grafana-data:
   loki-data:

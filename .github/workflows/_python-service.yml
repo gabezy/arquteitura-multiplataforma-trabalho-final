@@ -1,0 +1,61 @@
+name: python-service
+
+on:
+  workflow_call:
+    inputs:
+      service:
+        description: Service directory at the repository root
+        required: true
+        type: string
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.service }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # Python comes from the service's .python-version.
+      - uses: astral-sh/setup-uv@v6
+        with:
+          working-directory: ${{ inputs.service }}
+          enable-cache: true
+          cache-dependency-glob: ${{ inputs.service }}/uv.lock
+
+      - name: Install dependencies
+        run: uv sync --locked
+
+      - name: Lint
+        run: |
+          uv run ruff check
+          uv run ruff format --check
+
+      # The runner has Docker, so the Testcontainers-backed tests run here too.
+      - name: Test
+        run: uv run pytest --junitxml=reports/junit.xml
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.service }}-test-reports
+          path: ${{ inputs.service }}/reports/
+          if-no-files-found: ignore
+
+  docker-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      # Validates the Dockerfile on every change; the image is pushed only by CD.
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ inputs.service }}
+          push: false
+          cache-from: type=gha,scope=${{ inputs.service }}
+          cache-to: type=gha,mode=max,scope=${{ inputs.service }}
