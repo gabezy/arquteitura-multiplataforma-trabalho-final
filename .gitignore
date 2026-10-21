@@ -53,5 +53,9 @@ Desktop.ini
 # Claude Code local settings (shared skills in .claude/skills stay tracked)
 **/.claude/settings.local.json
 
+# Python bytecode (e.g. from the scripts of the skills in .claude/skills)
+__pycache__/
+*.py[cod]
+
 # Office lock files
 ~$*
