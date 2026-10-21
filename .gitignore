@@ -24,3 +24,34 @@ hs_err_pid*
 replay_pid*
 */node_modules/
 catalog-service/docs/
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows / Linux
+Thumbs.db
+Desktop.ini
+*~
+
+# Editors and IDEs
+.idea/
+*.iml
+**/.vscode/*
+!**/.vscode/extensions.json
+*.swp
+*.swo
+
+# Environment and secrets (keep the .env.example files)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Claude Code local settings (shared skills in .claude/skills stay tracked)
+**/.claude/settings.local.json
+
+# Office lock files
+~$*

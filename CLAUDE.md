@@ -22,6 +22,8 @@ docker compose up -d      # start shared infra
 docker compose down -v    # stop and drop volumes (needed to re-import a changed realm)
 ```
 
+The root `Makefile` wraps these (`make` lists targets): `up`, `up-obs`, `up-mock`, `up-all`, `down`, `clean` (drops volumes), `ps`, `logs s=<service>`, `topics`.
+
 **Keycloak** (26.x) runs on http://localhost:8085 (admin console: `admin`/`admin`). The realm is `omni-market` and the issuer is `http://localhost:8085/realms/omni-market`.
 
 - Realm roles: `admin`, `customer`. Services map them to `ROLE_<role>` and scopes to `SCOPE_<scope>`.
