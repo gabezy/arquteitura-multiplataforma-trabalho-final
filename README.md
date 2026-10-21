@@ -91,3 +91,10 @@ Os eventos usam CloudEvents (binary mode). Mensagens que nunca podem ser process
 ## Convenções
 
 Commits em Conventional Commits, em português (ex.: `feat: adiciona keycloak e configuração de realms`).
+
+## Skills do Claude Code
+
+Skills versionadas em `.claude/skills/`, carregadas pelo Claude Code aberto na raiz do repo:
+
+- `adr` — registra decisões de arquitetura em `docs/adr/` (ex.: "cria uma ADR para …" ou `/adr`).
+- `tlc-spec-driven` — do [Tech Leads Club](https://github.com/tech-leads-club/agent-skills) (CC BY 4.0): planeja e implementa uma feature em fases (Specify → Design → Tasks → Execute). Acionada por "specify feature", "design", "tasks", "implement" e "validate".
