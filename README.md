@@ -2,6 +2,18 @@
 
 Monorepo do sistema **omni-market**, trabalho final de Arquitetura Multiplataforma (PUC).
 
+## Equipe
+
+| Nome | Matrícula | Username |
+| --- | --- | --- |
+| Henrique Miguel de Jesus | 255486 | @HenriqueDest |
+| Paulo Henrique Nunes Vanderley | 1456295 | @paulnune |
+| Rodrigo Pretes Maia | 257199 | @RodrigoPretes-257199 |
+| José Ricardo Ciola Bricio | 1669938 | @zeciola |
+| Diego Bruno Dantas Diógenes | 1665455 | @diegodiogenes |
+| Gabriel Moreira da Silva de Faria | 1665580 | @gabezy |
+| Natan de Almeida Figueiredo | 1669471 | @natantn |
+
 ## Serviços
 
 | Serviço | Stack | Porta | Descrição |
