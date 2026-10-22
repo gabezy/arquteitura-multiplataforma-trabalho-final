@@ -40,6 +40,8 @@ Config comes from env vars (see `.env.example`; `.env` is loaded if present): `P
 - `KAFKA_BROKERS`: comma-separated list, default `localhost:9092`. Inside a compose container use `kafka:19092` (see `../CLAUDE.md`).
 - `PRODUTO_ANALISADO_TOPIC` (`produto.analisado.v1`): analysis results consumed from the compliance-service.
 - `PRODUCT_ANALYSIS_DLQ_TOPIC` (`catalog.product-analysis.dlq`): analysis messages that can never be processed.
+- `ORDER_PLACED_TOPIC` (`order.order.placed.v1`) and `ORDER_CANCELLED_TOPIC` (`order.order.cancelled.v1`): order events that reserve and give back stock (consumer group `catalog-service-order-stock`).
+- `ORDER_STOCK_DLQ_TOPIC` (`catalog.order-stock.dlq`): order events that can never be processed.
 
 TypeScript is pinned to 6.x because `ts-jest` does not support TypeScript 7.
 
@@ -97,4 +99,5 @@ Domain events reach Kafka through a transactional outbox (see `../docs/adr/0002-
 - `OutboxRelay` publishes each pending row to the topic named after its public type (one topic per event, e.g. `catalog.product.created.v1`), with `aggregate_id` as the key and CloudEvents `ce_*` headers. Delivery is at-least-once. Order is kept per product within one event type only, not across types.
 - A new published event needs its topic in `../docker/kafka/create-topics.sh`.
 - Tracing spans the whole flow: the http instrumentation continues the `traceparent` sent by `bff-gateway`, `KnexOutboxRepository` saves the active trace context in the outbox `headers` column, and `OutboxRelay` sends each event inside that context (`infra/observability/trace-context.ts`), so the kafkajs instrumentation parents the send span on the request and injects `traceparent` into the message. Consumers continue it from the message headers automatically.
+- Stock: the catalog owns product stock. `StockFacade` (`core/stock/`) debits it on `order.order.placed.v1` and gives it back on `order.order.cancelled.v1`, keeping one `StockReservation` per order so a redelivered event changes nothing. It answers with `catalog.stock.reserved.v1` or `catalog.stock.insufficient.v1` and publishes `catalog.product.stock-changed.v1`. Stock is written only by `KnexStockReservationRepository`, with optimistic locking on `products.version`; `KnexProductRepository.save` keeps the stored stock of an existing product. Demo: `../docs/demo-estoque.md`.
 - Consumers are driving adapters: they validate the message with zod, translate it to a `port/in` input, send messages that can never succeed (invalid, or a `DomainError`) to a dead letter topic, and rethrow anything else so Kafka redelivers it.

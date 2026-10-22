@@ -17,10 +17,13 @@ interface ProductRow {
   price: string | number; // pg devolve decimal como string, sqlite como number
   stock: number;
   analysis_status: string;
+  version: number;
 }
 
 const TABLE_NAME = 'products';
 const SKU_UNIQUE_INDEX = 'products_sku_unique';
+// Stock and version are left out: an existing product keeps the stored values.
+const MERGED_COLUMNS = ['name', 'description', 'price', 'analysis_status'];
 
 export class KnexProductRepository implements ProductRepositoryPort {
 
@@ -31,7 +34,7 @@ export class KnexProductRepository implements ProductRepositoryPort {
             this.knex.transaction(async tx => {
                 await tx(TABLE_NAME).insert(this.toRow(product))
                     .onConflict('id')
-                    .merge();
+                    .merge(MERGED_COLUMNS);
 
                 await this.outbox.append(tx, 'Product', product.pullDomainEvents());
             })
@@ -48,7 +51,7 @@ export class KnexProductRepository implements ProductRepositoryPort {
                 const rows = products.map(product => this.toRow(product));
                 await tx(TABLE_NAME).insert(rows)
                     .onConflict('id')
-                    .merge();
+                    .merge(MERGED_COLUMNS);
 
                 const events = products.flatMap(product => product.pullDomainEvents());
                 await this.outbox.append(tx, 'Product', events);
@@ -64,6 +67,16 @@ export class KnexProductRepository implements ProductRepositoryPort {
         }
 
         return this.toEntity(row);
+    }
+
+    async findBySkus(skus: Sku[]): Promise<ProductEntity[]> {
+        if (skus.length === 0) {
+            return [];
+        }
+
+        const rows: ProductRow[] = await this.knex(TABLE_NAME).whereIn('sku', skus.map(sku => sku.value));
+
+        return rows.map(row => this.toEntity(row));
     }
 
     async findExistingSkus(skus: Sku[]): Promise<Sku[]> {
@@ -94,7 +107,8 @@ export class KnexProductRepository implements ProductRepositoryPort {
     }
 
 
-    private toRow(product: ProductEntity): ProductRow {
+    // The version is not written: a new row starts at the column default.
+    private toRow(product: ProductEntity): Omit<ProductRow, 'version'> {
         return {
             id: product.id.value,
             sku: product.sku.value,
@@ -114,7 +128,8 @@ export class KnexProductRepository implements ProductRepositoryPort {
             description: row.description,
             price: new Price(Number(row.price)),
             stock: new Quantity(row.stock),
-            analysisStatus: this.toAnalysisStatus(row.analysis_status)
+            analysisStatus: this.toAnalysisStatus(row.analysis_status),
+            version: row.version,
         })
     }
 

@@ -70,12 +70,10 @@ describe("KnexProductRepository", () => {
       const product = newProduct();
       await repository.save(product);
 
-      product.addStock(new Quantity(5));
       product.approveAnalysis();
       await repository.save(product);
 
       const found = await repository.findBySku(product.sku);
-      expect(found?.stock.value).toBe(15);
       expect(found?.analysisStatus).toBe(ProductAnalysisStatus.APPROVED);
       expect(await db("products").count({ total: "*" }).first()).toEqual({ total: 1 });
     });
@@ -195,6 +193,53 @@ describe("KnexProductRepository", () => {
       await expect(
         repository.saveAll([newProduct({ sku: new Sku("NB-DUP") }), newProduct({ sku: new Sku("NB-DUP") })]),
       ).rejects.toThrow(DuplicateSkuError);
+    });
+  });
+
+  describe("stock and version", () => {
+    it("does not overwrite the stored stock when saving an existing product", async () => {
+      const product = newProduct({ stock: new Quantity(10) });
+      await repository.save(product);
+      const loaded = await repository.findBySku(product.sku);
+      await db("products").where({ id: product.id.value }).update({ stock: 3 });
+
+      loaded!.approveAnalysis();
+      await repository.save(loaded!);
+
+      const found = await repository.findBySku(product.sku);
+      expect(found?.stock.value).toBe(3);
+      expect(found?.analysisStatus).toBe(ProductAnalysisStatus.APPROVED);
+    });
+
+    it("starts a new product at version 0", async () => {
+      const product = newProduct();
+      await repository.save(product);
+
+      expect((await repository.findBySku(product.sku))?.version).toBe(0);
+    });
+
+    it("restores the stored version", async () => {
+      const product = newProduct();
+      await repository.save(product);
+      await db("products").where({ id: product.id.value }).update({ version: 4 });
+
+      expect((await repository.findBySku(product.sku))?.version).toBe(4);
+    });
+  });
+
+  describe("findBySkus", () => {
+    it("returns the stored products, ignoring unknown SKUs", async () => {
+      const a = newProduct();
+      const b = newProduct();
+      await repository.saveAll([a, b]);
+
+      const found = await repository.findBySkus([a.sku, b.sku, new Sku("ZZ-999")]);
+
+      expect(found.map((product) => product.sku.value).sort()).toEqual([a.sku.value, b.sku.value].sort());
+    });
+
+    it("returns an empty list for no SKUs", async () => {
+      expect(await repository.findBySkus([])).toEqual([]);
     });
   });
 

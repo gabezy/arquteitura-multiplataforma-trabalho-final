@@ -12,6 +12,9 @@ describe('loadConfig', () => {
       kafkaBrokers: ['localhost:9092'],
       produtoAnalisadoTopic: 'produto.analisado.v1',
       productAnalysisDeadLetterTopic: 'catalog.product-analysis.dlq',
+      orderPlacedTopic: 'order.order.placed.v1',
+      orderCancelledTopic: 'order.order.cancelled.v1',
+      orderStockDeadLetterTopic: 'catalog.order-stock.dlq',
     });
   });
 
@@ -25,6 +28,9 @@ describe('loadConfig', () => {
       KAFKA_BROKERS: 'kafka-1:19092, kafka-2:19092',
       PRODUTO_ANALISADO_TOPIC: 'analisado',
       PRODUCT_ANALYSIS_DLQ_TOPIC: 'analisado.dlq',
+      ORDER_PLACED_TOPIC: 'placed',
+      ORDER_CANCELLED_TOPIC: 'cancelled',
+      ORDER_STOCK_DLQ_TOPIC: 'order-stock.dlq',
     });
 
     expect(config).toEqual({
@@ -36,6 +42,9 @@ describe('loadConfig', () => {
       kafkaBrokers: ['kafka-1:19092', 'kafka-2:19092'],
       produtoAnalisadoTopic: 'analisado',
       productAnalysisDeadLetterTopic: 'analisado.dlq',
+      orderPlacedTopic: 'placed',
+      orderCancelledTopic: 'cancelled',
+      orderStockDeadLetterTopic: 'order-stock.dlq',
     });
   });
 

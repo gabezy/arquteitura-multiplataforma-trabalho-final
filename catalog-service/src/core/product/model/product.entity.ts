@@ -7,6 +7,7 @@ import { AnalysisAlreadyCompletedError, InsufficientStockError, InvalidProductEr
 import { AggregateRoot } from "../../shared/domain/aggregate.root";
 import { ProductCreated } from "./product-created.event";
 import { ProductAnalysisApproved, ProductAnalysisRejected } from "./product-analysis.events";
+import { ProductStockChanged } from "./product-stock-changed.event";
 
 export interface NewProductProps {
     sku: Sku;
@@ -24,6 +25,7 @@ export interface RestoreProductEntityProps {
     price: Price;
     stock: Quantity;
     analysisStatus: ProductAnalysisStatus;
+    version: number;
 }
 
 interface ProductEntityProps {
@@ -34,6 +36,7 @@ interface ProductEntityProps {
     price: Price;
     stock: Quantity;
     analysisStatus: ProductAnalysisStatus;
+    version?: number;
 }
 
 export class ProductEntity extends AggregateRoot<Id> {
@@ -44,6 +47,7 @@ export class ProductEntity extends AggregateRoot<Id> {
     private _price: Price;
     private _stock: Quantity;
     private _analysisStatus: ProductAnalysisStatus;
+    private readonly _version: number;
 
     public static create(props: NewProductProps): ProductEntity {
         const product = new ProductEntity({
@@ -72,6 +76,7 @@ export class ProductEntity extends AggregateRoot<Id> {
             price: props.price,
             stock: props.stock,
             analysisStatus: props.analysisStatus,
+            version: props.version,
         });
     }
 
@@ -83,6 +88,7 @@ export class ProductEntity extends AggregateRoot<Id> {
         this._price = props.price;
         this._stock = props.stock;
         this._analysisStatus = props.analysisStatus;
+        this._version = props.version ?? 0;
 
         this.validate();
     }
@@ -120,11 +126,22 @@ export class ProductEntity extends AggregateRoot<Id> {
         return this._analysisStatus;
     }
 
+    // The version the product was read with. The repository uses it for optimistic locking.
+    get version(): number {
+        return this._version;
+    }
+
+    // Marketplaces only list approved products, so only those can be ordered.
+    isAvailableForOrders(): boolean {
+        return this._analysisStatus.equals(ProductAnalysisStatus.APPROVED);
+    }
+
     addStock(quantity: Quantity): void {
         if (quantity.isZero()) {
             throw new InvalidProductError("Quantity to add must be greater than zero.");
         }
         this._stock = this._stock.add(quantity);
+        this.recordStockChanged();
     }
 
     removeStock(quantity: Quantity): void {
@@ -135,6 +152,11 @@ export class ProductEntity extends AggregateRoot<Id> {
             throw new InsufficientStockError();
         }
         this._stock = this._stock.subtract(quantity);
+        this.recordStockChanged();
+    }
+
+    private recordStockChanged(): void {
+        this.record(new ProductStockChanged(this.id.value, this._sku.value, this._stock.value));
     }
 
     approveAnalysis(): void {

@@ -1,6 +1,7 @@
 import { toProductIntegrationEvent } from "./product.integration-events";
 import { ProductCreated } from "../../core/product/model/product-created.event";
 import { ProductAnalysisApproved, ProductAnalysisRejected } from "../../core/product/model/product-analysis.events";
+import { ProductStockChanged } from "../../core/product/model/product-stock-changed.event";
 import { DomainEvent } from "../../core/shared/domain/domain.event";
 
 const PRODUCT_ID = "0b9f4c2e-6a1d-4f3b-9c8e-2d7a5e1f4b6c";
@@ -14,6 +15,13 @@ class UnmappedEvent extends DomainEvent {
 }
 
 describe("toProductIntegrationEvent", () => {
+  it("maps ProductStockChanged to the public catalog.product.stock-changed.v1 contract", () => {
+    expect(toProductIntegrationEvent(new ProductStockChanged(PRODUCT_ID, "NB-001", 6))).toEqual({
+      type: "catalog.product.stock-changed.v1",
+      data: { productId: PRODUCT_ID, sku: "NB-001", stock: 6 },
+    });
+  });
+
   it("maps ProductCreated to the public catalog.product.created.v1 contract", () => {
     const event = new ProductCreated(PRODUCT_ID, "NB-001", "Notebook", "Notebook 16GB RAM", 4500, 10);
 
