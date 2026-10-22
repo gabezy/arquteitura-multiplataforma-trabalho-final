@@ -17,7 +17,7 @@ SQLAlchemy is pinned to `<2.1` because `opentelemetry-instrumentation-sqlalchemy
 Run from this directory:
 
 ```bash
-docker compose -f ../compose.yaml up -d compliance-db kafka kafka-init   # add --profile obs for the collector and Grafana
+docker compose -f ../docker-compose.yaml up -d compliance-db kafka kafka-init   # add otel-collector grafana for telemetry
 uv sync                                   # install into .venv
 uv run alembic upgrade head               # apply migrations
 uv run python -m compliance_service.main  # run on PORT (8083)

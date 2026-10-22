@@ -13,7 +13,7 @@ Shared infrastructure (Keycloak, realm users, getting a token) and monorepo-wide
 Run the commands from this directory:
 
 ```bash
-docker compose -f ../compose.yaml up -d    # Keycloak on http://localhost:8085
+make -C .. up-infra                        # infra without the apps: Keycloak on http://localhost:8085
 ./mvnw spring-boot:run                     # run the BFF (needs Keycloak for the issuer-uri)
 ./mvnw test                                # all tests
 ./mvnw test -Dtest=CatalogControllerSecurityTest                        # one class
