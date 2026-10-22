@@ -1,5 +1,6 @@
 import { ProductCreated } from "../../core/product/model/product-created.event";
 import { ProductAnalysisApproved, ProductAnalysisRejected } from "../../core/product/model/product-analysis.events";
+import { ProductStockChanged } from "../../core/product/model/product-stock-changed.event";
 import { IntegrationEventMapper } from "./integration-event";
 
 export const toProductIntegrationEvent: IntegrationEventMapper = event => {
@@ -23,6 +24,13 @@ export const toProductIntegrationEvent: IntegrationEventMapper = event => {
 
     if (event instanceof ProductAnalysisRejected) {
         return { type: 'catalog.product.rejected.v1', data: { productId: event.aggregateId, sku: event.sku } };
+    }
+
+    if (event instanceof ProductStockChanged) {
+        return {
+            type: 'catalog.product.stock-changed.v1',
+            data: { productId: event.aggregateId, sku: event.sku, stock: event.stock },
+        };
     }
 
     throw new Error(`No integration event for ${event.eventName}.`);

@@ -20,6 +20,10 @@ class InMemoryProductRepository implements ProductRepositoryPort {
     return [...this.products.values()].find((product) => product.sku.equals(sku)) ?? null;
   }
 
+  async findBySkus(skus: Sku[]): Promise<ProductEntity[]> {
+    return [...this.products.values()].filter((product) => skus.some((sku) => sku.equals(product.sku)));
+  }
+
   async findExistingSkus(skus: Sku[]): Promise<Sku[]> {
     const stored = [...this.products.values()].map((product) => product.sku);
     return skus.filter((sku) => stored.some((existing) => existing.equals(sku)));
