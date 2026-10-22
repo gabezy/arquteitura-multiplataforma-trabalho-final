@@ -39,7 +39,7 @@ Para publicar um evento de pedido (`chave|valor`):
 ```bash
 order() { # order <tópico> <orderId> <json>
   echo "$2|$3" | docker exec -i kafka /opt/kafka/bin/kafka-console-producer.sh --bootstrap-server kafka:19092 \
-    --topic "$1" --property parse.key=true --property key.separator='|'
+    --topic "$1" --reader-property parse.key=true --reader-property key.separator='|'
 }
 stock() { curl -s localhost:8082/products/sku/NB-001 | grep -o '"stock":[0-9]*'; }
 ```
@@ -81,7 +81,7 @@ Para ver as respostas:
 
 ```bash
 docker exec kafka /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server kafka:19092 --from-beginning \
-  --include 'catalog\.(stock\..*|product\.stock-changed)\.v1' --property print.key=true --timeout-ms 5000
+  --include 'catalog\.(stock\..*|product\.stock-changed)\.v1' --formatter-property print.key=true --timeout-ms 5000
 ```
 
 ## Regras
