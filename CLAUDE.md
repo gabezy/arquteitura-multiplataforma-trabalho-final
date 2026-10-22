@@ -12,17 +12,19 @@ This monorepo holds the services of the "omni-market" system. Each service sits 
 
 Shared local infrastructure lives at the root:
 
-- `compose.yaml` — local dependencies shared by all services.
+- `docker-compose.yaml` — the whole local environment: shared infra, observability, WireMock and the applications.
 - `docker/` — config mounted by those containers (e.g. `docker/keycloak/realms/` is imported by Keycloak on startup).
 
 ## Shared infrastructure
 
 ```bash
-docker compose up -d      # start shared infra
-docker compose down -v    # stop and drop volumes (needed to re-import a changed realm)
+docker compose up -d --build   # start everything, building the applications
+docker compose down -v         # stop and drop volumes (needed to re-import a changed realm)
 ```
 
-The root `Makefile` wraps these (`make` lists targets): `up`, `up-obs`, `up-mock`, `up-all`, `down`, `clean` (drops volumes), `ps`, `logs s=<service>`, `topics`.
+The root `Makefile` wraps these (`make` lists targets): `up` (everything), `up-infra` (everything but the applications), `down`, `clean` (drops volumes), `restart`, `ps`, `logs s=<service>`, `topics`.
+
+**Applications**: `bff-gateway`, `catalog-service` and `compliance-service` are built from source and run inside the compose network (`kafka:19092`, `catalog-db:5432`, `otel-collector:4318`). To run one of them from its own directory, start the rest with `make up-infra`, which leaves out the services listed in `APPS` in the Makefile. A new service is added to the compose file and to `APPS`. Inside the network the BFF fetches Keycloak's signing keys from `keycloak:8080` (`SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWKSETURI`) but keeps validating `iss` against `http://localhost:8085/realms/omni-market`, the issuer of tokens fetched from the host. `BFF_PORT` and `GRAFANA_PORT` change the host ports when 8080 or 3000 are taken.
 
 **Keycloak** (26.x) runs on http://localhost:8085 (admin console: `admin`/`admin`). The realm is `omni-market` and the issuer is `http://localhost:8085/realms/omni-market`.
 
@@ -44,7 +46,7 @@ Topics are created by the one-shot `kafka-init` service, which runs `docker/kafk
 
 **Postgres**: one container per service. `catalog-db` on localhost:5432 (`catalog`/`catalog`), `compliance-db` on localhost:5433 (`compliance`/`compliance`).
 
-**Observability** (`--profile obs`): apps send OTLP over HTTP to the collector on http://localhost:4318. Grafana runs on http://localhost:3000 (`admin`/`admin`).
+**Observability**: apps send OTLP over HTTP to the collector on http://localhost:4318. Grafana runs on http://localhost:3000 (`admin`/`admin`).
 
 ## Conventions (all services)
 

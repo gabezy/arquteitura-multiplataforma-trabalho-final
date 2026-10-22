@@ -13,7 +13,7 @@ Shared infrastructure and monorepo-wide conventions are described in `../CLAUDE.
 Run the commands from this directory:
 
 ```bash
-docker compose -f ../compose.yaml --profile obs up -d   # Postgres, Kafka, OTel collector (:4318), Grafana (:3000), etc.
+make -C .. up-infra                       # infra without the apps: Postgres, Kafka, OTel collector (:4318), Grafana (:3000), etc.
 npm run dev                               # tsx watch, with instrumentation preloaded
 npm run build && npm start                # compile to dist/ and run
 npm test                                  # all tests (Jest + ts-jest)

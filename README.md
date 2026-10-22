@@ -30,16 +30,14 @@ Cada serviço tem build próprio e um `CLAUDE.md` com comandos e arquitetura. To
 - `make`
 - Toolchain de cada serviço (JDK, Node.js, uv) para rodá-los fora do Docker
 
-## Infraestrutura local
+## Ambiente local
 
-A infra compartilhada está em `compose.yaml`, com as configs montadas em `docker/`. O `Makefile` encapsula os comandos:
+O ambiente local está em `docker-compose.yaml`, com as configs montadas em `docker/`. `docker compose up -d --build` sobe tudo: Keycloak, Postgres, Kafka, observabilidade, WireMock e as aplicações. O `Makefile` encapsula os comandos:
 
 ```bash
 make            # lista os comandos
-make up         # Keycloak, Postgres, Kafka e Kafka UI
-make up-obs     # + observabilidade (OTel Collector, Grafana, Tempo, Loki, Prometheus)
-make up-mock    # + WireMock
-make up-all     # tudo
+make up         # sobe tudo, com build das aplicações
+make up-infra   # sobe tudo menos as aplicações (para rodar um serviço pelo código)
 make ps         # estado dos containers
 make logs s=kafka   # logs de um serviço (sem s=, de todos)
 make topics     # aplica tópicos novos de docker/kafka/create-topics.sh
@@ -55,8 +53,11 @@ make clean      # para e apaga os volumes
 | catalog-db (Postgres) | `localhost:5432` | `catalog` / `catalog` |
 | compliance-db (Postgres) | `localhost:5433` | `compliance` / `compliance` |
 | OTel Collector (OTLP HTTP) | http://localhost:4318 | — |
-| Grafana | http://localhost:3000 | `admin` / `admin` |
+| Grafana | http://localhost:3000 (`GRAFANA_PORT`) | `admin` / `admin` |
 | WireMock | http://localhost:8089 | — |
+| bff-gateway | http://localhost:8080 (`BFF_PORT`) | token do Keycloak |
+| catalog-service | http://localhost:8082 | — |
+| compliance-service | http://localhost:8083 | — |
 
 ### Keycloak
 
@@ -74,6 +75,26 @@ curl -s -X POST http://localhost:8085/realms/omni-market/protocol/openid-connect
 ```
 
 O import ignora um realm que já existe: depois de alterar o JSON, rode `make clean && make up`.
+
+### Aplicações no compose
+
+`bff-gateway`, `catalog-service` e `compliance-service` são buildados a partir do código e sobem junto com a infra. Para rodar um deles pelo código (com hot reload, debugger etc.), use `make up-infra`, que deixa as aplicações de fora e evita disputa pelas portas.
+
+Se uma porta do host já estiver ocupada por outro projeto, troque pelas variáveis, na linha de comando ou num `.env` na raiz (ignorado pelo git):
+
+```bash
+BFF_PORT=8081 GRAFANA_PORT=3001 make up
+```
+
+Fluxo ponta a ponta pelo BFF (usa `jq`):
+
+```bash
+TOKEN=$(curl -s -X POST http://localhost:8085/realms/omni-market/protocol/openid-connect/token \
+  -d grant_type=password -d client_id=bff-gateway -d client_secret=bff-gateway-secret \
+  -d username=admin -d password=admin | jq -r .access_token)
+curl -s -H "Authorization: Bearer $TOKEN" -F file=@catalog-import.xlsx http://localhost:8080/catalog/import/xlsx
+curl -s http://localhost:8082/products/sku/<sku>   # status da análise feita pelo compliance
+```
 
 ## Fluxo de eventos
 

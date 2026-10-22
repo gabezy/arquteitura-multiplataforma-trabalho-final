@@ -1,6 +1,6 @@
 #!/bin/sh
 # Creates the topics the services publish to or consume from. Run by the kafka-init
-# service in ../../compose.yaml. Safe to run again: existing topics are left as they are.
+# service in ../../docker-compose.yaml. Safe to run again: existing topics are left as they are.
 set -eu
 
 BOOTSTRAP_SERVER="${KAFKA_BOOTSTRAP_SERVER:-kafka:19092}"
