@@ -19,7 +19,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 15
-      start_period: 30s
+      # The first start builds Keycloak's optimized config, which is slow when the whole stack starts at once.
+      start_period: 120s
 
   catalog-db:
     image: postgres:18-alpine
@@ -84,9 +85,10 @@ services:
     healthcheck:
       test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 > /dev/null 2>&1"]
       interval: 10s
-      timeout: 10s
+      # The check starts a JVM, which takes several seconds when the whole stack starts at once.
+      timeout: 30s
       retries: 10
-      start_period: 20s
+      start_period: 60s
 
   kafka-init:
     image: apache/kafka:4.3.1
@@ -118,10 +120,8 @@ services:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
       GF_SERVER_HTTP_PORT: 3000
-    profiles:
-      - obs
     ports:
-      - "3000:3000"
+      - "${GRAFANA_PORT:-3000}:3000"
     volumes:
       - grafana-data:/var/lib/grafana
       - ./docker/grafana/datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
@@ -130,8 +130,6 @@ services:
     image: grafana/loki:3.7.0
     container_name: loki
     command: ["-config.file=/etc/local-config.yaml"]
-    profiles:
-      - obs
     expose:
       - "3100"
     volumes:
@@ -142,8 +140,6 @@ services:
     image: grafana/tempo:3.0.0
     container_name: tempo
     command: ["-config.file=/etc/tempo.yaml"]    
-    profiles:
-      - obs
     volumes:
       - tempo-data:/var/tempo
       - ./docker/tempo/config.yaml:/etc/tempo.yaml
@@ -154,8 +150,6 @@ services:
     image: otel/opentelemetry-collector-contrib:0.162.0
     container_name: otel-collector
     command: ["--config=/etc/otel-collector-config.yaml"]
-    profiles:
-      - obs
     ports:
       - "4317:4317"
       - "4318:4318"
@@ -170,8 +164,6 @@ services:
   prometheus:
     image: prom/prometheus:v3.5.0
     container_name: prometheus
-    profiles:
-      - obs
     command:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.retention.time=48h
@@ -186,13 +178,61 @@ services:
   wiremock:
     image: wiremock/wiremock:3.13.2
     container_name: wiremock
-    profiles:
-      - mock
     ports:
       - "8089:8080"
     volumes:
       - ./docker/wiremock/mappings:/home/wiremock/mappings
       - ./docker/wiremock/__files:/home/wiremock/__files
+
+  # Applications, built from source. `make up-infra` leaves them out, for whoever runs a service
+  # from its own directory.
+  catalog-service:
+    build: ./catalog-service
+    container_name: catalog-service
+    environment:
+      DATABASE_URL: postgresql://${CATALOG_DB_USER:-catalog}:${CATALOG_DB_PASSWORD:-catalog}@catalog-db:5432/${CATALOG_DB_NAME:-catalog}
+      KAFKA_BROKERS: kafka:19092
+      OTEL_COLLECTOR_URL: http://otel-collector:4318
+    ports:
+      - "8082:8082"
+    depends_on:
+      catalog-db:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+
+  compliance-service:
+    build: ./compliance-service
+    container_name: compliance-service
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${COMPLIANCE_DB_USER:-compliance}:${COMPLIANCE_DB_PASSWORD:-compliance}@compliance-db:5432/${COMPLIANCE_DB_NAME:-compliance}
+      KAFKA_BROKERS: kafka:19092
+      OTEL_COLLECTOR_URL: http://otel-collector:4318
+    ports:
+      - "8083:8083"
+    depends_on:
+      compliance-db:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+
+  bff-gateway:
+    build: ./bff-gateway
+    container_name: bff-gateway
+    environment:
+      # Tokens fetched from the host carry iss=http://localhost:8085/realms/omni-market (KC_HOSTNAME),
+      # so that is the issuer the BFF validates. The signing keys come from Keycloak inside the network.
+      KEYCLOAK_ISSUER_URI: http://localhost:8085/realms/omni-market
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWKSETURI: http://keycloak:8080/realms/omni-market/protocol/openid-connect/certs
+      CATALOG_SERVICE_URL: http://catalog-service:8082
+      OTEL_COLLECTOR_URL: http://otel-collector:4318
+    ports:
+      - "${BFF_PORT:-8080}:8080"
+    depends_on:
+      keycloak:
+        condition: service_healthy
+      catalog-service:
+        condition: service_healthy
 
 volumes:
   keycloak-data:

@@ -16,7 +16,7 @@ ADR registra **uma** decisão de arquitetura e **por que** ela foi tomada. Quem 
 
 ## Processo
 
-1. **Levantar o contexto real.** Ler o código, `CLAUDE.md` e configs relevantes para a decisão (ex. `compose.yaml`, `package.json`, `pom.xml`). Usar dados do projeto, nunca os exemplos do template.
+1. **Levantar o contexto real.** Ler o código, `CLAUDE.md` e configs relevantes para a decisão (ex. `docker-compose.yaml`, `package.json`, `pom.xml`). Usar dados do projeto, nunca os exemplos do template.
 2. **Esclarecer todos os pontos antes de escrever (obrigatório).** Não começar a ADR enquanto houver qualquer ponto em dúvida ou mal explicado. Antes de escrever, confirmar que estão claros:
    - o problema e as forças em jogo (necessidade, escala, time, prazo, restrições);
    - a decisão tomada e o motivo principal;
