@@ -11,15 +11,21 @@ const RELAY_INTERVAL_MS = 1000;
 const config = loadConfig();
 const logger = createLogger(config.logLevel);
 const db = createDatabaseConnection(config.databaseUrl);
-const { consumer, producer } = configureKafka(config.kafkaBrokers);
+const { consumer, producer, orderStockConsumer: orderStockKafkaConsumer } = configureKafka(config.kafkaBrokers);
 
-const { productController, productAnalysisConsumer } = createProductModule({
+const { productController, productAnalysisConsumer, orderStockConsumer } = createProductModule({
   db,
   consumer,
   producer,
   productAnalysisTopics: {
     topic: config.produtoAnalisadoTopic,
     deadLetterTopic: config.productAnalysisDeadLetterTopic,
+  },
+  orderStockKafkaConsumer,
+  orderStockTopics: {
+    placedTopic: config.orderPlacedTopic,
+    cancelledTopic: config.orderCancelledTopic,
+    deadLetterTopic: config.orderStockDeadLetterTopic,
   },
   logger,
 });
@@ -28,6 +34,7 @@ const relay = new OutboxRelay(db, producer);
 async function start(): Promise<void> {
   await producer.connect();
   await productAnalysisConsumer.start();
+  await orderStockConsumer.start();
 
   relay.start({
     intervalMs: RELAY_INTERVAL_MS,
@@ -42,6 +49,7 @@ async function start(): Promise<void> {
     logger.info({ signal }, `${config.serviceName} shutting down`);
     server.close();
     await consumer.disconnect();
+    await orderStockKafkaConsumer.disconnect();
     await relay.stop();
     await producer.disconnect();
     await db.destroy();

@@ -17,8 +17,16 @@ create() {
 create catalog.product.created.v1 3
 create catalog.product.approved.v1 3
 create catalog.product.rejected.v1 3
+create catalog.stock.reserved.v1 3
+create catalog.stock.insufficient.v1 3
+create catalog.product.stock-changed.v1 3
 create produto.analisado.v1 3
 create catalog.product-analysis.dlq 1 retention.ms=1209600000 # 14 days to inspect and replay
+create catalog.order-stock.dlq 1 retention.ms=1209600000 # 14 days to inspect and replay
+
+# order-service (consumed by catalog-service until order-service exists)
+create order.order.placed.v1 3
+create order.order.cancelled.v1 3
 
 # compliance-service
 create compliance.product-created.dlq 1 retention.ms=1209600000 # 14 days to inspect and replay

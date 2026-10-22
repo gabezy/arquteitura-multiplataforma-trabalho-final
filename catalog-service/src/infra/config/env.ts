@@ -7,6 +7,9 @@ export interface AppConfig {
   kafkaBrokers: string[];
   produtoAnalisadoTopic: string;
   productAnalysisDeadLetterTopic: string;
+  orderPlacedTopic: string;
+  orderCancelledTopic: string;
+  orderStockDeadLetterTopic: string;
 }
 
 const DEFAULT_PORT = 8082;
@@ -21,6 +24,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     kafkaBrokers: parseBrokers(env.KAFKA_BROKERS),
     produtoAnalisadoTopic: env.PRODUTO_ANALISADO_TOPIC ?? 'produto.analisado.v1',
     productAnalysisDeadLetterTopic: env.PRODUCT_ANALYSIS_DLQ_TOPIC ?? 'catalog.product-analysis.dlq',
+    orderPlacedTopic: env.ORDER_PLACED_TOPIC ?? 'order.order.placed.v1',
+    orderCancelledTopic: env.ORDER_CANCELLED_TOPIC ?? 'order.order.cancelled.v1',
+    orderStockDeadLetterTopic: env.ORDER_STOCK_DLQ_TOPIC ?? 'catalog.order-stock.dlq',
   };
 }
 
