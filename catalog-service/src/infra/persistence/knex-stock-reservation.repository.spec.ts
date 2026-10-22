@@ -109,6 +109,31 @@ describe("KnexStockReservationRepository", () => {
     expect(await outboxRows()).toEqual([]);
   });
 
+  it("does not overwrite the answer already stored for the order", async () => {
+    const product = await storedProduct(2);
+    await repository.save(StockReservation.cancelBeforePlaced(new Id(ORDER_ID)), []);
+    product.removeStock(new Quantity(1));
+
+    await expect(
+      repository.save(StockReservation.reserve(new Id(ORDER_ID), [{ sku: "NB-001", quantity: 1 }]), [product]),
+    ).rejects.toThrow(ConcurrentModificationError);
+
+    expect((await repository.findByOrderId(new Id(ORDER_ID)))?.status).toBe(StockReservationStatus.CANCELLED);
+    expect((await products.findBySku(product.sku))?.stock.value).toBe(2);
+    expect(await outboxRows()).toEqual([]);
+  });
+
+  it("does not release a reservation that was released meanwhile", async () => {
+    await repository.save(StockReservation.reserve(new Id(ORDER_ID), [{ sku: "NB-001", quantity: 1 }]), []);
+    const first = (await repository.findByOrderId(new Id(ORDER_ID)))!;
+    const second = (await repository.findByOrderId(new Id(ORDER_ID)))!;
+    first.release();
+    second.release();
+    await repository.save(first, []);
+
+    await expect(repository.save(second, [])).rejects.toThrow(ConcurrentModificationError);
+  });
+
   it("saves a rejected reservation with no products", async () => {
     await repository.save(StockReservation.reject(new Id(ORDER_ID), [{ sku: "NB-001", requested: 2, available: 1 }]), []);
 

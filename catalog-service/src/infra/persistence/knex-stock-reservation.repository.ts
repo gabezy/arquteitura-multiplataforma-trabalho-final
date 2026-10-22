@@ -46,19 +46,42 @@ export class KnexStockReservationRepository implements StockReservationRepositor
                 await this.updateStock(tx, product);
             }
 
-            await tx(TABLE_NAME)
-                .insert({
-                    order_id: reservation.orderId.value,
-                    status: reservation.status.value,
-                    items: JSON.stringify(reservation.items),
-                    updated_at: tx.fn.now(),
-                })
-                .onConflict('order_id')
-                .merge(['status', 'items', 'updated_at']);
+            if (reservation.status.equals(StockReservationStatus.RELEASED)) {
+                await this.markReleased(tx, reservation);
+            } else {
+                await this.insert(tx, reservation);
+            }
 
             await this.outbox.append(tx, 'StockReservation', reservation.pullDomainEvents());
             await this.outbox.append(tx, 'Product', products.flatMap(product => product.pullDomainEvents()));
         });
+    }
+
+    // Every other status is the first answer to the order. If another delivery stored an
+    // answer meanwhile, that one stands: the retry finds it and does nothing.
+    private async insert(tx: Knex.Transaction, reservation: StockReservation): Promise<void> {
+        try {
+            await tx(TABLE_NAME).insert({
+                order_id: reservation.orderId.value,
+                status: reservation.status.value,
+                items: JSON.stringify(reservation.items),
+            });
+        } catch (err) {
+            if (isUniqueViolation(err)) {
+                throw new ConcurrentModificationError(`Order ${reservation.orderId.value} was answered concurrently.`);
+            }
+            throw err;
+        }
+    }
+
+    private async markReleased(tx: Knex.Transaction, reservation: StockReservation): Promise<void> {
+        const updated = await tx(TABLE_NAME)
+            .where({ order_id: reservation.orderId.value, status: StockReservationStatus.RESERVED.value })
+            .update({ status: reservation.status.value, updated_at: tx.fn.now() });
+
+        if (updated === 0) {
+            throw new ConcurrentModificationError(`Order ${reservation.orderId.value} was released concurrently.`);
+        }
     }
 
     // Writes the stock only if nobody changed the product since it was read.
@@ -80,4 +103,10 @@ export class KnexStockReservationRepository implements StockReservationRepositor
         return status;
     }
 
+}
+
+// Postgres reports unique and primary key violations as 23505; SQLite (used in tests) by its own codes.
+function isUniqueViolation(err: unknown): boolean {
+    const { code } = (err ?? {}) as { code?: string };
+    return code === '23505' || code === 'SQLITE_CONSTRAINT_PRIMARYKEY' || code === 'SQLITE_CONSTRAINT_UNIQUE';
 }
