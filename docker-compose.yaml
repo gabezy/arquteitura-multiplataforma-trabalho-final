@@ -259,12 +259,19 @@ services:
     build: ./compliance-service
     container_name: compliance-service
     environment:
-      DATABASE_URL: postgresql+asyncpg://${COMPLIANCE_DB_USER:-compliance}:${COMPLIANCE_DB_PASSWORD:?run make env}@compliance-db:5432/${COMPLIANCE_DB_NAME:-compliance}
+      DB_HOST: compliance-db
+      DB_PORT: 5432
+      DB_NAME: ${COMPLIANCE_DB_NAME:-compliance}
+      VAULT_ADDR: http://vault:8200
+      VAULT_ROLE_ID: ${COMPLIANCE_VAULT_ROLE_ID:?run make env}
+      VAULT_SECRET_ID: ${COMPLIANCE_VAULT_SECRET_ID:?run make env}
       KAFKA_BROKERS: kafka:19092
       OTEL_COLLECTOR_URL: http://otel-collector:4318
     ports:
       - "8083:8083"
     depends_on:
+      vault-init:
+        condition: service_completed_successfully
       compliance-db:
         condition: service_healthy
       kafka-init:
