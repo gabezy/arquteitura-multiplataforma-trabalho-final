@@ -3,15 +3,22 @@ COMPOSE := docker compose -f docker-compose.yaml
 APPS := bff-gateway catalog-service compliance-service
 
 .DEFAULT_GOAL := help
-.PHONY: help up up-infra down clean restart ps logs topics
+.PHONY: help env up up-infra down clean restart ps logs topics vault
 
 help: ## lista os comandos disponíveis
 	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2}'
 
-up: ## sobe tudo: infra, observabilidade, WireMock e aplicações (com build)
+# Created from .env.example on the first run; `make env` also adds keys new to .env.example.
+.env: .env.example
+	@sh scripts/generate-env.sh
+
+env: ## cria/completa o .env (secrets aleatórios, mantém os valores existentes)
+	@sh scripts/generate-env.sh
+
+up: .env ## sobe tudo: infra, observabilidade, WireMock e aplicações (com build)
 	$(COMPOSE) up -d --build
 
-up-infra: ## sobe tudo menos as aplicações (para rodar um serviço pelo código)
+up-infra: .env ## sobe tudo menos as aplicações (para rodar um serviço pelo código)
 	$(COMPOSE) up -d $(foreach app,$(APPS),--scale $(app)=0)
 
 down: ## para todos os containers (mantém os volumes)
@@ -30,3 +37,6 @@ logs: ## segue os logs (ex.: make logs s=kafka)
 
 topics: ## cria os tópicos novos do Kafka (create-topics.sh)
 	$(COMPOSE) up -d kafka-init
+
+vault: ## regrava secrets e AppRoles no Vault (necessário após reiniciar o Vault)
+	$(COMPOSE) up -d --force-recreate vault-init
