@@ -15,7 +15,12 @@ export function errorHandler(logger: Logger): ErrorRequestHandler {
 
     const clientErrorStatus = clientErrorStatusOf(err);
     if (clientErrorStatus) {
-      logger.warn({ err, method: req.method, path: req.path }, err.message);
+      // body-parser errors carry the raw request body in err.body, and a JSON SyntaxError
+      // message may quote part of it, so only safe fields are logged.
+      logger.warn(
+        { status: clientErrorStatus, errType: err.type, method: req.method, path: req.path },
+        'Client error',
+      );
       sendProblem(req, res, clientErrorStatus, err.message);
       return;
     }

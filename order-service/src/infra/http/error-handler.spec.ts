@@ -44,6 +44,29 @@ describe('errorHandler', () => {
     expect(response.body).toMatchObject({ type: 'about:blank', title: 'Bad Request', status: 400, instance: '/boom' });
   });
 
+  it('does not log the request body of a malformed JSON request', async () => {
+    const lines: string[] = [];
+    const logger = pino({ level: 'info' }, { write: (line: string) => lines.push(line) });
+    const app = express();
+    app.use(express.json());
+    app.use(errorHandler(logger));
+
+    await request(app)
+      .post('/orders')
+      .set('Content-Type', 'application/json')
+      .send('{ "customerDocument": "123.456.789-00", ');
+
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).not.toContain('123.456.789-00');
+    expect(JSON.parse(lines[0])).toMatchObject({
+      level: 40,
+      status: 400,
+      errType: 'entity.parse.failed',
+      method: 'POST',
+      path: '/orders',
+    });
+  });
+
   it('returns 500 without leaking the message for unexpected errors', async () => {
     const response = await request(appThrowing(new Error('connection refused to order-db:5432'))).post('/boom');
 
