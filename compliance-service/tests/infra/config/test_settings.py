@@ -55,3 +55,10 @@ def test_reads_environment_variables(monkeypatch):
 
     assert settings.price_ceiling == Decimal("500.50")
     assert settings.kafka_bootstrap_servers == ["kafka:19092", "other:9092"]
+
+
+def test_a_missing_db_user_does_not_expose_the_password():
+    with pytest.raises(ValidationError) as error:
+        Settings(_env_file=None, db_password="s3cr3t-pass")
+
+    assert "s3cr3t-pass" not in str(error.value)

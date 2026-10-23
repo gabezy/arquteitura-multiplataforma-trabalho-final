@@ -10,7 +10,8 @@ KV_MOUNT = "secret"
 
 
 class VaultSettings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    # hide_input_in_errors: a validation error would otherwise print the secrets it was given.
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore", hide_input_in_errors=True)
 
     vault_addr: str = "http://localhost:8200"
     vault_role_id: str

@@ -1,6 +1,7 @@
 from types import SimpleNamespace
 
 import pytest
+from pydantic import ValidationError
 from requests.exceptions import ConnectionError as RequestsConnectionError
 
 from compliance_service.infra.config.vault import VaultSettings, load_settings
@@ -60,5 +61,15 @@ def test_names_the_vault_address_when_vault_is_unreachable():
 
     with pytest.raises(RuntimeError, match="http://vault:8200") as error:
         load_settings(VAULT, client)
+
+    assert "secret-456" not in str(error.value)
+
+
+def test_a_missing_role_id_does_not_expose_the_secret_id(monkeypatch):
+    monkeypatch.delenv("VAULT_ROLE_ID", raising=False)
+    monkeypatch.setenv("VAULT_SECRET_ID", "secret-456")
+
+    with pytest.raises(ValidationError) as error:
+        VaultSettings(_env_file=None)
 
     assert "secret-456" not in str(error.value)
