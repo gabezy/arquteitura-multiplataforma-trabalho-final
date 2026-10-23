@@ -1,4 +1,4 @@
-# ADR-0003: catalog-service como dono do estoque, com reserva no pedido por coreografia
+# ADR-0004: catalog-service como dono do estoque, com reserva no pedido por coreografia
 
 ## Status
 
