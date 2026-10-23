@@ -286,10 +286,15 @@ services:
       KEYCLOAK_ISSUER_URI: http://localhost:8085/realms/omni-market
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWKSETURI: http://keycloak:8080/realms/omni-market/protocol/openid-connect/certs
       CATALOG_SERVICE_URL: http://catalog-service:8082
+      VAULT_ADDR: http://vault:8200
+      VAULT_ROLE_ID: ${BFF_VAULT_ROLE_ID:?run make env}
+      VAULT_SECRET_ID: ${BFF_VAULT_SECRET_ID:?run make env}
       OTEL_COLLECTOR_URL: http://otel-collector:4318
     ports:
       - "${BFF_PORT:-8080}:8080"
     depends_on:
+      vault-init:
+        condition: service_completed_successfully
       keycloak:
         condition: service_healthy
       catalog-service:
