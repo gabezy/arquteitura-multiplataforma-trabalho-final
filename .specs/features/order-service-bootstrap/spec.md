@@ -242,9 +242,9 @@ The order-service is in the C4 but has no code, database or pipeline. Issues #20
 | BOOT-03 | P1: Service runs - failed migration exits 1 | T3 | Implementing |
 | BOOT-04 | P1: Service runs - `make up-infra` leaves the service out | T6 | In Tasks |
 | BOOT-05 | P1: Service runs - second start applies nothing | T3 | Implementing |
-| BOOT-06 | P1: Health - `UP` with the database | T4 | In Tasks |
-| BOOT-07 | P1: Health - `DOWN` within 2 s without the database | T4 | In Tasks |
-| BOOT-08 | P1: Health - `DOWN` is logged | T4 | In Tasks |
+| BOOT-06 | P1: Health - `UP` with the database | T4 | Implementing |
+| BOOT-07 | P1: Health - `DOWN` within 2 s without the database | T4 | Implementing |
+| BOOT-08 | P1: Health - `DOWN` is logged | T4 | Implementing |
 | BOOT-09 | P1: Configuration - defaults | T1 | Implementing |
 | BOOT-10 | P1: Configuration - invalid `PORT` | T1 | Implementing |
 | BOOT-11 | P1: Configuration - `.env` loaded | T1 | Implementing |
@@ -276,7 +276,7 @@ The order-service is in the C4 but has no code, database or pipeline. Issues #20
 | BOOT-37 | P1: Publishing - 1000 ms polling | T5 | In Tasks |
 | BOOT-38 | P1: Publishing - send span in the recording trace | T5 | In Tasks |
 
-**Coverage:** 38 total, 38 mapped to tasks, 0 unmapped; 12 implemented
+**Coverage:** 38 total, 38 mapped to tasks, 0 unmapped; 15 implemented
 
 ---
 

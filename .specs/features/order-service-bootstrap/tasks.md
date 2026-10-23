@@ -183,16 +183,18 @@ T6 → T8
 
 **Done when**:
 
-- [ ] Route spec with a fake probe: resolving probe → `200 {"status":"UP"}`; rejecting probe → `503 {"status":"DOWN"}` and one `warn` log with the error
-- [ ] Probe spec: against a Testcontainers Postgres it resolves; against a closed port it rejects; a query that does not settle within 2 s rejects (fake timers or a `pg_sleep(3)` query)
-- [ ] After the probe rejects, a later call with the database reachable answers `UP` again (no cached state)
-- [ ] Gate check passes: `cd order-service && npm run typecheck && npm test`
-- [ ] Test count: at least 5 new tests pass (no silent deletions)
+- [x] Route spec with a fake probe: resolving probe → `200 {"status":"UP"}`; rejecting probe → `503 {"status":"DOWN"}` and one `warn` log with the error
+- [x] Probe spec: against a Testcontainers Postgres it resolves; against a closed port it rejects; a query that does not settle within 2 s rejects (fake timers or a `pg_sleep(3)` query)
+- [x] After the probe rejects, a later call with the database reachable answers `UP` again (no cached state)
+- [x] Gate check passes: `cd order-service && npm run typecheck && npm test`
+- [x] Test count: at least 5 new tests pass (no silent deletions)
 
 **Tests**: integration
 **Gate**: full
 
 **Commit**: `feat(order): adiciona o health check com verificação do banco`
+
+**Status**: ✅ Complete
 
 ---
 
