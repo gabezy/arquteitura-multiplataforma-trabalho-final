@@ -213,20 +213,22 @@ T6 → T8
 
 **Done when**:
 
-- [ ] Repository spec: appended events become rows with mapped `event_type` and `payload`, `event_id`, `aggregate_id`, `occurred_at`, active trace context in `headers`, empty `published_at`; an unmapped event throws and the transaction writes no row
-- [ ] Relay spec (Testcontainers Postgres, fake producer): pending rows go to the topic named after `event_type`, key `aggregate_id`, value = payload JSON, in `sequence` order, at most 100 per round, then get `published_at`
-- [ ] Relay spec: each message has exactly `ce_specversion=1.0`, `ce_id`, `ce_source=/order-service`, `ce_type`, `ce_subject`, `ce_time` (ISO-8601) and `content-type=application/json`
-- [ ] Relay spec: a failing `sendBatch` leaves the rows pending and the next round publishes them; `onError` receives the error
-- [ ] Relay spec: rows locked by an open transaction are skipped by a concurrent round
-- [ ] Relay spec: with `intervalMs` 1000 the loop starts the next round only after the previous one ends; `stop()` waits for the running round
-- [ ] Relay spec: the send runs inside the trace context saved in `headers`
-- [ ] Gate check passes: `cd order-service && npm run typecheck && npm test`
-- [ ] Test count: at least 10 new tests pass (no silent deletions)
+- [x] Repository spec: appended events become rows with mapped `event_type` and `payload`, `event_id`, `aggregate_id`, `occurred_at`, active trace context in `headers`, empty `published_at`; an unmapped event throws and the transaction writes no row
+- [x] Relay spec (Testcontainers Postgres, fake producer): pending rows go to the topic named after `event_type`, key `aggregate_id`, value = payload JSON, in `sequence` order, at most 100 per round, then get `published_at`
+- [x] Relay spec: each message has exactly `ce_specversion=1.0`, `ce_id`, `ce_source=/order-service`, `ce_type`, `ce_subject`, `ce_time` (ISO-8601) and `content-type=application/json`
+- [x] Relay spec: a failing `sendBatch` leaves the rows pending and the next round publishes them; `onError` receives the error
+- [x] Relay spec: rows locked by an open transaction are skipped by a concurrent round
+- [x] Relay spec: with `intervalMs` 1000 the loop starts the next round only after the previous one ends; `stop()` waits for the running round
+- [x] Relay spec: the send runs inside the trace context saved in `headers`
+- [x] Gate check passes: `cd order-service && npm run typecheck && npm test`
+- [x] Test count: at least 10 new tests pass (no silent deletions)
 
 **Tests**: integration
 **Gate**: full
 
 **Commit**: `feat(order): adiciona a publicação de eventos via outbox no kafka`
+
+**Status**: ✅ Complete
 
 ---
 

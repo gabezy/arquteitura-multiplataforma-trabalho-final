@@ -267,16 +267,16 @@ The order-service is in the C4 but has no code, database or pipeline. Issues #20
 | BOOT-28 | P1: Configuration - `KAFKA_BROKERS` list | T1 | Implementing |
 | BOOT-29 | P1: Publishing - producer connects before listening | T6 | In Tasks |
 | BOOT-30 | P1: Publishing - Kafka unreachable at startup exits 1 | T6 | In Tasks |
-| BOOT-31 | P1: Publishing - outbox row per event | T5 | In Tasks |
-| BOOT-32 | P1: Publishing - unmapped event throws | T5 | In Tasks |
-| BOOT-33 | P1: Publishing - relay sends pending rows in order | T5 | In Tasks |
-| BOOT-34 | P1: Publishing - CloudEvents headers | T5 | In Tasks |
-| BOOT-35 | P1: Publishing - failed send stays pending | T5 | In Tasks |
-| BOOT-36 | P1: Publishing - `SKIP LOCKED` | T5 | In Tasks |
-| BOOT-37 | P1: Publishing - 1000 ms polling | T5 | In Tasks |
-| BOOT-38 | P1: Publishing - send span in the recording trace | T5 | In Tasks |
+| BOOT-31 | P1: Publishing - outbox row per event | T5 | Implementing |
+| BOOT-32 | P1: Publishing - unmapped event throws | T5 | Implementing |
+| BOOT-33 | P1: Publishing - relay sends pending rows in order | T5 | Implementing |
+| BOOT-34 | P1: Publishing - CloudEvents headers | T5 | Implementing |
+| BOOT-35 | P1: Publishing - failed send stays pending | T5 | Implementing |
+| BOOT-36 | P1: Publishing - `SKIP LOCKED` | T5 | Implementing |
+| BOOT-37 | P1: Publishing - 1000 ms polling | T5 | Implementing |
+| BOOT-38 | P1: Publishing - send span in the recording trace | T5 | Implementing |
 
-**Coverage:** 38 total, 38 mapped to tasks, 0 unmapped; 15 implemented
+**Coverage:** 38 total, 38 mapped to tasks, 0 unmapped; 23 implemented
 
 ---
 
