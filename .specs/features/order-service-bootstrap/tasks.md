@@ -153,16 +153,18 @@ T6 → T8
 
 **Done when**:
 
-- [ ] Against a Testcontainers Postgres, the migrator creates `outbox` and `processed_events` with the specified columns, and a second run applies no migration and logs `Database already up to date`
-- [ ] Against an unreachable database URL, the migrator logs `Migration failed` and sets exit code 1
-- [ ] Migration names are recorded without extension (migration source spec)
-- [ ] Gate check passes: `cd order-service && npm run typecheck && npm test`
-- [ ] Test count: at least 4 new tests pass (no silent deletions)
+- [x] Against a Testcontainers Postgres, the migrator creates `outbox` and `processed_events` with the specified columns, and a second run applies no migration and logs `Database already up to date`
+- [x] Against an unreachable database URL, the migrator logs `Migration failed` and sets exit code 1
+- [x] Migration names are recorded without extension (migration source spec)
+- [x] Gate check passes: `cd order-service && npm run typecheck && npm test`
+- [x] Test count: at least 4 new tests pass (no silent deletions)
 
 **Tests**: integration
 **Gate**: full
 
 **Commit**: `feat(order): adiciona persistência com knex e as migrations de outbox e inbox`
+
+**Status**: ✅ Complete
 
 ---
 
