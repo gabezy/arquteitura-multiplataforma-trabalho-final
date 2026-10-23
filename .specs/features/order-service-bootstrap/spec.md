@@ -249,15 +249,15 @@ The order-service is in the C4 but has no code, database or pipeline. Issues #20
 | BOOT-10 | P1: Configuration - invalid `PORT` | T1 | Implementing |
 | BOOT-11 | P1: Configuration - `.env` loaded | T1 | Implementing |
 | BOOT-12 | P1: Configuration - `.env.example` | T1 | Implementing |
-| BOOT-13 | P1: Observability - spans exported | T2 | In Tasks |
-| BOOT-14 | P1: Observability - logs with trace context | T2 | In Tasks |
+| BOOT-13 | P1: Observability - spans exported | T2 | Implementing |
+| BOOT-14 | P1: Observability - logs with trace context | T2 | Implementing |
 | BOOT-15 | P1: Observability - startup log | T6 | In Tasks |
 | BOOT-16 | P1: Graceful shutdown - exit 0 on signal | T6 | In Tasks |
 | BOOT-17 | P1: Graceful shutdown - PID 1, non-root | T6 | In Tasks |
-| BOOT-18 | P1: Hexagonal - `core` framework-free | T2 | In Tasks |
+| BOOT-18 | P1: Hexagonal - `core` framework-free | T2 | Implementing |
 | BOOT-19 | P1: Hexagonal - wiring in composition root | T6 | In Tasks |
-| BOOT-20 | P1: Hexagonal - unhandled error is 500 | T2 | In Tasks |
-| BOOT-21 | P1: Hexagonal - domain errors mapped | T2 | In Tasks |
+| BOOT-20 | P1: Hexagonal - unhandled error is 500 | T2 | Implementing |
+| BOOT-21 | P1: Hexagonal - domain errors mapped | T2 | Implementing |
 | BOOT-22 | P1: CI - runs on order-service changes | T7 | In Tasks |
 | BOOT-23 | P1: CI - skipped for other paths | T7 | In Tasks |
 | BOOT-24 | P1: CI - CD image on `main` | T7 | In Tasks |
@@ -276,7 +276,7 @@ The order-service is in the C4 but has no code, database or pipeline. Issues #20
 | BOOT-37 | P1: Publishing - 1000 ms polling | T5 | In Tasks |
 | BOOT-38 | P1: Publishing - send span in the recording trace | T5 | In Tasks |
 
-**Coverage:** 38 total, 38 mapped to tasks, 0 unmapped; 5 implemented
+**Coverage:** 38 total, 38 mapped to tasks, 0 unmapped; 10 implemented
 
 ---
 

@@ -122,17 +122,19 @@ T6 → T8
 
 **Done when**:
 
-- [ ] `AggregateRoot.pullDomainEvents()` returns the recorded events once and then an empty list
-- [ ] Architecture spec scans every `.ts` file in `src/core/` and fails on an import of `express`, `knex`, `pg`, `pino`, `kafkajs`, `@opentelemetry/*` or `src/infra/`; a planted violation in the spec's own fixture makes it fail
-- [ ] Error handler: an unknown error gives `500` `application/problem+json` without `detail`; `ValidationError` → `422`, `NotFoundError` → `404`, `ConflictError` → `409`; a 4xx Express error with `expose` keeps its status
-- [ ] `instrumentation.ts` sets `service.name` from `OTEL_SERVICE_NAME` and exports traces, metrics and logs to `OTEL_COLLECTOR_URL`, with the pino instrumentation enabled
-- [ ] Gate check passes: `cd order-service && npx jest src/core src/infra/http && npm run typecheck`
-- [ ] Test count: at least 8 tests pass
+- [x] `AggregateRoot.pullDomainEvents()` returns the recorded events once and then an empty list
+- [x] Architecture spec scans every `.ts` file in `src/core/` and fails on an import of `express`, `knex`, `pg`, `pino`, `kafkajs`, `@opentelemetry/*` or `src/infra/`; a planted violation in the spec's own fixture makes it fail
+- [x] Error handler: an unknown error gives `500` `application/problem+json` without `detail`; `ValidationError` → `422`, `NotFoundError` → `404`, `ConflictError` → `409`; a 4xx Express error with `expose` keeps its status
+- [x] `instrumentation.ts` sets `service.name` from `OTEL_SERVICE_NAME` and exports traces, metrics and logs to `OTEL_COLLECTOR_URL`, with the pino instrumentation enabled
+- [x] Gate check passes: `cd order-service && npx jest src/core src/infra/http && npm run typecheck`
+- [x] Test count: at least 8 tests pass
 
 **Tests**: unit
 **Gate**: quick
 
 **Commit**: `feat(order): adiciona a base hexagonal, o app http e a observabilidade`
+
+**Status**: ✅ Complete
 
 ---
 
