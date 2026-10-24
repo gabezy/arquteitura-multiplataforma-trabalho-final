@@ -551,8 +551,8 @@ T18 → T19 → T20 → T21 → T22 → T23
 
 **Done when**:
 
-- [ ] Three alternatives with trade-offs, negatives and two references
-- [ ] Gate check passes: docs gate
+- [x] Three alternatives with trade-offs, negatives and two references
+- [x] Gate check passes: docs gate
 
 **Tests**: none
 **Gate**: docs
