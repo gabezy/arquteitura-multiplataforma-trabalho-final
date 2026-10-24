@@ -466,6 +466,31 @@ O catalog responde erros em `application/problem+json`: 422 para validação, 40
 | 3 | `produto.analisado.v1` foge do padrão de nome (português, sem o serviço) | Só de convenção | Manter até a entrega. Se mudar, publicar `compliance.product.analyzed.v1` em paralelo e migrar o catalog |
 | 4 | `catalog.product.rejected.v1` não tem consumidor | Nenhum | Manter para auditoria (Fiscal) e relatórios |
 
+## Tópicos novos para o `create-topics.sh` (#14)
+
+Já estão no script todos os tópicos **implementados**, inclusive `order.order.placed.v1` e `order.order.cancelled.v1`. Os tópicos abaixo entram quando os contratos forem aprovados, pela #14 (@zeciola) ou no PR do serviço que os usar:
+
+```sh
+# order-service
+create order.order.confirmed.v1 3
+create order.marketplace-order.dlq 1 retention.ms=1209600000 # 14 days to inspect and replay
+create order.stock-response.dlq 1 retention.ms=1209600000 # 14 days to inspect and replay
+create order.billing-payment.dlq 1 retention.ms=1209600000 # 14 days to inspect and replay
+
+# marketplace-gateway
+create marketplace.order.received.v1 3
+create marketplace.listing.published.v1 3
+create marketplace.listing.failed.v1 3
+create marketplace.catalog-product.dlq 1 retention.ms=1209600000 # 14 days to inspect and replay
+create marketplace.order-cancelled.dlq 1 retention.ms=1209600000 # 14 days to inspect and replay
+
+# billing-service
+create billing.invoice.issued.v1 3
+create billing.payment.confirmed.v1 3
+create billing.payment.failed.v1 3
+create billing.order-confirmed.dlq 1 retention.ms=1209600000 # 14 days to inspect and replay
+```
+
 ## Como adicionar ou mudar um evento
 
 1. Abrir um PR alterando este arquivo, com a ficha do evento no estado **Proposto**, e marcar os donos do produtor e dos consumidores.
