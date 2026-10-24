@@ -208,7 +208,7 @@ Every ambiguity is resolved or recorded here - nothing is left silently unclear.
 | BOOT-03 | P1: Service bootstrap | Tasks T5 | Implementing |
 | BOOT-04 | P1: Service bootstrap | Tasks T4 | Implementing |
 | BOOT-05 | P1: Service bootstrap | Tasks T4 | Implementing |
-| BOOT-06 | P1: Service bootstrap | Tasks T8 | In Tasks |
+| BOOT-06 | P1: Service bootstrap | Tasks T8 | Implementing |
 | BOOT-07 | P1: Service bootstrap | Tasks T9 | In Tasks |
 | BOOT-08 | P1: Service bootstrap | Tasks T10 | In Tasks |
 | BOOT-09 | P1: Service bootstrap | Tasks T4 | Implementing |

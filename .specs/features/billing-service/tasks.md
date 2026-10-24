@@ -282,9 +282,9 @@ T18 → T19 → T20 → T21 → T22 → T23
 
 **Done when**:
 
-- [ ] Started against a Testcontainers Postgres, `/health` answers `UP` and migrations are applied before the server listens
-- [ ] Cancelling the context makes `Run` return within 10 s with no error
-- [ ] Gate check passes: full gate; test count ≥ 2
+- [x] Started against a Testcontainers Postgres, `/health` answers `UP` and migrations are applied before the server listens
+- [x] Cancelling the context makes `Run` return within 10 s with no error
+- [x] Gate check passes: full gate; test count ≥ 2
 
 **Tests**: integration
 **Gate**: full
