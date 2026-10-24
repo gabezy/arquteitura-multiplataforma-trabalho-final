@@ -14,12 +14,14 @@ Run the commands from this directory:
 
 ```bash
 make -C .. up-infra                        # infra without the apps: Keycloak on http://localhost:8085
-./mvnw spring-boot:run                     # run the BFF (needs Keycloak for the issuer-uri)
+./mvnw spring-boot:run                     # run the BFF (needs Keycloak for the issuer-uri and Vault, see below)
 ./mvnw test                                # all tests
 ./mvnw test -Dtest=CatalogControllerSecurityTest                        # one class
 ./mvnw test -Dtest='CatalogControllerSecurityTest#returnsOkForAdmin'    # one method
 ./mvnw package                             # build jar
 ```
+
+Secrets come from Vault through Spring Cloud Vault (`spring.config.import: optional:vault://` in `application.yaml`, `../docs/adr/0003-vault-para-secrets-das-aplicacoes.md`). The BFF logs in with the AppRole in `VAULT_ADDR` / `VAULT_ROLE_ID` / `VAULT_SECRET_ID` (export `BFF_VAULT_ROLE_ID` / `_SECRET_ID` from the root `.env` under those names) and reads `secret/bff-gateway` (`default-context` is off: the policy denies `secret/application`). `keycloak.client-secret` binds to `infra/security/KeycloakClientProperties`, which is `@NotBlank`, so the app does not start without it. New BFF credentials (e.g. Redis) go in the same path. Tests turn Vault off in `src/test/resources/config/application.yaml` and set a fixed client secret there.
 
 `TestcontainersConfiguration` starts a `grafana/otel-lgtm` container, so any test that imports it needs Docker. `@WebMvcTest` slices and plain unit tests don't need Docker.
 

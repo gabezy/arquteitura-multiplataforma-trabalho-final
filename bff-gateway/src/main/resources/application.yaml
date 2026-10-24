@@ -1,6 +1,24 @@
 spring:
   application:
     name: bff-gateway
+  # Secrets come from Vault (secret/bff-gateway). `optional:` lets tests turn Vault off;
+  # fail-fast and the @NotBlank in KeycloakClientProperties still stop startup without it.
+  config:
+    import: optional:vault://
+  cloud:
+    vault:
+      uri: ${VAULT_ADDR:http://localhost:8200}
+      authentication: APPROLE
+      app-role:
+        role-id: ${VAULT_ROLE_ID:}
+        secret-id: ${VAULT_SECRET_ID:}
+      kv:
+        enabled: true
+        backend: secret
+        application-name: bff-gateway
+        # The AppRole policy reads only secret/bff-gateway, not the shared secret/application.
+        default-context: ""
+      fail-fast: true
   security:
     oauth2:
       resourceserver:

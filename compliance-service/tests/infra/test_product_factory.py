@@ -11,6 +11,7 @@ from compliance_service.infra.persistence.tables import processed_events, produc
 from compliance_service.infra.product_factory import build_rules, build_unit_of_work_factory
 
 NOW = datetime(2026, 10, 15, 12, 0, tzinfo=UTC)
+DB_CREDENTIALS = {"db_user": "compliance", "db_password": "secret"}
 
 
 class FixedClock:
@@ -33,17 +34,17 @@ def rule_codes(settings, product):
 def test_prohibited_terms_block_the_other_rules(make_product):
     product = make_product(name="Pistola", price=Decimal("999999"), description="")
 
-    assert rule_codes(Settings(_env_file=None), product) == ["PROHIBITED_TERMS"]
+    assert rule_codes(Settings(_env_file=None, **DB_CREDENTIALS), product) == ["PROHIBITED_TERMS"]
 
 
 def test_non_blocking_rules_report_together(make_product):
     product = make_product(price=Decimal("999999"), description="curta")
 
-    assert rule_codes(Settings(_env_file=None), product) == ["PRICE_CEILING", "DESCRIPTION_REQUIRED"]
+    assert rule_codes(Settings(_env_file=None, **DB_CREDENTIALS), product) == ["PRICE_CEILING", "DESCRIPTION_REQUIRED"]
 
 
 def test_rules_use_the_configured_limits(make_product):
-    settings = Settings(_env_file=None, price_ceiling=Decimal("10"), description_min_length=1)
+    settings = Settings(_env_file=None, **DB_CREDENTIALS, price_ceiling=Decimal("10"), description_min_length=1)
 
     assert rule_codes(settings, make_product(price=Decimal("11"))) == ["PRICE_CEILING"]
 
@@ -52,7 +53,7 @@ async def test_a_unit_of_work_stores_the_analysis_and_the_event_together(session
     publisher = RecordingPublisher()
     open_unit_of_work = build_unit_of_work_factory(
         session_factory,
-        build_rules(Settings(_env_file=None)),
+        build_rules(Settings(_env_file=None, **DB_CREDENTIALS)),
         publisher,
         FixedClock(),
         AnalysisInstruments.create(MeterProvider().get_meter("test")),
@@ -75,7 +76,7 @@ async def test_a_unit_of_work_stores_the_analysis_and_the_event_together(session
 async def test_a_unit_of_work_left_without_commit_stores_nothing(session_factory, make_product):
     open_unit_of_work = build_unit_of_work_factory(
         session_factory,
-        build_rules(Settings(_env_file=None)),
+        build_rules(Settings(_env_file=None, **DB_CREDENTIALS)),
         RecordingPublisher(),
         FixedClock(),
         AnalysisInstruments.create(MeterProvider().get_meter("test")),
