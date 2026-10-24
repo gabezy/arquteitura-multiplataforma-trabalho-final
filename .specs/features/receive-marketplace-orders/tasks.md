@@ -299,21 +299,25 @@ T7 → T8
 
 **Done when**:
 
-- [ ] Module spec: a message through `eachMessage` writes 1 order and 1 outbox `order.order.placed.v1` row whose `headers.traceparent` has the message's trace id; the same message again adds nothing
-- [ ] Build gate passes: `cd order-service && npm run typecheck && npm run test:coverage -- --ci && npm run build && docker build -t order-service .`
-- [ ] Smoke: `docker compose up -d kafka-init` lists `order.marketplace-order.dlq` (1 partition, `retention.ms=1209600000`)
-- [ ] Smoke: `make up` → an order polled from a simulator appears in `orders` as `RECEIVED`, its `placed` reaches Kafka and the catalog answers with `catalog.stock.*`
-- [ ] Smoke: `curl -H "Authorization: Bearer $CSM" localhost:8080/orders` through the BFF → 200 with that order; `/orders/<id>` → 200
-- [ ] Smoke: `{}` published to `marketplace.order.received.v1` lands in `order.marketplace-order.dlq` and the next valid order is still saved
-- [ ] Smoke: with Kafka stopped, starting the service exits with code 1; `docker stop order-service` logs the consumer disconnect before the relay stop and exits 0
-- [ ] Smoke: the trace of the order spans marketplace-gateway → order-service → catalog-service in Grafana (Tempo)
+- [x] Module spec: a message through `eachMessage` writes 1 order and 1 outbox `order.order.placed.v1` row whose `headers.traceparent` has the message's trace id; the same message again adds nothing
+- [x] Build gate passes: `cd order-service && npm run typecheck && npm run test:coverage -- --ci && npm run build && docker build -t order-service .`
+- [x] Smoke: `docker compose up -d kafka-init` lists `order.marketplace-order.dlq` (1 partition, `retention.ms=1209600000`)
+- [x] Smoke: `make up` → an order polled from a simulator appears in `orders` as `RECEIVED`, its `placed` reaches Kafka and the catalog answers with `catalog.stock.*`
+- [x] Smoke: `curl -H "Authorization: Bearer $CSM" localhost:8080/orders` through the BFF → 200 with that order; `/orders/<id>` → 200
+- [x] Smoke: `{}` published to `marketplace.order.received.v1` lands in `order.marketplace-order.dlq` and the next valid order is still saved
+- [x] Smoke: with Kafka stopped, starting the service exits with code 1; `docker stop order-service` logs the consumer disconnect before the relay stop and exits 0
+- [x] Smoke: the trace of the order spans marketplace-gateway → order-service → catalog-service in Grafana (Tempo)
 
 **Tests**: integration
 **Gate**: build
 
 **Commit**: `feat(order): conecta o módulo de pedidos e o consumer no order-service`
 
-**Status**: Pending
+**Status**: ✅ Complete
+
+**Smoke evidence (2026-10-24)**: `make clean && make up` (user go-ahead) brought all 21 containers up healthy from `dev` + this branch. `order.marketplace-order.dlq` has 1 partition and `retention.ms=1209600000`. The consumer joined `order-service-marketplace-orders` (partitions 0-2) before `order-service listening`. `scripts/simulate-order.sh` orders reached `orders` as `RECEIVED` within one poll: Mercado Livre `2292105055` (2 × OXI-001, total 379.80) got `catalog.stock.reserved.v1`, and Amazon `701-9705934-9167931` (NB-001, rejected by compliance) got `catalog.stock.insufficient.v1 (available: 0)`. Through the BFF, `GET /orders` answered 200 for `csm`, `loja` and `admin` and 403 for `fiscal`; `/orders/{id}` answered 200, and an unknown id answered 404. `{}` landed in the DLQ with `dlq-reason` and the next valid order was saved; the same message twice with `ce_id` smoke-1 and once with smoke-2 left 1 order and 1 `placed`. Tempo shows each order trace across marketplace-gateway, order-service and catalog-service. `docker stop` logged `shutting down`, then `[Consumer] Stopped` and `Marketplace order consumer disconnected`, and exited 0. With Kafka stopped, the start logged `order-service failed to start` and exited 1 after about 11 s. The environment was restored with `docker compose up -d`.
+
+**Deviations**: `createApp` now takes `orderRoutes`, so `health.routes.spec.ts` passes an empty `Router()` (its assertions are unchanged). Topic names are constants in `order.factory.ts` and are not env vars, because they are contracts.
 
 ---
 

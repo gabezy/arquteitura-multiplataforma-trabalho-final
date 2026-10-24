@@ -1,3 +1,4 @@
+import { Router } from 'express';
 import pino from 'pino';
 import request from 'supertest';
 import { createApp } from '../app';
@@ -12,7 +13,7 @@ describe('GET /health', () => {
   const lines: LogLine[] = [];
   const logger = pino({ level: 'info' }, { write: (line: string) => lines.push(JSON.parse(line)) });
   const checkDatabase = jest.fn<Promise<void>, []>();
-  const app = createApp({ logger, checkDatabase });
+  const app = createApp({ logger, checkDatabase, orderRoutes: Router() });
 
   beforeEach(() => {
     lines.length = 0;

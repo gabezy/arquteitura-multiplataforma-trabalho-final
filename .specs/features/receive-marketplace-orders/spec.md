@@ -209,10 +209,10 @@ The marketplace-gateway (#22) already polls the marketplaces and publishes `mark
 | ORDER-23 | P1: API (AC 6) | T2, T4, T6 | Implementing |
 | ORDER-24 | P1: API (AC 7) | T6 | Implementing |
 | ORDER-25 | P1: API (AC 8) | T2, T4, T6 | Implementing |
-| ORDER-26 | P2: lifecycle (AC 1) | T7 | In Tasks |
-| ORDER-27 | P2: lifecycle (AC 2) | T7 | In Tasks |
-| ORDER-28 | P2: lifecycle (AC 3) | T7 | In Tasks |
-| ORDER-29 | P2: lifecycle (AC 4) | T7 | In Tasks |
+| ORDER-26 | P2: lifecycle (AC 1) | T7 | Implementing |
+| ORDER-27 | P2: lifecycle (AC 2) | T7 | Implementing |
+| ORDER-28 | P2: lifecycle (AC 3) | T7 | Implementing |
+| ORDER-29 | P2: lifecycle (AC 4) | T7 | Implementing |
 | ORDER-30 | P1: DLQ (AC 7) | T5 | Implementing |
 | ORDER-31 | P1: DLQ (AC 8) | T5 | Implementing |
 

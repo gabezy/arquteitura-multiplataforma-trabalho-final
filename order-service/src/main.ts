@@ -5,6 +5,7 @@ import { createDatabaseConnection } from './infra/persistence/database';
 import { createDatabaseProbe } from './infra/persistence/database-probe';
 import { configureKafka } from './infra/messaging/kafka.config';
 import { OutboxRelay } from './infra/messaging/outbox-relay';
+import { createOrderModule } from './infra/order.factory';
 
 const RELAY_INTERVAL_MS = 1000;
 
@@ -12,23 +13,28 @@ async function start(): Promise<void> {
   const config = await loadAppConfig();
   const logger = createLogger(config.logLevel);
   const db = createDatabaseConnection(config.databaseUrl, logger);
-  const { producer } = configureKafka(config.kafkaBrokers);
+  const { producer, marketplaceOrderConsumer: marketplaceOrderKafkaConsumer } = configureKafka(config.kafkaBrokers);
   const relay = new OutboxRelay(db, producer);
+  const { orderRoutes, marketplaceOrderConsumer } = createOrderModule({ db, producer, marketplaceOrderKafkaConsumer, logger });
 
   await producer.connect();
+  await marketplaceOrderConsumer.start();
 
   relay.start({
     intervalMs: RELAY_INTERVAL_MS,
     onError: err => logger.error({ err }, 'Failed to relay outbox messages'),
   });
 
-  const server = createApp({ logger, checkDatabase: createDatabaseProbe(db) }).listen(config.port, () => {
+  const server = createApp({ logger, checkDatabase: createDatabaseProbe(db), orderRoutes }).listen(config.port, () => {
     logger.info({ port: config.port }, `${config.serviceName} listening`);
   });
 
   const shutdown = async (signal: string): Promise<void> => {
     logger.info({ signal }, `${config.serviceName} shutting down`);
     server.close();
+    // The consumer goes first: a message it is handling finishes before the pool closes.
+    await marketplaceOrderKafkaConsumer.disconnect();
+    logger.info('Marketplace order consumer disconnected');
     await relay.stop();
     await producer.disconnect();
     await db.destroy();
