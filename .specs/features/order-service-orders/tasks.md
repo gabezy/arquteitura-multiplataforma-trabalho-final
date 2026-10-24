@@ -288,15 +288,17 @@ T8 → T9 → T10
 
 **Done when**:
 
-- [ ] The three dead letter topics exist in the script with one partition and 14 days of retention
-- [ ] The shutdown order disconnects consumers, closes the server, stops the relay and the producer
-- [ ] Gate check passes: build gate
+- [x] The three dead letter topics exist in the script with one partition and 14 days of retention
+- [x] The shutdown order disconnects consumers, closes the server, stops the relay and the producer
+- [x] Gate check passes: build gate (462 tests; 6 in `order.factory.spec.ts`)
 
 **Tests**: unit
 **Gate**: build
 
 **Commit**: `feat(order): liga os consumers e as DLQs no composition root`
 
+
+**Status**: ✅ Complete (`docker compose up -d --force-recreate kafka-init` lists both new DLQs)
 ---
 
 

@@ -13,17 +13,23 @@ async function start(): Promise<void> {
   const config = await loadAppConfig();
   const logger = createLogger(config.logLevel);
   const db = createDatabaseConnection(config.databaseUrl, logger);
-  const { producer, marketplaceOrderConsumer: marketplaceOrderKafkaConsumer } = configureKafka(config.kafkaBrokers);
+  const kafka = configureKafka(config.kafkaBrokers);
+  const { producer } = kafka;
   const relay = new OutboxRelay(db, producer);
-  const { orderController, salesReportController, marketplaceOrderConsumer } = createOrderModule({
+  const { orderController, salesReportController, marketplaceOrderConsumer, stockResponseConsumer, billingPaymentConsumer } = createOrderModule({
     db,
     producer,
-    marketplaceOrderKafkaConsumer,
+    marketplaceOrderKafkaConsumer: kafka.marketplaceOrderConsumer,
+    stockResponseKafkaConsumer: kafka.stockResponseConsumer,
+    billingPaymentKafkaConsumer: kafka.billingPaymentConsumer,
     logger,
   });
+  const consumers = [marketplaceOrderConsumer, stockResponseConsumer, billingPaymentConsumer];
 
   await producer.connect();
-  await marketplaceOrderConsumer.start();
+  for (const consumer of consumers) {
+    await consumer.start();
+  }
 
   relay.start({
     intervalMs: RELAY_INTERVAL_MS,
@@ -42,7 +48,9 @@ async function start(): Promise<void> {
   const shutdown = async (signal: string): Promise<void> => {
     logger.info({ signal }, `${config.serviceName} shutting down`);
     await new Promise<void>(resolve => server.close(() => resolve()));
-    await marketplaceOrderConsumer.disconnect();
+    for (const consumer of consumers) {
+      await consumer.disconnect();
+    }
     await relay.stop();
     await producer.disconnect();
     await db.destroy();
