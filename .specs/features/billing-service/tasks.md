@@ -123,10 +123,10 @@ T18 → T19 → T20 → T21 → T22 → T23
 
 **Done when**:
 
-- [ ] Each billing-related topic lists producer, consumers, key, CloudEvent type, JSON example and DLQ
-- [ ] The PSP section has request and response examples for the three calls
-- [ ] It says which parts #8 (Natan) still has to fill in
-- [ ] Gate check passes: docs gate
+- [x] Each billing-related topic lists producer, consumers, key, CloudEvent type, JSON example and DLQ
+- [x] The PSP section has request and response examples for the three calls
+- [x] It says which parts #8 (Natan) still has to fill in
+- [x] Gate check passes: docs gate
 
 **Tests**: none
 **Gate**: docs
