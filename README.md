@@ -149,6 +149,8 @@ Os eventos usam CloudEvents (binary mode), e cada consumidor tem a sua DLQ. Todo
 
 Commits em Conventional Commits, em português (ex.: `feat: adiciona keycloak e configuração de realms`).
 
+O fluxo de branches, pull requests e releases (gitflow) está no [`CONTRIBUTING.md`](CONTRIBUTING.md).
+
 ## Skills do Claude Code
 
 Skills versionadas em `.claude/skills/`, carregadas pelo Claude Code aberto na raiz do repo:

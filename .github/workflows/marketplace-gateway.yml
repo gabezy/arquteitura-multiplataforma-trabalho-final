@@ -2,7 +2,8 @@ name: marketplace-gateway
 
 # main only receives changes through merged pull requests (branch protection),
 # so a push to main is always a merge: it runs CI and then CD.
-# Any other branch runs CI only, on push and on pull request.
+# Any other branch runs CI only, on push and on pull request. The pull request trigger
+# covers dev too, where the pull requests of the gitflow go.
 on:
   push:
     paths:
@@ -19,7 +20,7 @@ on:
       - '.github/workflows/marketplace-gateway.yml'
       - '.github/workflows/_node-service.yml'
   pull_request:
-    branches: [main]
+    branches: [main, dev]
     paths:
       - 'marketplace-gateway/**'
       # The tests run against the simulators and the scripts of the demo.
