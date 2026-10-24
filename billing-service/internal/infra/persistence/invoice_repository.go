@@ -6,23 +6,35 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/gabezy/arquteitura-multiplataforma-trabalho-final/billing-service/internal/core/invoice/model"
+	"github.com/gabezy/arquteitura-multiplataforma-trabalho-final/billing-service/internal/core/invoice/port/out"
 	"github.com/gabezy/arquteitura-multiplataforma-trabalho-final/billing-service/internal/core/shared/domain"
 )
 
+// The repositories fulfil the driven ports of the core.
+var (
+	_ out.PaymentInvoices    = (*InvoiceRepository)(nil)
+	_ out.OrderCancellations = (*OrderCancellationRepository)(nil)
+	_ out.Transactor         = (*Database)(nil)
+)
+
 const (
-	defaultListLimit      = 20
-	uniqueViolationCode   = "23505"
-	orderUniqueConstraint = "invoices_order_id_unique"
+	defaultListLimit       = 20
+	uniqueViolationCode    = "23505"
+	orderUniqueConstraint  = "invoices_order_id_unique"
+	chargeUniqueConstraint = "invoices_psp_transaction_id_unique"
 
 	invoiceColumns = `id::text, order_id::text, COALESCE(external_order_id, ''), marketplace, total_cents,
 		commission_rate_bps, commission_cents, net_cents, status, issued_at, cancelled_at,
-		COALESCE(cancellation_reason, ''), updated_at, version`
+		COALESCE(cancellation_reason, ''), updated_at, version,
+		COALESCE(psp_transaction_id, ''), COALESCE(failure_reason, ''), payment_attempts,
+		next_payment_attempt_at, payment_requested_at, paid_at, failed_at`
 )
 
 // EventAppender stores the events an aggregate recorded in the outbox. The
@@ -65,12 +77,19 @@ func (r *InvoiceRepository) insert(ctx context.Context, s model.Snapshot) error 
 	q := r.db.Querier(ctx)
 	_, err := q.Exec(ctx,
 		`INSERT INTO invoices (id, order_id, external_order_id, marketplace, total_cents, commission_rate_bps,
-		                       commission_cents, net_cents, status, issued_at, cancelled_at, cancellation_reason, updated_at, version)
-		 VALUES ($1, $2, NULLIF($3, ''), $4, $5, $6, $7, $8, $9, $10, $11, NULLIF($12, ''), $13, 1)`,
+		                       commission_cents, net_cents, status, issued_at, cancelled_at, cancellation_reason, updated_at, version,
+		                       psp_transaction_id, failure_reason, payment_attempts, next_payment_attempt_at,
+		                       payment_requested_at, paid_at, failed_at)
+		 VALUES ($1, $2, NULLIF($3, ''), $4, $5, $6, $7, $8, $9, $10, $11, NULLIF($12, ''), $13, 1,
+		         NULLIF($14, ''), NULLIF($15, ''), $16, $17, $18, $19, $20)`,
 		s.ID, s.OrderID, s.ExternalOrderID, string(s.Marketplace), s.Total.Cents(), s.CommissionRateBps,
-		s.Commission.Cents(), s.Net.Cents(), string(s.Status), s.IssuedAt, s.CancelledAt, s.CancellationReason, s.UpdatedAt)
+		s.Commission.Cents(), s.Net.Cents(), string(s.Status), s.IssuedAt, s.CancelledAt, s.CancellationReason, s.UpdatedAt,
+		s.PSPTransactionID, s.FailureReason, s.PaymentAttempts, s.NextPaymentAttemptAt, s.PaymentRequestedAt, s.PaidAt, s.FailedAt)
 	if isUniqueViolation(err, orderUniqueConstraint) {
 		return domain.NewConflictError("order %s already has an invoice", s.OrderID)
+	}
+	if isUniqueViolation(err, chargeUniqueConstraint) {
+		return domain.NewConflictError("charge %s already belongs to another invoice", s.PSPTransactionID)
 	}
 	if err != nil {
 		return fmt.Errorf("insert invoice: %w", err)
@@ -90,9 +109,15 @@ func (r *InvoiceRepository) insert(ctx context.Context, s model.Snapshot) error 
 func (r *InvoiceRepository) update(ctx context.Context, s model.Snapshot) error {
 	tag, err := r.db.Querier(ctx).Exec(ctx,
 		`UPDATE invoices
-		    SET status = $3, cancelled_at = $4, cancellation_reason = NULLIF($5, ''), updated_at = $6, version = version + 1
+		    SET status = $3, cancelled_at = $4, cancellation_reason = NULLIF($5, ''), updated_at = $6, version = version + 1,
+		        psp_transaction_id = NULLIF($7, ''), failure_reason = NULLIF($8, ''), payment_attempts = $9,
+		        next_payment_attempt_at = $10, payment_requested_at = $11, paid_at = $12, failed_at = $13
 		  WHERE id = $1 AND version = $2`,
-		s.ID, s.Version, string(s.Status), s.CancelledAt, s.CancellationReason, s.UpdatedAt)
+		s.ID, s.Version, string(s.Status), s.CancelledAt, s.CancellationReason, s.UpdatedAt,
+		s.PSPTransactionID, s.FailureReason, s.PaymentAttempts, s.NextPaymentAttemptAt, s.PaymentRequestedAt, s.PaidAt, s.FailedAt)
+	if isUniqueViolation(err, chargeUniqueConstraint) {
+		return domain.NewConflictError("charge %s already belongs to another invoice", s.PSPTransactionID)
+	}
 	if err != nil {
 		return fmt.Errorf("update invoice: %w", err)
 	}
@@ -103,28 +128,84 @@ func (r *InvoiceRepository) update(ctx context.Context, s model.Snapshot) error 
 }
 
 func (r *InvoiceRepository) FindByID(ctx context.Context, id string) (*model.Invoice, error) {
-	return r.findBy(ctx, "id", id, "invoice "+id+" not found")
+	return r.findBy(ctx, "id", id, "invoice "+id+" not found", "")
 }
 
 func (r *InvoiceRepository) FindByOrderID(ctx context.Context, orderID string) (*model.Invoice, error) {
-	return r.findBy(ctx, "order_id", orderID, "order "+orderID+" has no invoice")
+	return r.findBy(ctx, "order_id", orderID, "order "+orderID+" has no invoice", "")
 }
 
-// findBy reads by a uuid column. A value that is not a uuid cannot match, so it
-// is "not found" and not a database error.
-func (r *InvoiceRepository) findBy(ctx context.Context, column, value, notFound string) (*model.Invoice, error) {
+// LockByID reads the invoice and keeps its row locked until the transaction ends. A
+// second transaction that locks the same row waits for the first one.
+func (r *InvoiceRepository) LockByID(ctx context.Context, id string) (*model.Invoice, error) {
+	return r.findBy(ctx, "id", id, "invoice "+id+" not found", " FOR UPDATE")
+}
+
+// LockNextDue returns the oldest issued invoice whose next payment attempt has come,
+// keeping its row locked until the transaction ends. It skips the rows another
+// transaction holds, so two instances never take the same invoice. It fails with a
+// NotFoundError when none is due.
+func (r *InvoiceRepository) LockNextDue(ctx context.Context, now time.Time) (*model.Invoice, error) {
+	snapshot, err := scanInvoice(r.db.Querier(ctx).QueryRow(ctx,
+		`SELECT `+invoiceColumns+` FROM invoices
+		  WHERE status = 'ISSUED' AND (next_payment_attempt_at IS NULL OR next_payment_attempt_at <= $1)
+		  ORDER BY issued_at, id
+		  LIMIT 1
+		  FOR UPDATE SKIP LOCKED`, now))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, domain.NewNotFoundError("no invoice is due for payment")
+	}
+	if err != nil {
+		return nil, fmt.Errorf("lock next invoice due: %w", err)
+	}
+	return r.withItems(ctx, snapshot)
+}
+
+// ListPendingRequestedBefore returns the invoices that have waited for the PSP since before the
+// cutoff, oldest first. The items are not loaded: the reconciliation needs only the charge.
+func (r *InvoiceRepository) ListPendingRequestedBefore(ctx context.Context, cutoff time.Time, limit int) ([]model.Snapshot, error) {
+	rows, err := r.db.Querier(ctx).Query(ctx,
+		`SELECT `+invoiceColumns+` FROM invoices
+		  WHERE status = 'PAYMENT_PENDING' AND payment_requested_at < $1
+		  ORDER BY payment_requested_at, id
+		  LIMIT $2`, cutoff, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list pending payments: %w", err)
+	}
+	defer rows.Close()
+
+	var snapshots []model.Snapshot
+	for rows.Next() {
+		snapshot, err := scanInvoice(rows)
+		if err != nil {
+			return nil, fmt.Errorf("scan invoice: %w", err)
+		}
+		snapshots = append(snapshots, snapshot)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("read pending payments: %w", err)
+	}
+	return snapshots, nil
+}
+
+// findBy reads by a uuid column; lock is "" or " FOR UPDATE". A value that is not a
+// uuid cannot match, so it is "not found" and not a database error.
+func (r *InvoiceRepository) findBy(ctx context.Context, column, value, notFound, lock string) (*model.Invoice, error) {
 	if _, err := uuid.Parse(value); err != nil {
 		return nil, domain.NewNotFoundError("%s", notFound)
 	}
 
-	snapshot, err := scanInvoice(r.db.Querier(ctx).QueryRow(ctx, `SELECT `+invoiceColumns+` FROM invoices WHERE `+column+` = $1`, value))
+	snapshot, err := scanInvoice(r.db.Querier(ctx).QueryRow(ctx, `SELECT `+invoiceColumns+` FROM invoices WHERE `+column+` = $1`+lock, value))
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, domain.NewNotFoundError("%s", notFound)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("read invoice: %w", err)
 	}
+	return r.withItems(ctx, snapshot)
+}
 
+func (r *InvoiceRepository) withItems(ctx context.Context, snapshot model.Snapshot) (*model.Invoice, error) {
 	items, err := r.loadItems(ctx, []string{snapshot.ID})
 	if err != nil {
 		return nil, err
@@ -232,7 +313,8 @@ func scanInvoice(row pgx.Row) (model.Snapshot, error) {
 	var marketplace, status string
 	var total, commission, net int64
 	err := row.Scan(&s.ID, &s.OrderID, &s.ExternalOrderID, &marketplace, &total, &s.CommissionRateBps, &commission, &net,
-		&status, &s.IssuedAt, &s.CancelledAt, &s.CancellationReason, &s.UpdatedAt, &s.Version)
+		&status, &s.IssuedAt, &s.CancelledAt, &s.CancellationReason, &s.UpdatedAt, &s.Version,
+		&s.PSPTransactionID, &s.FailureReason, &s.PaymentAttempts, &s.NextPaymentAttemptAt, &s.PaymentRequestedAt, &s.PaidAt, &s.FailedAt)
 	if err != nil {
 		return model.Snapshot{}, err
 	}

@@ -603,9 +603,9 @@ T18 → T19 → T20 → T21 → T22 → T23
 
 **Done when**:
 
-- [ ] Two concurrent `LockNextDue` never return the same invoice
-- [ ] Only due `ISSUED` invoices are returned; only pending ones older than the cut are listed
-- [ ] Gate check passes: full gate; test count ≥ 5
+- [x] Two concurrent `LockNextDue` never return the same invoice
+- [x] Only due `ISSUED` invoices are returned; only pending ones older than the cut are listed
+- [x] Gate check passes: full gate; test count ≥ 5
 
 **Tests**: integration
 **Gate**: full

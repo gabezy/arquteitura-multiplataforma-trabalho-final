@@ -228,20 +228,20 @@ Every ambiguity is resolved or recorded here - nothing is left silently unclear.
 | API-02 | P1: Query invoices | Tasks T16 | Implementing |
 | API-03 | P1: Query invoices | Tasks T14, T16 | Implementing |
 | API-04 | P1: Query invoices | Tasks T16 | Implementing |
-| PAY-01 | P2: Charge the invoice at the PSP | Tasks T19, T20, T23 | In Tasks |
-| PAY-02 | P2: Charge the invoice at the PSP | Tasks T19 | In Tasks |
-| PAY-03 | P2: Charge the invoice at the PSP | Tasks T19, T22 | In Tasks |
-| PAY-04 | P2: Charge the invoice at the PSP | Tasks T19, T22 | In Tasks |
-| PAY-05 | P2: Charge the invoice at the PSP | Tasks T19, T21 | In Tasks |
+| PAY-01 | P2: Charge the invoice at the PSP | Tasks T19, T20, T23 | Implementing |
+| PAY-02 | P2: Charge the invoice at the PSP | Tasks T19 | Implementing |
+| PAY-03 | P2: Charge the invoice at the PSP | Tasks T19, T22 | Implementing |
+| PAY-04 | P2: Charge the invoice at the PSP | Tasks T19, T22 | Implementing |
+| PAY-05 | P2: Charge the invoice at the PSP | Tasks T19, T21 | Implementing |
 | PAY-06 | P2: Charge the invoice at the PSP | Tasks T22 | In Tasks |
-| PAY-07 | P2: Charge the invoice at the PSP | Tasks T19, T22 | In Tasks |
-| PAY-08 | P2: Charge the invoice at the PSP | Tasks T19, T22 | In Tasks |
+| PAY-07 | P2: Charge the invoice at the PSP | Tasks T19, T22 | Implementing |
+| PAY-08 | P2: Charge the invoice at the PSP | Tasks T19, T22 | Implementing |
 | PAY-09 | P2: Charge the invoice at the PSP | Tasks T21 | In Tasks |
-| PAY-10 | P2: Charge the invoice at the PSP | Tasks T19 | In Tasks |
+| PAY-10 | P2: Charge the invoice at the PSP | Tasks T19 | Implementing |
 | PAY-11 | P2: Charge the invoice at the PSP | Tasks T21 | In Tasks |
 | PAY-12 | P2: Charge the invoice at the PSP | Tasks T21 | In Tasks |
-| REC-01 | P3: Reconcile pending payments | Tasks T20, T23 | In Tasks |
-| REC-02 | P3: Reconcile pending payments | Tasks T19, T23 | In Tasks |
+| REC-01 | P3: Reconcile pending payments | Tasks T20, T23 | Implementing |
+| REC-02 | P3: Reconcile pending payments | Tasks T19, T23 | Implementing |
 
 **ID format:** `[CATEGORY]-[NUMBER]`.
 

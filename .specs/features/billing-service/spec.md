@@ -240,7 +240,7 @@ Every ambiguity is resolved or recorded here - nothing is left silently unclear.
 | PAY-10 | P2: Charge the invoice at the PSP | Tasks T19 | Implementing |
 | PAY-11 | P2: Charge the invoice at the PSP | Tasks T21 | In Tasks |
 | PAY-12 | P2: Charge the invoice at the PSP | Tasks T21 | In Tasks |
-| REC-01 | P3: Reconcile pending payments | Tasks T20, T23 | In Tasks |
+| REC-01 | P3: Reconcile pending payments | Tasks T20, T23 | Implementing |
 | REC-02 | P3: Reconcile pending payments | Tasks T19, T23 | Implementing |
 
 **ID format:** `[CATEGORY]-[NUMBER]`.
