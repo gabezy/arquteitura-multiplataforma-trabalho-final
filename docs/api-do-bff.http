@@ -103,6 +103,34 @@ Authorization: Bearer {{fiscal.response.body.access_token}}
 GET {{bff}}/invoices?status=REFUNDED
 Authorization: Bearer {{fiscal.response.body.access_token}}
 
+### Anúncios: todos os anúncios (store e admin)
+GET {{bff}}/listings
+Authorization: Bearer {{loja.response.body.access_token}}
+
+### Anúncios: o status de um produto em cada marketplace
+GET {{bff}}/listings?sku=OXI-001
+Authorization: Bearer {{loja.response.body.access_token}}
+
+### Anúncios: os que falharam (failureReason)
+GET {{bff}}/listings?status=FAILED
+Authorization: Bearer {{loja.response.body.access_token}}
+
+### Anúncios: de um marketplace, com paginação
+GET {{bff}}/listings?marketplace=SHOPEE&limit=5&offset=0
+Authorization: Bearer {{loja.response.body.access_token}}
+
+### Anúncio: detalhe. O id é o do modo mock (APP_GATEWAYS_MARKETPLACE=mock); com o marketplace-gateway real, use um id de GET /listings
+GET {{bff}}/listings/7a2b9c10-0000-4000-8000-000000000003
+Authorization: Bearer {{loja.response.body.access_token}}
+
+### Anúncio: id que não existe, 404
+GET {{bff}}/listings/7a2b9c10-0000-4000-8000-0000000000ff
+Authorization: Bearer {{loja.response.body.access_token}}
+
+### Anúncios: status inválido, 400
+GET {{bff}}/listings?status=SUSPENDED
+Authorization: Bearer {{loja.response.body.access_token}}
+
 ### Permissões: a loja não vê o relatório, 403
 GET {{bff}}/reports/sales-by-marketplace?from=2026-10-01&to=2026-10-31
 Authorization: Bearer {{loja.response.body.access_token}}
@@ -128,3 +156,14 @@ Authorization: Bearer {{especialista.response.body.access_token}}
 
 ### Permissões: cobranças sem token, 401
 GET {{bff}}/invoices
+
+### Permissões: o fiscal não vê anúncios, 403
+GET {{bff}}/listings
+Authorization: Bearer {{fiscal.response.body.access_token}}
+
+### Permissões: o CSM não vê anúncios, 403
+GET {{bff}}/listings
+Authorization: Bearer {{csm.response.body.access_token}}
+
+### Permissões: anúncios sem token, 401
+GET {{bff}}/listings
