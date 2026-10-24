@@ -195,12 +195,25 @@ T7
 
 **Done when**:
 
-- [ ] `uses:` of each `ci` job points to the stack's reusable workflow (PLAT-10)
-- [ ] No service workflow lists another service's directory in `paths`
-- [ ] Evidence recorded below and PLAT-10 marked `Implementing`
+- [x] `uses:` of each `ci` job points to the stack's reusable workflow (PLAT-10)
+- [x] No service workflow lists another service's directory in `paths`
+- [x] Evidence recorded below and PLAT-10 marked `Implementing`
 
 **Tests**: none (static check)
 **Gate**: Static
+
+**Evidence (2026-10-24):**
+
+- `uses:` of the `ci` job (PLAT-10): `order-service.yml` → `./.github/workflows/_node-service.yml`; `marketplace-gateway.yml` → `./.github/workflows/_node-service.yml`; `billing-service.yml` → `./.github/workflows/_go-service.yml`.
+- `paths` of `push` and `pull_request` (same list in both triggers):
+  - `order-service.yml`: `order-service/**`, `.github/workflows/order-service.yml`, `.github/workflows/_node-service.yml`.
+  - `billing-service.yml`: `billing-service/**`, `.github/workflows/billing-service.yml`, `.github/workflows/_go-service.yml`.
+  - `marketplace-gateway.yml`: `marketplace-gateway/**`, its own workflow, `_node-service.yml`, `docker/wiremock/mappings/{amazon,mercadolivre,shopee}.json`, `docker/wiremock/__files/{amazon,mercadolivre,shopee}/**`, `scripts/simulate-order.sh`, `scripts/simulate-failure.sh`.
+- No service workflow (all six checked) lists another service's directory in `paths`.
+- Gate: `docker compose config -q` → exit 0.
+- No gap found; workflows unchanged.
+
+**Status**: ✅ Complete
 
 ---
 

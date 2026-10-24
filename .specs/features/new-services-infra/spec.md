@@ -176,7 +176,7 @@ The order-service, billing-service and marketplace-gateway need their own databa
 | PLAT-07 | P1: Topics - 6 DLQs, 1 partition, 14 days | T3 | Implementing |
 | PLAT-08 | P1: Topics - `make topics` is idempotent | T3 | Implementing |
 | PLAT-09 | P1: Topics - `docs/eventos.md` lists nothing already created | T1 | Implementing |
-| PLAT-10 | P1: CI - each workflow calls its stack's reusable workflow | Tasks | Pending |
+| PLAT-10 | P1: CI - each workflow calls its stack's reusable workflow | T4 | Implementing |
 | PLAT-11 | P1: CI - push to `order-service/` runs only its CI | Tasks | Pending |
 | PLAT-12 | P1: CI - push to `billing-service/` runs only its CI | Tasks | Pending |
 | PLAT-13 | P1: CI - push to `marketplace-gateway/` runs only its CI | Tasks | Pending |
