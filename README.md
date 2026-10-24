@@ -66,8 +66,18 @@ make clean      # para e apaga os volumes
 
 Realm `omni-market` (issuer `http://localhost:8085/realms/omni-market`), importado de `docker/keycloak/realms/omni-market-realm.json`.
 
-- Roles: `admin`, `customer`
-- Usuários: `admin`/`admin` (roles `admin` e `customer`), `customer`/`customer` (role `customer`)
+Papéis e usuários de demonstração, um por persona do C4 (a senha é igual ao usuário). A matriz rota × papel está em [`docs/matriz-de-permissoes.md`](docs/matriz-de-permissoes.md).
+
+| Usuário | Papéis | Persona |
+| --- | --- | --- |
+| `admin` | `admin`, `customer` | Administrador: pode tudo |
+| `loja` | `store` | Loja de produtos hospitalares |
+| `especialista` | `specialist` | Especialista do negócio |
+| `fiscal` | `fiscal` | Fiscal (somente leitura) |
+| `csm` | `csm` | Customer Success Manager (somente leitura) |
+| `customer` | `customer` | Sem acesso às rotas de negócio |
+
+Para o token de outra persona, troque `username` e `password` no comando abaixo (por exemplo, `loja` / `loja`).
 
 Obter um token:
 
