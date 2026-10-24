@@ -1,0 +1,8 @@
+{
+  "error": "",
+  "message": "",
+  "request_id": "{{randomValue type='UUID'}}",
+  "response": {
+    "item_id": {{randomInt lower=100000000 upper=999999999}}
+  }
+}
