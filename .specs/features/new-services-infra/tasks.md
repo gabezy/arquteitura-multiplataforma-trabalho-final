@@ -159,13 +159,24 @@ T7
 
 **Done when**:
 
-- [ ] The 9 event topics have 3 partitions (PLAT-06)
-- [ ] The 6 DLQs have 1 partition and `retention.ms=1209600000` (PLAT-07)
-- [ ] The second `make topics` leaves `kafka-init` exited with code 0 and every partition count unchanged (PLAT-08)
-- [ ] Evidence recorded below and PLAT-06..08 marked `Implementing`
+- [x] The 9 event topics have 3 partitions (PLAT-06)
+- [x] The 6 DLQs have 1 partition and `retention.ms=1209600000` (PLAT-07)
+- [x] The second `make topics` leaves `kafka-init` exited with code 0 and every partition count unchanged (PLAT-08)
+- [x] Evidence recorded below and PLAT-06..08 marked `Implementing`
 
 **Tests**: smoke
 **Gate**: Smoke + Topics diff
+
+**Evidence (2026-10-24):**
+
+- First run: `kafka-init` from `make up-infra` exited 0 at 17:12:00 UTC.
+- `kafka-topics.sh --describe --topic <t>` (PLAT-06): `order.order.placed.v1`, `order.order.cancelled.v1`, `order.order.confirmed.v1`, `marketplace.order.received.v1`, `marketplace.listing.published.v1`, `marketplace.listing.failed.v1`, `billing.invoice.issued.v1`, `billing.payment.confirmed.v1`, `billing.payment.failed.v1` → `PartitionCount: 3` each.
+- Same command (PLAT-07): `order.marketplace-order.dlq`, `order.stock-response.dlq`, `order.billing-payment.dlq`, `marketplace.catalog-product.dlq`, `marketplace.order-cancelled.dlq`, `billing.order-events.dlq` → `PartitionCount: 1` and `retention.ms=1209600000` each.
+- Second run (PLAT-08): `make topics` at 17:12:59 UTC; `kafka-init` → `status=exited exit=0` at 17:13:34 UTC, no `error` or `exception` in its log; `--describe` afterwards shows the same partition count for all 15 topics.
+- Gate: `grep -c '^create ' docs/eventos.md` → `0`.
+- No gap found; `create-topics.sh` unchanged.
+
+**Status**: ✅ Complete
 
 ---
 

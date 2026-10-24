@@ -172,9 +172,9 @@ The order-service, billing-service and marketplace-gateway need their own databa
 | PLAT-03 | P1: Databases - named volumes | T2 | Implementing |
 | PLAT-04 | P1: Databases - `make up-infra` leaves the apps out | T2 | Implementing |
 | PLAT-05 | P1: Databases - missing password fails with `run make env` | T2 | Implementing |
-| PLAT-06 | P1: Topics - 9 event topics, 3 partitions | Tasks | Pending |
-| PLAT-07 | P1: Topics - 6 DLQs, 1 partition, 14 days | Tasks | Pending |
-| PLAT-08 | P1: Topics - `make topics` is idempotent | Tasks | Pending |
+| PLAT-06 | P1: Topics - 9 event topics, 3 partitions | T3 | Implementing |
+| PLAT-07 | P1: Topics - 6 DLQs, 1 partition, 14 days | T3 | Implementing |
+| PLAT-08 | P1: Topics - `make topics` is idempotent | T3 | Implementing |
 | PLAT-09 | P1: Topics - `docs/eventos.md` lists nothing already created | T1 | Implementing |
 | PLAT-10 | P1: CI - each workflow calls its stack's reusable workflow | Tasks | Pending |
 | PLAT-11 | P1: CI - push to `order-service/` runs only its CI | Tasks | Pending |
