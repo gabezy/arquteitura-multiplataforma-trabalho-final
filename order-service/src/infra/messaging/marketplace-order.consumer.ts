@@ -4,14 +4,14 @@ import { z } from 'zod';
 import { Money } from '../../core/order/model/money.vo';
 import { ReceiveOrderPort } from '../../core/order/port/in/receive-order.port';
 import { DomainError } from '../../core/shared/domain/domain.error';
-import { TraceHeaders, withTraceHeaders } from '../observability/trace-context';
+import { withTraceHeaders } from '../observability/trace-context';
+import { cloudEventHeaderError, EVENT_ID, isDataException, traceHeadersOf } from './cloud-event';
 import { headerValue, parseMessage, sendToDeadLetter, UnprocessableMessageError } from './dead-letter';
 import { Inbox } from './inbox';
 
 const TOPIC = 'marketplace.order.received.v1';
 const EVENT_SOURCE = '/marketplace-gateway';
 const DEAD_LETTER_TOPIC = 'order.marketplace-order.dlq';
-const EVENT_ID = /^[\x20-\x7E]{1,200}$/;
 const NO_NUL = (value: string): boolean => !value.includes('\u0000');
 
 const text = (max: number) => z.string().trim().min(1).max(max).refine(NO_NUL, 'must not contain NUL');
@@ -57,7 +57,7 @@ export class MarketplaceOrderConsumer {
         const { topic, partition, message } = payload;
         const position = { topic, partition, offset: message.offset };
         const eventId = headerValue(message.headers, 'ce_id');
-        const headerError = validateHeaders(message.headers, eventId);
+        const headerError = cloudEventHeaderError(message.headers, eventId, { source: EVENT_SOURCE, type: TOPIC });
 
         if (headerError) {
             this.props.logger.warn({ ...position, reason: headerError }, 'Marketplace order sent to the dead letter topic');
@@ -113,32 +113,6 @@ export class MarketplaceOrderConsumer {
         }
     }
 
-}
-
-function validateHeaders(headers: IHeaders | undefined, eventId: string | undefined): string | undefined {
-    if (!eventId || !EVENT_ID.test(eventId)) return 'ce_id must be 1 to 200 printable ASCII characters.';
-    if (headerValue(headers, 'ce_specversion') !== '1.0') return 'ce_specversion must be 1.0.';
-    if (headerValue(headers, 'ce_source') !== EVENT_SOURCE) return `ce_source must be ${EVENT_SOURCE}.`;
-    if (headerValue(headers, 'ce_type') !== TOPIC) return `ce_type must be ${TOPIC}.`;
-    if (!headerValue(headers, 'ce_subject')) return 'ce_subject is required.';
-    const eventTime = headerValue(headers, 'ce_time');
-    if (!eventTime || !z.iso.datetime({ offset: true }).safeParse(eventTime).success) return 'ce_time must be an ISO-8601 timestamp.';
-    if (headerValue(headers, 'content-type') !== 'application/json') return 'content-type must be application/json.';
-    return undefined;
-}
-
-function traceHeadersOf(headers: IHeaders | undefined): TraceHeaders {
-    const traceHeaders: TraceHeaders = {};
-    for (const name of ['traceparent', 'tracestate', 'baggage']) {
-        const value = headerValue(headers, name);
-        if (value !== undefined) traceHeaders[name] = value;
-    }
-    return traceHeaders;
-}
-
-function isDataException(err: unknown): err is Error {
-    const code = err instanceof Error ? (err as Error & { code?: unknown }).code : undefined;
-    return typeof code === 'string' && code.startsWith('22');
 }
 
 function totalDiffers(declaredTotal: number, totalCents: number): boolean {

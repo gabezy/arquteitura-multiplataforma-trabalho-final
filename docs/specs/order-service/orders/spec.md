@@ -22,7 +22,6 @@ The order-service has a running skeleton (config, health, Postgres, outbox relay
 | Buyer and shipping data | The `marketplace.order.received.v1` contract leaves them out until a service needs them (`docs/eventos.md`) |
 | Reservation expiry and a timeout for a stock answer | ADR-0004: the order waits for the catalog; the answer is guaranteed by at-least-once delivery and the outbox |
 | Refund of a paid order that is cancelled later | The billing-service keeps the invoice paid and logs a warning (ADR-0005) |
-| Inbox table logic | Idempotency comes from the state of the order and the unique marketplace and external order id; `processed_events` from the bootstrap stays unused until a consumer needs it |
 | Authentication and authorization | The BFF is the resource server; internal services do not check tokens (`docs/adr/0009-chamada-entre-servicos-sem-token-na-rede-interna.md`) |
 
 ---
@@ -39,12 +38,12 @@ Every ambiguity is resolved or recorded here - nothing is left silently unclear.
 | Cancellation reasons | `OUT_OF_STOCK`, `PAYMENT_FAILED`, `MARKETPLACE_CANCELLED` | `docs/eventos.md` | y |
 | Order id | A new UUID generated when the order is persisted | The marketplace message has no internal id | n |
 | Idempotency of the intake | The unique pair `marketplace` + `external_order_id` | `docs/eventos.md`: "o order-service ignora um marketplace + externalOrderId que já existe, mesmo vindo com outro ce_id" | y |
-| Idempotency of the outcomes | By the state of the order: the same outcome again changes nothing, a contradicting one is a domain error that goes to the dead letter | The catalog and the billing-service do the same | n |
+| Idempotency of the outcomes | By the state of the order: the same outcome again changes nothing; a contradicting one, or one for an unknown order, is logged as `warn` and skipped, never sent to the dead letter; the `ce_id` goes to `processed_events` after the outcome is applied or skipped | User decision of 2026-10-24 (Rodrigo): the message is valid, only the order moved on, so a dead letter would hold nothing to fix; the dead letter stays for messages out of contract. Marking after applying is safe because a redelivered outcome changes nothing | y |
 | Input bounds | 1 to 100 items; quantity 1 to 10 000; unit price 0.01 to 1 000 000.00 with at most two decimals; the total must equal the sum of quantity × unit price; SKU and external order id with 1 to 100 characters | The billing-service sends to its dead letter the orders outside these bounds, so the order-service rejects them first, before the catalog reserves stock for an order that could never be charged. The length of the identifiers keeps the unique index and the events within what Postgres and Kafka accept: a value that broke them would fail on every redelivery | n |
 | Money | Integer cents inside the service; JSON numbers with at most two decimals on the wire and in the API | Same choice as the billing-service; avoids float rounding in totals and reports | n |
 | `createdAt` of an order | The `orderedAt` of the marketplace message (the date of the sale); `updatedAt` is the last change in this service | The report is by date of sale; the demo simulators date their orders | n |
 | SKU | Kept as received, trimmed | The catalog already treats `nb-001` and `NB-001` as the same SKU | n |
-| Consumer groups | `order-service-marketplace-order`, `order-service-stock-response` and `order-service-billing-payment`, one dead letter topic each (`order.marketplace-order.dlq`, `order.stock-response.dlq`, `order.billing-payment.dlq`) | One group per concern, as the catalog does, so a stuck message does not hold back another flow; names from the dead letter table of `docs/eventos.md` | n |
+| Consumer groups | `order-service-marketplace-orders`, `order-service-stock-response` and `order-service-billing-payment`, one dead letter topic each (`order.marketplace-order.dlq`, `order.stock-response.dlq`, `order.billing-payment.dlq`) | One group per concern, as the catalog does, so a stuck message does not hold back another flow; names from the dead letter table of `docs/eventos.md` | y |
 | Pagination | `limit` 1 to 100 (default 20), `offset` ≥ 0, newest first | The BFF contract (`docs/api-do-bff.md`) | y |
 | Sales report rules | Counts the orders `CONFIRMED` and `PAID` created from `from` to `to`, both inclusive, as UTC dates; one row per marketplace, with zeros when there were no sales | `docs/api-do-bff.md` (the mock counts `CONFIRMED` and `PAID`) | y |
 | Validation error status | 400 for a request that breaks the shape (params, query), as the catalog-service does | The BFF turns a 400 or 422 of a service into its own 400 | n |
@@ -81,7 +80,8 @@ Every ambiguity is resolved or recorded here - nothing is left silently unclear.
 1. WHEN `catalog.stock.reserved.v1` arrives for a `RECEIVED` order THEN the order-service SHALL set it `CONFIRMED` and publish `order.order.confirmed.v1` with its items, its total and the time of the confirmation. (STK-01)
 2. WHEN `catalog.stock.insufficient.v1` arrives for a `RECEIVED` order THEN the order-service SHALL set it `CANCELLED` with the reason `OUT_OF_STOCK` and publish `order.order.cancelled.v1` with the reason, the marketplace and the external order id. (STK-02)
 3. IF an outcome that is already in the history of the order arrives again (`reserved` for an order that is `CONFIRMED`, `PAID` or cancelled for payment, which only a reserved order can be; `insufficient` for an order cancelled for lack of stock) THEN the order-service SHALL change nothing and publish nothing. (STK-03)
-4. IF the outcome contradicts the history of the order (`reserved` for an order cancelled for lack of stock or by the marketplace; `insufficient` for an order that is `CONFIRMED`, `PAID`, cancelled for payment or by the marketplace), or the order is unknown, or the message is out of contract THEN the order-service SHALL publish it to `order.stock-response.dlq` with the `dlq-*` headers and commit its offset. (STK-04)
+4. IF the outcome contradicts the history of the order (`reserved` for an order cancelled for lack of stock or by the marketplace; `insufficient` for an order that is `CONFIRMED`, `PAID`, cancelled for payment or by the marketplace), or the order is unknown, THEN the order-service SHALL change nothing, publish nothing, log a `warn` with the order id and the reason, record the `ce_id` and commit the offset without the dead letter topic. (STK-04)
+5. IF a stock answer lacks a required CloudEvents header (`ce_specversion` 1.0, `ce_id`, `ce_source` `/catalog-service`, `ce_type` equal to the topic, `ce_subject` equal to the `orderId`, `ce_time`, `content-type` `application/json`), is not valid JSON, has an `orderId` that is not a UUID or no items THEN the order-service SHALL publish it to `order.stock-response.dlq` with the `dlq-*` headers and commit its offset. (STK-05)
 
 **Independent Test**: An order with enough stock ends `CONFIRMED` with one `order.order.confirmed.v1`; one without ends `CANCELLED` with `OUT_OF_STOCK` and one `order.order.cancelled.v1`.
 
@@ -96,7 +96,8 @@ Every ambiguity is resolved or recorded here - nothing is left silently unclear.
 1. WHEN `billing.payment.confirmed.v1` arrives for a `CONFIRMED` order THEN the order-service SHALL set it `PAID`. (PAY-01)
 2. WHEN `billing.payment.failed.v1` arrives for a `CONFIRMED` order THEN the order-service SHALL set it `CANCELLED` with the reason `PAYMENT_FAILED` and publish `order.order.cancelled.v1`. (PAY-02)
 3. IF the result the order already has arrives again THEN the order-service SHALL change nothing and publish nothing. (PAY-03)
-4. IF the result contradicts the order (a payment for an order that is not `CONFIRMED` and not already in that outcome), or the order is unknown, or the message is out of contract THEN the order-service SHALL publish it to `order.billing-payment.dlq` with the `dlq-*` headers and commit its offset. (PAY-04)
+4. IF the result contradicts the order (a payment for an order that is not `CONFIRMED` and not already in that outcome), or the order is unknown, THEN the order-service SHALL change nothing, publish nothing, log a `warn` with the order id and the reason, record the `ce_id` and commit the offset without the dead letter topic. (PAY-04)
+5. IF a payment result lacks a required CloudEvents header (as STK-05, with `ce_source` `/billing-service` and `ce_subject` equal to the `invoiceId`), is not valid JSON, has an `invoiceId` or `orderId` that is not a UUID, or is a failure without a non-blank `reason` THEN the order-service SHALL publish it to `order.billing-payment.dlq` with the `dlq-*` headers and commit its offset. (PAY-05)
 
 **Independent Test**: A `CONFIRMED` order ends `PAID` after the confirmed payment, and `CANCELLED` with `PAYMENT_FAILED` and an `order.order.cancelled.v1` after the failed one.
 
@@ -168,10 +169,12 @@ Every ambiguity is resolved or recorded here - nothing is left silently unclear.
 | STK-02 | P1: Follow the stock answer | Tasks T2, T3, T5, T7 | Implementing |
 | STK-03 | P1: Follow the stock answer | Tasks T2, T3 | Implementing |
 | STK-04 | P1: Follow the stock answer | Tasks T3, T7 | Implementing |
+| STK-05 | P1: Follow the stock answer | Task T7 | Implementing |
 | PAY-01 | P1: Follow the payment result | Tasks T2, T3, T7 | Implementing |
 | PAY-02 | P1: Follow the payment result | Tasks T2, T3, T5, T7 | Implementing |
 | PAY-03 | P1: Follow the payment result | Tasks T2, T3 | Implementing |
 | PAY-04 | P1: Follow the payment result | Tasks T3, T7 | Implementing |
+| PAY-05 | P1: Follow the payment result | Task T7 | Implementing |
 | API-01 | P1: Query the orders | Tasks T3, T6 | Implementing |
 | API-02 | P1: Query the orders | Tasks T6 | In Tasks |
 | API-03 | P1: Query the orders | Tasks T4, T6 | Implementing |

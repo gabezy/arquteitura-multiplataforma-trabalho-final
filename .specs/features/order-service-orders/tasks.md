@@ -247,7 +247,7 @@ T8 → T9 → T10
 **Where**: `order-service/src/infra/messaging/`
 **Depends on**: T6
 **Reuses**: `catalog-service` patterns
-**Requirement**: ORD-01, ORD-04, ORD-05, STK-01, STK-02, STK-04, PAY-01, PAY-02, PAY-04, INF-03
+**Requirement**: ORD-01, ORD-04, ORD-05, STK-01, STK-02, STK-04, STK-05, PAY-01, PAY-02, PAY-04, PAY-05, INF-03
 
 **Tools**:
 
@@ -256,16 +256,18 @@ T8 → T9 → T10
 
 **Done when**:
 
-- [ ] Every valid message reaches the facade with the data of the contract
-- [ ] Every violation of ORD-04 goes to the dead letter of its group with the `dlq-*` headers
-- [ ] A domain error goes to the dead letter and a transient error is rethrown
-- [ ] Gate check passes: quick gate; test count ≥ 20
+- [x] Every valid message reaches the facade with the data of the contract
+- [x] Every violation of ORD-04, STK-05 and PAY-05 goes to the dead letter of its group with the `dlq-*` headers
+- [x] A contradicting outcome or an unknown order is logged and skipped (STK-04, PAY-04); any other domain error goes to the dead letter and a transient error is rethrown
+- [x] Gate check passes: quick gate; 15 tests in `marketplace-order.consumer.spec.ts` (`a4b953d`) and 42 in `order-outcome.consumer.spec.ts`
 
 **Tests**: unit
 **Gate**: quick
 
 **Commit**: `feat(order): consome os pedidos, o estoque e o pagamento`
 
+
+**Status**: ✅ Complete (marketplace consumer by Paulo in `a4b953d`; stock and payment consumers on the same branch, sharing `cloud-event.ts`)
 ---
 
 
