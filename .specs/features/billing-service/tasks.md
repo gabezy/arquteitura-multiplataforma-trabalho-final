@@ -152,8 +152,8 @@ T18 → T19 → T20 → T21 → T22 → T23
 
 **Done when**:
 
-- [ ] Four alternatives with trade-offs, honest negatives (new reusable workflow, no Go reference in the repo)
-- [ ] Gate check passes: docs gate
+- [x] Four alternatives with trade-offs, honest negatives (new reusable workflow, no Go reference in the repo)
+- [x] Gate check passes: docs gate
 
 **Tests**: none
 **Gate**: docs
