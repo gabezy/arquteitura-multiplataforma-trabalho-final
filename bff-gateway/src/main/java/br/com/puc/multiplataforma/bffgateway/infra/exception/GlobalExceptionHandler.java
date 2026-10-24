@@ -1,6 +1,7 @@
 package br.com.puc.multiplataforma.bffgateway.infra.exception;
 
 import br.com.puc.multiplataforma.bffgateway.core.catalog.exception.InvalidCatalogException;
+import br.com.puc.multiplataforma.bffgateway.core.catalog.exception.InvalidProductException;
 import br.com.puc.multiplataforma.bffgateway.core.shared.exception.DownstreamFailureException;
 import br.com.puc.multiplataforma.bffgateway.core.shared.exception.DownstreamUnavailableException;
 import br.com.puc.multiplataforma.bffgateway.core.shared.exception.InvalidRequestException;
@@ -37,6 +38,12 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     public ResponseEntity<Object> handleInvalidCatalog(InvalidCatalogException exception, WebRequest request) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Invalid catalog spreadsheet");
         problem.setProperty("errors", exception.getErrors());
+        return this.handleExceptionInternal(exception, problem, new HttpHeaders(), HttpStatus.BAD_REQUEST, request);
+    }
+
+    @ExceptionHandler(InvalidProductException.class)
+    public ResponseEntity<Object> handleInvalidProduct(InvalidProductException exception, WebRequest request) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, exception.getMessage());
         return this.handleExceptionInternal(exception, problem, new HttpHeaders(), HttpStatus.BAD_REQUEST, request);
     }
 

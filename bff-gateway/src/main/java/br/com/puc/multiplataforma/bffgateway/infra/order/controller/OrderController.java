@@ -8,6 +8,8 @@ import br.com.puc.multiplataforma.bffgateway.core.shared.domain.Marketplace;
 import br.com.puc.multiplataforma.bffgateway.core.shared.domain.PageRequest;
 import br.com.puc.multiplataforma.bffgateway.infra.order.controller.dto.OrderPageResponse;
 import br.com.puc.multiplataforma.bffgateway.infra.order.controller.dto.OrderResponse;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,6 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.UUID;
 
+@Tag(name = "Pedidos", description = "Pedidos recebidos dos marketplaces")
 @RestController
 @RequestMapping(path = "/orders", produces = MediaType.APPLICATION_JSON_VALUE)
 public class OrderController {
@@ -31,6 +34,7 @@ public class OrderController {
     }
 
     @GetMapping
+    @Operation(summary = "Lista os pedidos", description = "Papéis: admin, store e csm. Filtra por marketplace e status, com paginação por limit e offset.")
     @PreAuthorize("hasAnyRole('admin', 'store', 'csm')")
     public OrderPageResponse list(@RequestParam(required = false) Marketplace marketplace,
                                   @RequestParam(required = false) OrderStatus status,
@@ -41,6 +45,7 @@ public class OrderController {
     }
 
     @GetMapping("/{id}")
+    @Operation(summary = "Detalha um pedido", description = "Papéis: admin, store e csm. Responde 404 se o pedido não existe.")
     @PreAuthorize("hasAnyRole('admin', 'store', 'csm')")
     public OrderResponse get(@PathVariable UUID id) {
         return OrderResponse.from(getOrder.execute(id));
