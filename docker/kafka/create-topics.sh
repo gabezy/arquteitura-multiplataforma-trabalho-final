@@ -28,6 +28,13 @@ create catalog.order-stock.dlq 1 retention.ms=1209600000 # 14 days to inspect an
 create order.order.placed.v1 3
 create order.order.cancelled.v1 3
 
+# marketplace-gateway (consumes catalog.product.approved.v1, catalog.product.stock-changed.v1 and order.order.cancelled.v1)
+create marketplace.order.received.v1 3
+create marketplace.listing.published.v1 3
+create marketplace.listing.failed.v1 3
+create marketplace.catalog-product.dlq 1 retention.ms=1209600000 # 14 days to inspect and replay
+create marketplace.order-cancelled.dlq 1 retention.ms=1209600000 # 14 days to inspect and replay
+
 # compliance-service
 create compliance.product-created.dlq 1 retention.ms=1209600000 # 14 days to inspect and replay
 

@@ -76,6 +76,24 @@ services:
       retries: 5
       start_period: 10s
 
+  marketplace-db:
+    image: postgres:18-alpine
+    container_name: marketplace-db
+    environment:
+      POSTGRES_DB: ${MARKETPLACE_DB_NAME:-marketplace}
+      POSTGRES_USER: ${MARKETPLACE_DB_USER:-marketplace}
+      POSTGRES_PASSWORD: ${MARKETPLACE_DB_PASSWORD:-marketplace}
+    ports:
+      - "5436:5432"
+    volumes:
+      - marketplace-db-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   kafka:
     image: apache/kafka:4.3.1
     container_name: kafka
@@ -249,6 +267,21 @@ services:
       kafka-init:
         condition: service_completed_successfully
 
+  marketplace-gateway:
+    build: ./marketplace-gateway
+    container_name: marketplace-gateway
+    environment:
+      DATABASE_URL: postgresql://${MARKETPLACE_DB_USER:-marketplace}:${MARKETPLACE_DB_PASSWORD:-marketplace}@marketplace-db:5432/${MARKETPLACE_DB_NAME:-marketplace}
+      KAFKA_BROKERS: kafka:19092
+      OTEL_COLLECTOR_URL: http://otel-collector:4318
+    ports:
+      - "8087:8087"
+    depends_on:
+      marketplace-db:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+
   bff-gateway:
     build: ./bff-gateway
     container_name: bff-gateway
@@ -272,6 +305,7 @@ volumes:
   catalog-db-data:
   compliance-db-data:
   order-db-data:
+  marketplace-db-data:
   kafka-data:
   grafana-data:
   loki-data:
