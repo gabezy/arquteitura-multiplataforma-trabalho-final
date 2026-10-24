@@ -42,7 +42,12 @@ export function createListingModule(props: ListingModuleProps): ListingModule {
     new KnexListingReadRepository(props.db),
     new HttpProductCatalog(props.catalog),
   );
-  const stockFacade = new StockFacade(props.marketplaces, new KnexListingStockRepository(props.db), props.stockSync.batchSize);
+  const stockFacade = new StockFacade(
+    props.marketplaces,
+    new KnexListingStockRepository(props.db),
+    props.stockSync.batchSize,
+    props.priceSync?.batchSize ?? props.stockSync.batchSize,
+  );
 
   return {
     listingController: new ListingController(listingFacade),

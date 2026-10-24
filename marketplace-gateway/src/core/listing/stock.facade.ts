@@ -19,7 +19,8 @@ import {
 import { ListingStockRepositoryPort, UnsyncedListing, UnsyncedPriceListing } from './port/out/listing-stock.repository';
 
 function roundMoney(value: number): number {
-    return Math.round(value * 100) / 100;
+    const rounded = Math.round((value + Number.EPSILON) * 100) / 100;
+    return Number(rounded.toFixed(2));
 }
 
 export class StockFacade implements RecordProductStockPort, RecordProductPricePort, SyncListingStockPort, SyncListingPricePort {
@@ -28,6 +29,7 @@ export class StockFacade implements RecordProductStockPort, RecordProductPricePo
         private readonly marketplaces: MarketplaceRegistry,
         private readonly stocks: ListingStockRepositoryPort,
         private readonly batchSize: number,
+        private readonly priceBatchSize: number = batchSize,
         private readonly now: () => Date = () => new Date(),
     ) {}
 
@@ -71,7 +73,7 @@ export class StockFacade implements RecordProductStockPort, RecordProductPricePo
     }
 
     async syncPrice({ marketplace }: SyncListingPriceInput): Promise<PriceSyncResult> {
-        const unsynced = await this.stocks.findPriceUnsynced(marketplace, this.batchSize);
+        const unsynced = await this.stocks.findPriceUnsynced(marketplace, this.priceBatchSize);
         const outcomes = await Promise.allSettled(unsynced.map(listing => this.sendPrice(listing)));
 
         const unexpected = outcomes.find((outcome): outcome is PromiseRejectedResult => outcome.status === 'rejected');

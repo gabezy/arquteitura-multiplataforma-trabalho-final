@@ -46,7 +46,7 @@ describe('StockFacade', () => {
             markSynced: jest.fn().mockResolvedValue(true),
             markPriceSynced: jest.fn().mockResolvedValue(true),
         } as any;
-        facade = new StockFacade(new MarketplaceRegistry(Object.values(ports)), stocks, BATCH_SIZE, () => NOW);
+        facade = new StockFacade(new MarketplaceRegistry(Object.values(ports)), stocks, BATCH_SIZE, BATCH_SIZE, () => NOW);
     });
 
     describe('record', () => {
