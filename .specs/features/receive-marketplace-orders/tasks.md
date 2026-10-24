@@ -124,20 +124,20 @@ T7 → T8
 
 **Done when**:
 
-- [ ] `receive` on a new marketplace order saves it and returns `created` with the saved order
-- [ ] `receive` when the repository answers "already exists" returns `duplicate` and the facade records nothing else
-- [ ] `receive` passes the `eventId` to the repository untouched (also when absent)
-- [ ] `get` with an unknown id throws `OrderNotFoundError`; with a known id returns the order
-- [ ] `list` passes `marketplace`, `status`, `limit` and `offset` to the repository untouched
-- [ ] Gate check passes: `cd order-service && npx jest src/core && npm run typecheck`
-- [ ] Test count: at least 6 new tests pass
+- [x] `receive` on a new marketplace order saves it and returns `created` with the saved order
+- [x] `receive` when the repository answers "already exists" returns `duplicate` and the facade records nothing else
+- [x] `receive` passes the `eventId` to the repository untouched (also when absent)
+- [x] `get` with an unknown id throws `OrderNotFoundError`; with a known id returns the order
+- [x] `list` passes `marketplace`, `status`, `limit` and `offset` to the repository untouched
+- [x] Gate check passes: `cd order-service && npx jest src/core && npm run typecheck`
+- [x] Test count: 6 new tests pass (`order.facade.spec.ts`); 49 in `src/core`
 
 **Tests**: unit
 **Gate**: quick
 
 **Commit**: `feat(order): adiciona as portas e a facade de pedidos`
 
-**Status**: Pending
+**Status**: ✅ Complete
 
 ---
 
@@ -190,7 +190,7 @@ T7 → T8
 
 **Done when**:
 
-- [ ] `findById` returns the order with all fields and items in line order; an unknown id returns `undefined`
+- [ ] `findById` returns the order with all fields and items in line order; an unknown id returns `null`
 - [ ] `list` with no filter returns newest first, with `id` as tiebreaker for equal `created_at`
 - [ ] Filter by `marketplace`, by `status` and by both returns only matching orders
 - [ ] `limit` and `offset` page through the result; an offset past the end returns an empty list

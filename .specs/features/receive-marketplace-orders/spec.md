@@ -190,7 +190,7 @@ The marketplace-gateway (#22) already polls the marketplaces and publishes `mark
 | ORDER-06 | P1: received order becomes an order (AC 6) | T1 | Implementing |
 | ORDER-07 | P1: received order becomes an order (AC 7) | T5, T7 | In Tasks |
 | ORDER-08 | P1: redelivery (AC 1) | T3, T5 | In Tasks |
-| ORDER-09 | P1: redelivery (AC 2) | T2, T3 | In Tasks |
+| ORDER-09 | P1: redelivery (AC 2) | T2, T3 | Implementing |
 | ORDER-10 | P1: redelivery (AC 3) | T3 | In Tasks |
 | ORDER-11 | P1: redelivery (AC 4) | T3 | In Tasks |
 | ORDER-12 | P1: DLQ (AC 1) | T5 | In Tasks |
@@ -204,9 +204,9 @@ The marketplace-gateway (#22) already polls the marketplaces and publishes `mark
 | ORDER-20 | P1: API (AC 3) | T4, T6 | In Tasks |
 | ORDER-21 | P1: API (AC 4) | T4, T6 | In Tasks |
 | ORDER-22 | P1: API (AC 5) | T6 | In Tasks |
-| ORDER-23 | P1: API (AC 6) | T2, T4, T6 | In Tasks |
+| ORDER-23 | P1: API (AC 6) | T2, T4, T6 | Implementing |
 | ORDER-24 | P1: API (AC 7) | T6 | In Tasks |
-| ORDER-25 | P1: API (AC 8) | T2, T4, T6 | In Tasks |
+| ORDER-25 | P1: API (AC 8) | T2, T4, T6 | Implementing |
 | ORDER-26 | P2: lifecycle (AC 1) | T7 | In Tasks |
 | ORDER-27 | P2: lifecycle (AC 2) | T7 | In Tasks |
 | ORDER-28 | P2: lifecycle (AC 3) | T7 | In Tasks |
