@@ -36,6 +36,15 @@ type Snapshot struct {
 	UpdatedAt          time.Time
 	// Version is the optimistic lock of the row.
 	Version int
+
+	// Payment: the charge at the PSP and how the attempts to create it went.
+	PSPTransactionID     string
+	FailureReason        string
+	PaymentAttempts      int
+	NextPaymentAttemptAt *time.Time
+	PaymentRequestedAt   *time.Time
+	PaidAt               *time.Time
+	FailedAt             *time.Time
 }
 
 // Invoice charges one confirmed order.
@@ -130,9 +139,18 @@ func (i *Invoice) Cancel(reason string, now time.Time) bool {
 
 func copyOf(snapshot Snapshot) Snapshot {
 	snapshot.Items = slices.Clone(snapshot.Items)
-	if snapshot.CancelledAt != nil {
-		cancelledAt := *snapshot.CancelledAt
-		snapshot.CancelledAt = &cancelledAt
-	}
+	snapshot.CancelledAt = copyTime(snapshot.CancelledAt)
+	snapshot.NextPaymentAttemptAt = copyTime(snapshot.NextPaymentAttemptAt)
+	snapshot.PaymentRequestedAt = copyTime(snapshot.PaymentRequestedAt)
+	snapshot.PaidAt = copyTime(snapshot.PaidAt)
+	snapshot.FailedAt = copyTime(snapshot.FailedAt)
 	return snapshot
+}
+
+func copyTime(t *time.Time) *time.Time {
+	if t == nil {
+		return nil
+	}
+	copied := *t
+	return &copied
 }

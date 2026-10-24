@@ -576,10 +576,10 @@ T18 → T19 → T20 → T21 → T22 → T23
 
 **Done when**:
 
-- [ ] Every row of the status machine in the design has a test
-- [ ] Unavailable PSP increments attempts and schedules min(2^n, 60) s; refused fails the invoice; accepted stores the charge id
-- [ ] Repeated outcome is unchanged; contradicting outcome is `ConflictError`
-- [ ] Gate check passes: quick gate; test count ≥ 15
+- [x] Every row of the status machine in the design has a test
+- [x] Unavailable PSP increments attempts and schedules min(2^n, 60) s; refused fails the invoice; accepted stores the charge id
+- [x] Repeated outcome is unchanged; contradicting outcome is `ConflictError`
+- [x] Gate check passes: quick gate; test count ≥ 15
 
 **Tests**: unit
 **Gate**: quick
