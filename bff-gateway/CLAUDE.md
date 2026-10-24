@@ -33,24 +33,32 @@ core/<domain>/            e.g. core/catalog
   exception/              domain exceptions
   gateway/                port interfaces the use cases depend on (downstream services, file readers)
   usecase/                one class per use case + its result record
-core/shared/              only for code used by more than one domain
+core/shared/              only for code used by more than one domain: Marketplace, Page, PageRequest and the exceptions of downstream calls
 infra/<domain>/           e.g. infra/catalog
   controller/ (+ dto/)    REST endpoints and HTTP DTOs
   gateway/                implementations of core gateways (RestClient, mocks)
   <adapter>/              other adapters, e.g. spreadsheet/ (Apache POI)
   config/                 @Configuration that wires the domain's use cases and adapters as @Beans
 infra/security/, infra/exception/   cross-cutting concerns shared by all domains
+infra/shared/            gateway/ and config/: the HTTP client every downstream gateway uses (DownstreamClient)
 ```
 
 - `core` must not depend on Spring, servlet, Jackson, or anything in `infra`. Use cases are plain Java classes with constructor injection. They are not annotated with `@Service`/`@Component`.
 - A new downstream domain (order, cart, …) gets its own `core/<domain>` and `infra/<domain>`. One domain must not reach into another domain's `infra`.
-- `MockCatalogGateway` stands in for the catalog service's REST API. To call the real API, add a `RestClient` implementation of `CatalogGateway` and switch the bean in `CatalogConfig`.
+- The `order` domain has two gateways behind `OrderGateway`: `MockOrderGateway` (in-memory demo data) and `OrderServiceClientGateway` (calls the order-service). `OrderConfig` activates one with `app.gateways.order=mock|rest` (default `rest`; the env var `APP_GATEWAYS_ORDER=mock` works too). The URL is `ORDER_SERVICE_URL` (default `http://order-service:8084`, so from the host use `http://localhost:8084`). A new downstream domain repeats this pattern.
 
 Rules to keep when adding code:
 - Controllers convert HTTP DTOs to use-case input and back. They hold no business logic.
 - When a use case needs external data, add an interface in `core` and implement it in `infra`. `core` never calls `RestClient` directly.
 - Core throws its own domain exceptions. `infra/exception/GlobalExceptionHandler` (extends `ResponseEntityExceptionHandler`) translates them into `ProblemDetail` responses.
 - Follow Clean Code: small, intention-revealing names, single responsibility per class/method, and no comments that restate the code.
+
+## Calling the other services
+
+- A gateway wraps a `DownstreamClient`, which `DownstreamClientFactory` builds from the auto-configured `RestClient.Builder`: base URL, `X-User-Id` (the token `sub`), HTTP/1.1 and the timeouts `downstream.connect-timeout` (2s) and `downstream.read-timeout` (10s).
+- `DownstreamClient` turns every failure into a core exception, and `GlobalExceptionHandler` into a `ProblemDetail`: 404 on a detail `find` is `Optional.empty()` (the use case throws `ResourceNotFoundException`, 404); 400 or 422 is `InvalidRequestException` (400, with the service's `detail`); an I/O error, a timeout, or 502, 503 or 504 is `DownstreamUnavailableException` (503); anything else, including an unreadable body or an unknown enum value, is `DownstreamFailureException` (502). Both 5xx problems carry a `service` property.
+- The wire format lives in `infra/<domain>/gateway/model` (records with `toDomain()`, unknown fields ignored), so a change in a service's contract touches only the adapter. The contracts the BFF expects are in `../docs/api-do-bff.md`.
+- A new route comes with a controller test, a security test (one allowed and one denied role) and a gateway test with `MockRestServiceServer`, including the service-unavailable case.
 
 ## Security model
 

@@ -1,0 +1,91 @@
+# Coleção das rotas do bff-gateway (referência em docs/api-do-bff.md).
+# Formato do VS Code REST Client: rode os tokens primeiro, depois as rotas.
+# As requisições com "# @name" guardam a resposta para as seguintes (ex.: o token).
+# O client secret é o do README; a senha de cada usuário é igual ao nome dele.
+
+@keycloak = http://localhost:8085/realms/omni-market/protocol/openid-connect/token
+@bff = http://localhost:8080
+@clientId = bff-gateway
+@clientSecret = bff-gateway-secret
+
+### Token: admin (papéis admin e customer)
+# @name admin
+POST {{keycloak}}
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=password&client_id={{clientId}}&client_secret={{clientSecret}}&username=admin&password=admin
+
+### Token: loja (papel store)
+# @name loja
+POST {{keycloak}}
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=password&client_id={{clientId}}&client_secret={{clientSecret}}&username=loja&password=loja
+
+### Token: csm (papel csm)
+# @name csm
+POST {{keycloak}}
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=password&client_id={{clientId}}&client_secret={{clientSecret}}&username=csm&password=csm
+
+### Token: fiscal (papel fiscal)
+# @name fiscal
+POST {{keycloak}}
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=password&client_id={{clientId}}&client_secret={{clientSecret}}&username=fiscal&password=fiscal
+
+### Token: especialista (papel specialist)
+# @name especialista
+POST {{keycloak}}
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=password&client_id={{clientId}}&client_secret={{clientSecret}}&username=especialista&password=especialista
+
+### Pedidos: a página padrão (store, csm e admin)
+GET {{bff}}/orders
+Authorization: Bearer {{csm.response.body.access_token}}
+
+### Pedidos: filtro por marketplace e status, com paginação
+GET {{bff}}/orders?marketplace=AMAZON&status=PAID&limit=5&offset=0
+Authorization: Bearer {{loja.response.body.access_token}}
+
+### Pedidos: só os cancelados (o motivo vem em cancellationReason)
+GET {{bff}}/orders?status=CANCELLED
+Authorization: Bearer {{csm.response.body.access_token}}
+
+### Pedido: detalhe. O id é o do modo mock (APP_GATEWAYS_ORDER=mock); com o order-service real, use um id de GET /orders
+GET {{bff}}/orders/6f1c2b8e-0000-4000-8000-000000000001
+Authorization: Bearer {{csm.response.body.access_token}}
+
+### Pedido: id que não existe, 404
+GET {{bff}}/orders/6f1c2b8e-0000-4000-8000-0000000000ff
+Authorization: Bearer {{csm.response.body.access_token}}
+
+### Pedidos: status inválido, 400
+GET {{bff}}/orders?status=SHIPPED
+Authorization: Bearer {{csm.response.body.access_token}}
+
+### Relatório de vendas por marketplace (csm e admin)
+GET {{bff}}/reports/sales-by-marketplace?from=2026-10-01&to=2026-10-31
+Authorization: Bearer {{csm.response.body.access_token}}
+
+### Relatório: período invertido, 400
+GET {{bff}}/reports/sales-by-marketplace?from=2026-10-31&to=2026-10-01
+Authorization: Bearer {{csm.response.body.access_token}}
+
+### Permissões: a loja não vê o relatório, 403
+GET {{bff}}/reports/sales-by-marketplace?from=2026-10-01&to=2026-10-31
+Authorization: Bearer {{loja.response.body.access_token}}
+
+### Permissões: o fiscal não vê pedidos, 403
+GET {{bff}}/orders
+Authorization: Bearer {{fiscal.response.body.access_token}}
+
+### Permissões: o especialista não vê pedidos, 403
+GET {{bff}}/orders
+Authorization: Bearer {{especialista.response.body.access_token}}
+
+### Permissões: sem token, 401
+GET {{bff}}/orders
