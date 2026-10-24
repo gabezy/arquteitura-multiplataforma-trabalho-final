@@ -131,9 +131,18 @@ func orderBody(orderID, marketplace string, quantity int, unitPrice, total strin
 		`"items":[{"sku":"231","quantity":` + strconv.Itoa(quantity) + `,"unitPrice":` + unitPrice + `}],"total":` + total + `}`
 }
 
-// startCharging runs the service with the fake PSP, a payment round every 50 ms, and the webhook pointed at itself.
-// The settings of the extra maps are added on top, for a test that needs another interval.
-func startCharging(t *testing.T, psp *fakePSP, extra ...map[string]string) (cfgPort int, brokers []string, producer *kgo.Client) {
+// chargingService is the service running against a PSP, with what a test needs to stop it and to look at it.
+type chargingService struct {
+	port        int
+	brokers     []string
+	databaseURL string
+	producer    *kgo.Client
+	stop        context.CancelFunc // what a SIGTERM does to Run
+	done        <-chan error       // the result of Run
+}
+
+// newPaymentCluster is an in-memory Kafka with every topic the billing-service reads or writes.
+func newPaymentCluster(t *testing.T) []string {
 	t.Helper()
 	cluster, err := kfake.NewCluster(kfake.NumBrokers(1), kfake.SeedTopics(1,
 		confirmedTopic, cancelledTopic, issuedTopic, deadLetter, paymentConfirmed, paymentFailed))
@@ -141,11 +150,18 @@ func startCharging(t *testing.T, psp *fakePSP, extra ...map[string]string) (cfgP
 		t.Fatal(err)
 	}
 	t.Cleanup(cluster.Close)
-	brokers = cluster.ListenAddrs()
+	return cluster.ListenAddrs()
+}
+
+// runCharging runs the service against the PSP at pspURL, a payment round every 50 ms, and the webhook pointed at
+// itself, on the database and the Kafka it is given. The settings of the extra maps are added on top, for a test that
+// needs another interval. Two instances can share a database to see what the second finds after the first stopped.
+func runCharging(t *testing.T, pspURL, databaseURL string, brokers []string, extra ...map[string]string) chargingService {
+	t.Helper()
 	port := freePort(t)
 	settings := map[string]string{
 		"PORT":                  strconv.Itoa(port),
-		"PSP_BASE_URL":          psp.server.URL,
+		"PSP_BASE_URL":          pspURL,
 		"PSP_CALLBACK_URL":      "http://127.0.0.1:" + strconv.Itoa(port) + "/webhooks/psp",
 		"PAYMENT_POLL_INTERVAL": paymentPollInterval,
 	}
@@ -154,16 +170,23 @@ func startCharging(t *testing.T, psp *fakePSP, extra ...map[string]string) (cfgP
 			settings[key] = value
 		}
 	}
-	cfg := testConfigWith(t, testsupport.NewDatabase(t), brokers, settings)
-	_, done := start(t, cfg)
+	cfg := testConfigWith(t, databaseURL, brokers, settings)
+	stop, done := start(t, cfg)
 	waitUntilHealthy(t, cfg.Port, done)
 
-	producer, err = kgo.NewClient(kgo.SeedBrokers(brokers...))
+	producer, err := kgo.NewClient(kgo.SeedBrokers(brokers...))
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(producer.Close)
-	return cfg.Port, brokers, producer
+	return chargingService{port: cfg.Port, brokers: brokers, databaseURL: databaseURL, producer: producer, stop: stop, done: done}
+}
+
+// startCharging runs the service with the fake PSP on a new database and a new Kafka.
+func startCharging(t *testing.T, psp *fakePSP, extra ...map[string]string) (cfgPort int, brokers []string, producer *kgo.Client) {
+	t.Helper()
+	service := runCharging(t, psp.server.URL, testsupport.NewDatabase(t), newPaymentCluster(t), extra...)
+	return service.port, service.brokers, service.producer
 }
 
 func invoiceStatus(t *testing.T, port int, orderID string) string {
@@ -282,7 +305,10 @@ func TestAnInvoiceIsChargedWhenThePSPComesBack(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	eventuallyWithin(t, 20*time.Second, "the three attempts of the first round", func() bool { return psp.requests.Load() >= 3 })
+	eventuallyWithin(t, 20*time.Second, "the first attempt", func() bool { return psp.requests.Load() >= 1 })
+	// The defaults wait 200 ms and 400 ms between the three attempts of a round, so they all come within 3 s of the first. A service
+	// wired with one attempt per round would need 6 s or more.
+	eventuallyWithin(t, 3*time.Second, "the three attempts of the first round", func() bool { return psp.requests.Load() >= 3 })
 	if got := invoiceStatus(t, port, orderOne); got != "ISSUED" {
 		t.Fatalf("the invoice is %s while the PSP is down, want ISSUED", got)
 	}
@@ -384,5 +410,32 @@ func TestAnInvoiceTheProviderRefusesToCreateFails(t *testing.T) {
 	}
 	if psp.requests.Load() != 1 {
 		t.Errorf("the PSP received %d charge requests, want 1: a refusal is not retried", psp.requests.Load())
+	}
+}
+
+// Edge case: while the circuit is open the service keeps issuing invoices from Kafka; it only does not call the PSP.
+func TestInvoicesAreStillIssuedWhileTheCircuitIsOpen(t *testing.T) {
+	psp := newFakePSP(t)
+	psp.down.Store(true)
+	port, _, producer := startCharging(t, psp)
+	if err := producer.ProduceSync(context.Background(),
+		orderEvent(confirmedTopic, "evt-1", orderOne, iphonesBody(orderOne, "AMAZON", 1)),
+	).FirstErr(); err != nil {
+		t.Fatal(err)
+	}
+	// Five failed attempts in a row open the circuit: three in the first round, two in the second.
+	eventuallyWithin(t, 30*time.Second, "the five failed attempts that open the circuit", func() bool { return psp.requests.Load() >= 5 })
+	opened := psp.requests.Load()
+
+	if err := producer.ProduceSync(context.Background(),
+		orderEvent(confirmedTopic, "evt-2", orderTwo, iphonesBody(orderTwo, "SHOPEE", 1)),
+	).FirstErr(); err != nil {
+		t.Fatal(err)
+	}
+	eventuallyWithin(t, 20*time.Second, "the invoice of the second order", func() bool { return invoiceStatus(t, port, orderTwo) == "ISSUED" })
+	time.Sleep(1500 * time.Millisecond)
+
+	if got := psp.requests.Load(); got != opened {
+		t.Fatalf("the PSP received %d requests, want the %d of before: no call while the circuit is open", got, opened)
 	}
 }

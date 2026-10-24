@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"time"
 
@@ -99,6 +100,13 @@ func Run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 		WebhookToken: cfg.PSPWebhookToken,
 	})
 	server := httpapi.NewServer(fmt.Sprintf(":%d", cfg.Port), router.Handler())
+	// A request is allowed to finish while the server shuts down. When Run returns, which is when that time is over,
+	// its context is cancelled (this defer runs before the one that closes the pool), so that a request that is still
+	// waiting on the database gives its connection back. The pool waits for every connection in use when it closes,
+	// and a request stuck on a lock would otherwise keep the process from exiting within its budget.
+	handlers, stopHandlers := context.WithCancel(context.WithoutCancel(ctx))
+	defer stopHandlers()
+	server.BaseContext = func(net.Listener) context.Context { return handlers }
 
 	group, groupCtx := errgroup.WithContext(ctx)
 	group.Go(func() error {

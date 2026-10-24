@@ -93,7 +93,7 @@ Every ambiguity is resolved or recorded here - nothing is left silently unclear.
 3. WHEN the service starts THEN the billing-service SHALL apply the pending database migrations before it accepts HTTP requests. (BOOT-03)
 4. IF a configuration variable is invalid THEN the billing-service SHALL exit with a non-zero status and an error that names the variable without printing its value. (BOOT-04)
 5. The billing-service SHALL export traces, metrics and logs over OTLP/HTTP to `OTEL_COLLECTOR_URL` with `service.name` `billing-service`. (BOOT-05)
-6. WHEN the process receives SIGTERM THEN the billing-service SHALL stop accepting requests, finish the HTTP requests being served and the outbox batch being published, stop consuming (the message in process is not committed, so it is delivered again, and a charge in flight is rolled back and tried again with the same idempotency key) and exit within 10 s. (BOOT-06)
+6. WHEN the process receives SIGTERM THEN the billing-service SHALL stop accepting requests, finish the HTTP requests being served, mark as published the outbox events the relay already sent (it stops at the next event), stop consuming (the message in process is not committed, so it is delivered again, and a charge in flight is rolled back and tried again with the same idempotency key) and exit within 10 s, also when a request is still waiting on the database: after 7 s its context is cancelled and it gives its connection back. (BOOT-06)
 7. WHEN `make up` runs THEN the `billing-db` and `billing-service` containers SHALL become healthy, with the service on port 8086 and the database on port 5435. (BOOT-07)
 8. WHEN a push changes `billing-service/**` THEN the CI SHALL run lint, the tests and the Docker build of billing only. (BOOT-08)
 9. The core packages SHALL import only the Go standard library and other core packages. (BOOT-09)
@@ -190,7 +190,7 @@ Every ambiguity is resolved or recorded here - nothing is left silently unclear.
 - WHEN a webhook arrives while the payment worker still holds the invoice THEN the webhook SHALL wait for the row lock and apply on top of `PAYMENT_PENDING`.
 - IF a webhook arrives for an invoice that is still `ISSUED` THEN the billing-service SHALL store its charge id and apply the outcome.
 - IF a webhook references an unknown invoice THEN the billing-service SHALL respond 404.
-- IF the webhook body is not valid JSON or misses a field THEN the billing-service SHALL respond 400.
+- IF the webhook body is not valid JSON or misses a required field (`chargeId`, `reference` or `status`; `failureReason` and `occurredAt` are optional, and `occurredAt` must be an RFC 3339 time when present) THEN the billing-service SHALL respond 400.
 - WHEN the commission falls exactly on half a cent THEN the billing-service SHALL round it up (total R$ 0,25 at 14% gives R$ 0,04).
 - WHILE the circuit is open the billing-service SHALL keep issuing invoices from Kafka.
 
