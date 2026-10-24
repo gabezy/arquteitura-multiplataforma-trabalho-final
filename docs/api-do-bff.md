@@ -214,6 +214,20 @@ curl -s -H "Authorization: Bearer $STORE" "http://localhost:8080/listings?sku=OX
 
 Papéis: `admin` e `store`. Devolve um anúncio, no mesmo formato de cada item de `listings`. Responde 404 se o anúncio não existe.
 
+## Catálogo
+
+### `PATCH /catalog/products/{sku}/price`
+
+Papéis: `admin` e `store`, ou o escopo `catalog:write`. Altera o preço de um produto que já existe no catálogo e responde `204` sem corpo. O catalog-service grava o novo preço e publica `catalog.product.price-changed.v1` para os marketplaces ([eventos](eventos.md#catalogproductprice-changedv1)).
+
+```json
+{ "price": 4999.90 }
+```
+
+- `price` é o valor absoluto em reais, maior ou igual a 0. Sem `price`, com valor negativo ou com JSON malformado, responde 400.
+- Responde 404 se o catálogo não conhece o SKU.
+- Repetir o preço vigente responde `204` e não publica evento.
+
 ## Mock e serviço real
 
 Cada domínio com serviço de destino tem dois gateways, e a propriedade `app.gateways.<domínio>` escolhe um: `rest` chama o serviço (é o padrão, inclusive no compose) e `mock` responde com dados de demonstração dentro do BFF. A variável de ambiente é `APP_GATEWAYS_<DOMÍNIO>`.
@@ -255,6 +269,15 @@ Um 400 ou 422 do serviço vira 400 no BFF, com o `detail` do problema. Um 404 s�
 | `GET /invoices/{id}` | `Invoice`, ou 404 |
 
 `Invoice` é `{ id (uuid), orderId (uuid), externalOrderId, marketplace, status (ISSUED, PAYMENT_PENDING, PAID, PAYMENT_FAILED ou CANCELLED), amount, commissionPercent, commissionAmount, netAmount, items: [{ sku, quantity, unitPrice, amount }], issuedAt, cancelledAt, cancellationReason, pspTransactionId, failureReason, paidAt, failedAt }`. Os campos do desfecho (`cancelledAt`, `cancellationReason`, `pspTransactionId`, `failureReason`, `paidAt` e `failedAt`) são `null` quando não se aplicam. Os campos seguem `billing.invoice.issued.v1` e `billing.payment.*` de `docs/eventos.md`. O erro de um 400 ou 422 e o 404 seguem a mesma regra do order-service.
+
+### catalog-service (#77)
+
+| Chamada | Resposta |
+|---|---|
+| `POST /products/import` com `{ items: [{ sku, name, description, price, stock }] }` | 2xx sem corpo |
+| `PATCH /products/sku/{sku}/price` com `{ "price": 4999.90 }` | `204`, ou 404 se o SKU não existe |
+
+O catálogo não tem gateway mock: as rotas de catálogo sempre chamam o serviço (`CATALOG_SERVICE_URL`, padrão `http://localhost:8082`). O erro de um 400 ou 422 segue a mesma regra do order-service.
 
 ### marketplace-gateway (#21)
 

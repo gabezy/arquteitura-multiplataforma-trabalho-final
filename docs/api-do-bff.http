@@ -131,6 +131,34 @@ Authorization: Bearer {{loja.response.body.access_token}}
 GET {{bff}}/listings?status=SUSPENDED
 Authorization: Bearer {{loja.response.body.access_token}}
 
+### Catálogo: altera o preço de um produto (store e admin). O SKU precisa existir no catalog-service
+PATCH {{bff}}/catalog/products/NB-001/price
+Authorization: Bearer {{loja.response.body.access_token}}
+Content-Type: application/json
+
+{ "price": 4999.90 }
+
+### Catálogo: preço negativo, 400
+PATCH {{bff}}/catalog/products/NB-001/price
+Authorization: Bearer {{admin.response.body.access_token}}
+Content-Type: application/json
+
+{ "price": -1 }
+
+### Catálogo: SKU que não existe, 404
+PATCH {{bff}}/catalog/products/NAO-EXISTE/price
+Authorization: Bearer {{admin.response.body.access_token}}
+Content-Type: application/json
+
+{ "price": 10 }
+
+### Permissões: o CSM não altera preço, 403
+PATCH {{bff}}/catalog/products/NB-001/price
+Authorization: Bearer {{csm.response.body.access_token}}
+Content-Type: application/json
+
+{ "price": 10 }
+
 ### Permissões: a loja não vê o relatório, 403
 GET {{bff}}/reports/sales-by-marketplace?from=2026-10-01&to=2026-10-31
 Authorization: Bearer {{loja.response.body.access_token}}

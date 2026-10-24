@@ -521,6 +521,7 @@ Os serviços internos não validam token: a autenticação e a autorização por
 | Origem | Destino | Chamada | Uso | Estado |
 |---|---|---|---|---|
 | bff-gateway | catalog-service | `POST /products/import` com `{ items: [{ sku, name, description, price, stock }] }` (1 a 1000 itens) | importação da planilha (`POST /catalog/import/xlsx` no BFF) | Implementado |
+| bff-gateway | catalog-service | `PATCH /products/sku/:sku/price` com `{ price }` → `204`, ou 404 se o SKU não existe | alteração de preço (`PATCH /catalog/products/{sku}/price` no BFF, #79) | Implementado |
 | bff-gateway, marketplace-gateway | catalog-service | `GET /products/sku/:sku` → `{ id, sku, name, description, price, stock, analysisStatus }` | consulta do produto e dos dados para o anúncio | Implementado (o uso pelo marketplace depende da ADR #12) |
 | bff-gateway | order-service | listar e detalhar pedidos, relatórios por marketplace | #24, #31 | Proposto |
 | bff-gateway | billing-service | `GET /invoices` (filtros `orderId`, `status`, `marketplace`, `limit`, `offset`) e `GET /invoices/{id}` | #34 | Proposto |

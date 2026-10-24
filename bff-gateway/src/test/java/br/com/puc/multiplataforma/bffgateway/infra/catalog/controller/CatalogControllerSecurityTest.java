@@ -1,5 +1,6 @@
 package br.com.puc.multiplataforma.bffgateway.infra.catalog.controller;
 
+import br.com.puc.multiplataforma.bffgateway.core.catalog.usecase.changeprice.ChangeProductPrice;
 import br.com.puc.multiplataforma.bffgateway.core.catalog.usecase.importcatalog.ImportCatalogResult;
 import br.com.puc.multiplataforma.bffgateway.core.catalog.usecase.importcatalog.ImportExcelCatalog;
 import br.com.puc.multiplataforma.bffgateway.infra.security.SecurityConfig;
@@ -11,12 +12,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.micrometer.tracing.test.autoconfigure.AutoConfigureTracing;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.request.MockMultipartHttpServletRequestBuilder;
 
 import java.time.Instant;
@@ -27,6 +30,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(CatalogController.class)
@@ -35,6 +39,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class CatalogControllerSecurityTest {
 
     private static final String IMPORT_CATALOG_ENDPOINT = "/catalog/import/xlsx";
+    private static final String CHANGE_PRICE_ENDPOINT = "/catalog/products/{sku}/price";
 
     @Autowired
     private MockMvc mockMvc;
@@ -44,6 +49,9 @@ class CatalogControllerSecurityTest {
 
     @MockitoBean
     private ImportExcelCatalog importExcelCatalog;
+
+    @MockitoBean
+    private ChangeProductPrice changeProductPrice;
 
     @BeforeEach
     void setUp() {
@@ -124,6 +132,49 @@ class CatalogControllerSecurityTest {
 
         mockMvc.perform(importRequest().header("Authorization", "Bearer customer-token"))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    void returnsUnauthorizedWithoutTokenWhenChangingPrice() throws Exception {
+        mockMvc.perform(changePriceRequest())
+                .andExpect(status().isUnauthorized());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"admin", "store"})
+    void returnsNoContentForPersonasThatCanChangePrice(String role) throws Exception {
+        mockMvc.perform(changePriceRequest()
+                        .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_" + role))))
+                .andExpect(status().isNoContent());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"specialist", "fiscal", "csm", "customer"})
+    void returnsForbiddenForPersonasThatCannotChangePrice(String role) throws Exception {
+        mockMvc.perform(changePriceRequest()
+                        .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_" + role))))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void returnsNoContentForCatalogWriteScopeWhenChangingPrice() throws Exception {
+        mockMvc.perform(changePriceRequest()
+                        .with(jwt().authorities(new SimpleGrantedAuthority("SCOPE_catalog:write"))))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void appliesKeycloakConverterToBearerTokenWhenChangingPrice() throws Exception {
+        given(jwtDecoder.decode("store-token")).willReturn(keycloakJwt("store-token", List.of("store")));
+
+        mockMvc.perform(changePriceRequest().header("Authorization", "Bearer store-token"))
+                .andExpect(status().isNoContent());
+    }
+
+    private static MockHttpServletRequestBuilder changePriceRequest() {
+        return patch(CHANGE_PRICE_ENDPOINT, "NB-001")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"price\": 4999.90}");
     }
 
     private static MockMultipartHttpServletRequestBuilder importRequest() {

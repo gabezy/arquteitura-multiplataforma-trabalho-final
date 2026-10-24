@@ -47,6 +47,25 @@ public class DownstreamClient {
         }
     }
 
+    public void post(Function<UriBuilder, URI> uri, Object body) {
+        try {
+            restClient.post().uri(uri).body(body).retrieve().toBodilessEntity();
+        } catch (RestClientException e) {
+            throw translate(e);
+        }
+    }
+
+    public boolean patch(Function<UriBuilder, URI> uri, Object body) {
+        try {
+            restClient.patch().uri(uri).body(body).retrieve().toBodilessEntity();
+            return true;
+        } catch (HttpClientErrorException.NotFound _) {
+            return false;
+        } catch (RestClientException e) {
+            throw translate(e);
+        }
+    }
+
     private <T> T fetch(Function<UriBuilder, URI> uri, Class<T> responseType) {
         T body = restClient.get().uri(uri).retrieve().body(responseType);
         if (body == null) {

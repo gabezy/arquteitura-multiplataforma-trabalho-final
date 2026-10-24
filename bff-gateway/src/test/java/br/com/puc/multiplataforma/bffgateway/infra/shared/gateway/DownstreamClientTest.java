@@ -17,6 +17,7 @@ import java.io.IOException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withException;
@@ -162,6 +163,64 @@ class DownstreamClientTest {
         assertThatThrownBy(() -> client.get(uri -> uri.path("/greetings").build(), Greeting.class))
                 .isInstanceOf(DownstreamFailureException.class)
                 .hasMessage("order-service returned an unexpected response: empty response body");
+    }
+
+    @Test
+    void postsTheBodyAsJson() {
+        server.expect(requestTo(BASE_URL + "/greetings"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(content().json(GREETING))
+                .andRespond(withStatus(HttpStatus.CREATED));
+
+        client.post(uri -> uri.path("/greetings").build(), new Greeting("hi"));
+
+        server.verify();
+    }
+
+    @Test
+    void translatesAFailedPostLikeAGet() {
+        server.expect(requestTo(BASE_URL + "/greetings")).andRespond(withStatus(HttpStatus.CONFLICT));
+
+        assertThatThrownBy(() -> client.post(uri -> uri.path("/greetings").build(), new Greeting("hi")))
+                .isInstanceOf(DownstreamFailureException.class)
+                .hasMessage("order-service returned an unexpected response: HTTP 409");
+    }
+
+    @Test
+    void patchesTheBodyAsJson() {
+        server.expect(requestTo(BASE_URL + "/greetings/1"))
+                .andExpect(method(HttpMethod.PATCH))
+                .andExpect(content().json(GREETING))
+                .andRespond(withStatus(HttpStatus.NO_CONTENT));
+
+        assertThat(client.patch(uri -> uri.path("/greetings/{id}").build(1), new Greeting("hi"))).isTrue();
+        server.verify();
+    }
+
+    @Test
+    void patchesNothingWhenTheServiceAnswersNotFound() {
+        server.expect(requestTo(BASE_URL + "/greetings/1")).andRespond(withStatus(HttpStatus.NOT_FOUND));
+
+        assertThat(client.patch(uri -> uri.path("/greetings/{id}").build(1), new Greeting("hi"))).isFalse();
+    }
+
+    @Test
+    void translatesARejectedPatchIntoAnInvalidRequest() {
+        server.expect(requestTo(BASE_URL + "/greetings/1")).andRespond(withStatus(HttpStatusCode.valueOf(422))
+                .contentType(MediaType.APPLICATION_PROBLEM_JSON)
+                .body("{\"status\":422,\"detail\":\"message is required\"}"));
+
+        assertThatThrownBy(() -> client.patch(uri -> uri.path("/greetings/{id}").build(1), new Greeting("")))
+                .isInstanceOf(InvalidRequestException.class)
+                .hasMessage("message is required");
+    }
+
+    @Test
+    void treatsAnIoErrorAsUnavailableWhenPatchingToo() {
+        server.expect(requestTo(BASE_URL + "/greetings/1")).andRespond(withException(new IOException("Connection refused")));
+
+        assertThatThrownBy(() -> client.patch(uri -> uri.path("/greetings/{id}").build(1), new Greeting("hi")))
+                .isInstanceOf(DownstreamUnavailableException.class);
     }
 
     record Greeting(String message) {
