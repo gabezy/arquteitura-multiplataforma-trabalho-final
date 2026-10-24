@@ -167,6 +167,53 @@ curl -s -H "Authorization: Bearer $FISCAL" "http://localhost:8080/invoices?statu
 
 Papéis: `admin`, `store` e `fiscal`. Devolve uma fatura, no mesmo formato de cada item de `invoices`. Responde 404 se a fatura não existe.
 
+## Anúncios nos marketplaces
+
+### `GET /listings`
+
+Papéis: `admin` e `store`. Lista os anúncios de cada produto em cada marketplace, com o status da publicação. Um produto aprovado tem um anúncio por marketplace.
+
+| Parâmetro | Tipo | Descrição |
+|---|---|---|
+| `sku` | texto | Opcional. Os anúncios de um produto (ex.: `OXI-001`). Em branco, vale como sem filtro |
+| `marketplace` | enum | Opcional. Marketplace do anúncio |
+| `status` | enum | Opcional. `PUBLISHED`, `FAILED` ou `PENDING` |
+| `limit`, `offset` | inteiro | Opcionais. Paginação |
+
+```bash
+STORE=$(token loja)
+curl -s -H "Authorization: Bearer $STORE" "http://localhost:8080/listings?sku=OXI-001"
+```
+
+```json
+{
+  "listings": [
+    {
+      "id": "7a2b9c10-0000-4000-8000-000000000003",
+      "sku": "OXI-001",
+      "marketplace": "SHOPEE",
+      "externalListingId": null,
+      "status": "FAILED",
+      "price": 189.90,
+      "stock": 2,
+      "failureReason": "HTTP 503 after retries",
+      "updatedAt": "2026-10-27T10:00:21Z"
+    }
+  ],
+  "limit": 20,
+  "offset": 0
+}
+```
+
+(O exemplo mostra só o anúncio com falha, dos três do `OXI-001`.)
+
+- `PUBLISHED` tem o `externalListingId` que o marketplace devolveu. `FAILED` traz o motivo da última tentativa em `failureReason`, e `PENDING` ainda aguarda a publicação. Os campos que não se aplicam vêm `null`.
+- `price` e `stock` são os valores anunciados.
+
+### `GET /listings/{id}`
+
+Papéis: `admin` e `store`. Devolve um anúncio, no mesmo formato de cada item de `listings`. Responde 404 se o anúncio não existe.
+
 ## Mock e serviço real
 
 Cada domínio com serviço de destino tem dois gateways, e a propriedade `app.gateways.<domínio>` escolhe um: `rest` chama o serviço (é o padrão, inclusive no compose) e `mock` responde com dados de demonstração dentro do BFF. A variável de ambiente é `APP_GATEWAYS_<DOMÍNIO>`.
@@ -175,11 +222,13 @@ Cada domínio com serviço de destino tem dois gateways, e a propriedade `app.ga
 |---|---|---|
 | `order` | `ORDER_SERVICE_URL` | `http://order-service:8084` |
 | `billing` | `BILLING_SERVICE_URL` | `http://billing-service:8086` |
+| `marketplace` | `MARKETPLACE_GATEWAY_URL` | `http://marketplace-gateway:8087` |
 
-- Rodando o BFF fora do Docker (`make up-infra`), os nomes dos serviços não resolvem: use `ORDER_SERVICE_URL=http://localhost:8084` e `BILLING_SERVICE_URL=http://localhost:8086`.
-- Para ensaiar sem o serviço: `APP_GATEWAYS_ORDER=mock APP_GATEWAYS_BILLING=mock ./mvnw spring-boot:run`.
+- Rodando o BFF fora do Docker (`make up-infra`), os nomes dos serviços não resolvem: use `ORDER_SERVICE_URL=http://localhost:8084`, `BILLING_SERVICE_URL=http://localhost:8086` e `MARKETPLACE_GATEWAY_URL=http://localhost:8087`.
+- Para ensaiar sem os serviços: `APP_GATEWAYS_ORDER=mock APP_GATEWAYS_BILLING=mock APP_GATEWAYS_MARKETPLACE=mock ./mvnw spring-boot:run`.
 - **Dados do mock de pedidos:** 8 pedidos, de 26 a 28/10/2026, com os produtos da demo (`OXI-001` e `MON-002`) e todos os status. O relatório conta só os pedidos `CONFIRMED` e `PAID`.
 - **Dados do mock de cobranças:** 6 faturas, uma para cada status (duas são `PAID`), ligadas aos pedidos do mock pelo mesmo `orderId`, marketplace, itens e total. A comissão segue as taxas acima.
+- **Dados do mock de anúncios:** 6 anúncios, os dois produtos da demo (`OXI-001` e `MON-002`) nos três marketplaces. Quatro estão `PUBLISHED`, um `FAILED` (`OXI-001` na Shopee, com `HTTP 503 after retries`) e um `PENDING` (`MON-002` no Mercado Livre). O preço é o mesmo dos pedidos do mock.
 - No modo `rest`, com o serviço fora do ar, a rota responde 503.
 
 ## O que o BFF espera dos serviços
@@ -206,3 +255,12 @@ Um 400 ou 422 do serviço vira 400 no BFF, com o `detail` do problema. Um 404 s�
 | `GET /invoices/{id}` | `Invoice`, ou 404 |
 
 `Invoice` é `{ id (uuid), orderId (uuid), externalOrderId, marketplace, status (ISSUED, PAYMENT_PENDING, PAID, PAYMENT_FAILED ou CANCELLED), amount, commissionPercent, commissionAmount, netAmount, items: [{ sku, quantity, unitPrice, amount }], issuedAt, cancelledAt, cancellationReason, pspTransactionId, failureReason, paidAt, failedAt }`. Os campos do desfecho (`cancelledAt`, `cancellationReason`, `pspTransactionId`, `failureReason`, `paidAt` e `failedAt`) são `null` quando não se aplicam. Os campos seguem `billing.invoice.issued.v1` e `billing.payment.*` de `docs/eventos.md`. O erro de um 400 ou 422 e o 404 seguem a mesma regra do order-service.
+
+### marketplace-gateway (#21)
+
+| Chamada | Resposta |
+|---|---|
+| `GET /listings?sku=&marketplace=&status=&limit=20&offset=0` | `{ "listings": [Listing], "limit": 20, "offset": 0 }` |
+| `GET /listings/{id}` | `Listing`, ou 404 |
+
+`Listing` é `{ id (uuid), sku, marketplace, externalListingId (string ou null), status (PUBLISHED, FAILED ou PENDING), price, stock (inteiro), failureReason (string ou null), updatedAt }`. O erro de um 400 ou 422 e o 404 seguem a mesma regra do order-service.

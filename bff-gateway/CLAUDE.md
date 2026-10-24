@@ -47,7 +47,7 @@ infra/shared/            gateway/ and config/: the HTTP client every downstream 
 
 - `core` must not depend on Spring, servlet, Jackson, or anything in `infra`. Use cases are plain Java classes with constructor injection. They are not annotated with `@Service`/`@Component`.
 - A new downstream domain (order, cart, …) gets its own `core/<domain>` and `infra/<domain>`. One domain must not reach into another domain's `infra`.
-- The `order` and `billing` domains each have two gateways behind their port: `Mock<Domain>Gateway` (in-memory demo data) and `<Service>ClientGateway` (calls the service). The domain's `@Configuration` activates one with `app.gateways.<domain>=mock|rest` (default `rest`; the env var `APP_GATEWAYS_ORDER=mock` works too). The URLs are `ORDER_SERVICE_URL` (default `http://order-service:8084`) and `BILLING_SERVICE_URL` (default `http://billing-service:8086`); from the host use `http://localhost:<port>`. A new downstream domain repeats this pattern.
+- The `order`, `billing` and `marketplace` domains each have two gateways behind their port: `Mock<Domain>Gateway` (in-memory demo data) and `<Service>ClientGateway` (calls the service). The domain's `@Configuration` activates one with `app.gateways.<domain>=mock|rest` (default `rest`; the env var `APP_GATEWAYS_ORDER=mock` works too). The URLs are `ORDER_SERVICE_URL` (default `http://order-service:8084`), `BILLING_SERVICE_URL` (default `http://billing-service:8086`) and `MARKETPLACE_GATEWAY_URL` (default `http://marketplace-gateway:8087`); from the host use `http://localhost:<port>`. A new downstream domain repeats this pattern.
 
 Rules to keep when adding code:
 - Controllers convert HTTP DTOs to use-case input and back. They hold no business logic.
@@ -61,6 +61,7 @@ Rules to keep when adding code:
 - `DownstreamClient` turns every failure into a core exception, and `GlobalExceptionHandler` into a `ProblemDetail`: 404 on a detail `find` is `Optional.empty()` (the use case throws `ResourceNotFoundException`, 404); 400 or 422 is `InvalidRequestException` (400, with the service's `detail`); an I/O error, a timeout, or 502, 503 or 504 is `DownstreamUnavailableException` (503); anything else, including an unreadable body or an unknown enum value, is `DownstreamFailureException` (502). Both 5xx problems carry a `service` property.
 - The wire format lives in `infra/<domain>/gateway/model` (records with `toDomain()`, unknown fields ignored), so a change in a service's contract touches only the adapter. The contracts the BFF expects are in `../docs/api-do-bff.md`.
 - A new route comes with a controller test, a security test (one allowed and one denied role) and a gateway test with `MockRestServiceServer`, including the service-unavailable case.
+- The mock gateways share one demo story (same order ids, SKUs and prices across orders, invoices and listings), and `MockDemoDataConsistencyTest` keeps them in step. Full-context tests that use the mocks put `@MockGatewaysTest` on the class, so they share one Spring context.
 
 ## Security model
 

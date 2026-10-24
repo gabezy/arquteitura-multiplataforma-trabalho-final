@@ -11,7 +11,7 @@ import java.lang.annotation.Target;
 
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
-@SpringBootTest(properties = {"app.gateways.order=mock", "app.gateways.billing=mock"})
+@SpringBootTest(properties = {"app.gateways.order=mock", "app.gateways.billing=mock", "app.gateways.marketplace=mock"})
 @AutoConfigureMockMvc
 @AutoConfigureTracing
 public @interface MockGatewaysTest {

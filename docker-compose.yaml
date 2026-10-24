@@ -381,6 +381,7 @@ services:
       OTEL_COLLECTOR_URL: http://otel-collector:4318
       ORDER_SERVICE_URL: http://order-service:8084
       BILLING_SERVICE_URL: http://billing-service:8086
+      MARKETPLACE_GATEWAY_URL: http://marketplace-gateway:8087
     ports:
       - "${BFF_PORT:-8080}:8080"
     depends_on:
