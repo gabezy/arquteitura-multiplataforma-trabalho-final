@@ -13,11 +13,17 @@ async function start(): Promise<void> {
   const config = await loadAppConfig();
   const logger = createLogger(config.logLevel);
   const db = createDatabaseConnection(config.databaseUrl, logger);
-  const { producer } = configureKafka(config.kafkaBrokers);
+  const { producer, marketplaceOrderConsumer: marketplaceOrderKafkaConsumer } = configureKafka(config.kafkaBrokers);
   const relay = new OutboxRelay(db, producer);
-  const { orderController, salesReportController } = createOrderModule({ db });
+  const { orderController, salesReportController, marketplaceOrderConsumer } = createOrderModule({
+    db,
+    producer,
+    marketplaceOrderKafkaConsumer,
+    logger,
+  });
 
   await producer.connect();
+  await marketplaceOrderConsumer.start();
 
   relay.start({
     intervalMs: RELAY_INTERVAL_MS,
@@ -35,7 +41,8 @@ async function start(): Promise<void> {
 
   const shutdown = async (signal: string): Promise<void> => {
     logger.info({ signal }, `${config.serviceName} shutting down`);
-    server.close();
+    await new Promise<void>(resolve => server.close(() => resolve()));
+    await marketplaceOrderConsumer.disconnect();
     await relay.stop();
     await producer.disconnect();
     await db.destroy();

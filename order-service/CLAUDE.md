@@ -97,3 +97,4 @@ Domain events reach Kafka through a transactional outbox (`../docs/adr/0002-outb
 - The producer is idempotent with one request in flight and 5 retries. The service does not start without Kafka (`producer.connect()` runs before `listen`).
 - A new published or consumed topic goes in `../docker/kafka/create-topics.sh`. `order.order.placed.v1` and `order.order.cancelled.v1` are already there (the catalog consumes them).
 - Consumers (from #20) are driving adapters: they validate the message, use `processed_events` to skip redeliveries, send messages that can never succeed to a dead letter topic and rethrow anything else so Kafka redelivers it.
+- The marketplace order consumer validates CloudEvents headers and the payload, derives the total from item prices in integer cents, records `ce_id` with the order and outbox event, and sends invalid messages to `order.marketplace-order.dlq`. It runs inside the incoming trace context.

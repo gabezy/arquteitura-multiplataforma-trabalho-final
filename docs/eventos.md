@@ -42,7 +42,7 @@ Cada contrato tem um estado:
 | [`order.order.placed.v1`](#orderorderplacedv1) | order-service (#20) | catalog-service | `orderId` | Provisório |
 | [`order.order.confirmed.v1`](#orderorderconfirmedv1) | order-service (#20) | billing-service (#23) | `orderId` | Proposto |
 | [`order.order.cancelled.v1`](#orderordercancelledv1) | order-service (#20) | catalog-service, marketplace-gateway, billing-service (#23) | `orderId` | Provisório |
-| [`marketplace.order.received.v1`](#marketplaceorderreceivedv1) | marketplace-gateway (#22) | order-service (#20) | `<marketplace>:<externalOrderId>` | Proposto |
+| [`marketplace.order.received.v1`](#marketplaceorderreceivedv1) | marketplace-gateway (#22) | order-service (#20) | `<marketplace>:<externalOrderId>` | Implementado |
 | [`marketplace.listing.published.v1`](#marketplacelistingpublishedv1-e-marketplacelistingfailedv1) | marketplace-gateway (#21) | nenhum (consulta pela API, #35) | `productId` | Proposto |
 | [`marketplace.listing.failed.v1`](#marketplacelistingpublishedv1-e-marketplacelistingfailedv1) | marketplace-gateway (#21) | nenhum (consulta pela API, #35) | `productId` | Proposto |
 | [`billing.invoice.issued.v1`](#billinginvoiceissuedv1) | billing-service (#23) | nenhum | `invoiceId` | Proposto |
@@ -311,7 +311,7 @@ Precisam da aprovação do dono indicado. Os nomes de campo seguem as convençõ
 
 ### `marketplace.order.received.v1`
 
-**Estado:** Proposto · **A aprovar:** @diegodiogenes (produtor, #22) e @RodrigoPretes-257199 (consumidor, #20) · **Depende de:** ADR #12 (webhook ou polling)
+**Estado:** Implementado · **Produtor:** marketplace-gateway (#22) · **Consumidor:** order-service (#20) · **Origem:** ADR #12 (webhook ou polling)
 
 Pedido recebido de um marketplace, já traduzido para o formato canônico pela anti-corruption layer do marketplace-gateway.
 
@@ -319,8 +319,8 @@ Pedido recebido de um marketplace, já traduzido para o formato canônico pela a
 |---|---|---|
 | `marketplace` | `"AMAZON"` \| `"MERCADO_LIVRE"` \| `"SHOPEE"` | |
 | `externalOrderId` | string | id do pedido no marketplace |
-| `items` | array, mín. 1, de `{ sku, quantity, unitPrice }` | `sku` do catálogo (o anúncio é feito pelo SKU), `quantity` > 0, `unitPrice` ≥ 0 |
-| `total` | number | soma dos itens, como o marketplace informou |
+| `items` | array, de 1 a 100, de `{ sku, quantity, unitPrice }` | `sku` do catálogo (1 a 64 caracteres), `quantity` de 1 a 10.000, `unitPrice` de R$ 0,01 a R$ 1.000.000,00 |
+| `total` | number | total informado; o order-service recalcula pelos itens e registra divergência |
 | `orderedAt` | string (ISO-8601) | data do pedido no marketplace |
 
 ```json
@@ -338,6 +338,7 @@ Pedido recebido de um marketplace, já traduzido para o formato canônico pela a
   - o marketplace-gateway não publica o mesmo pedido duas vezes (#22);
   - o order-service ignora um `marketplace + externalOrderId` que já existe, mesmo vindo com outro `ce_id`.
 - **DLQ do consumidor:** `order.marketplace-order.dlq`.
+- O `ce_id` idempotente é gravado na inbox na mesma transação do pedido e do evento `order.order.placed.v1`. Mensagens inválidas vão para a DLQ; falhas de infraestrutura são reentregues.
 - **Em aberto:** dados do comprador e do frete ficam fora até algum serviço precisar deles.
 
 ### `order.order.confirmed.v1`
@@ -475,7 +476,7 @@ Ainda não há consumidor: a fatura é consultada pela API do billing (#34).
 | `compliance.product-created.dlq` | `compliance-service` | `catalog.product.created.v1` | Implementado |
 | `catalog.product-analysis.dlq` | `catalog-service-group` | `produto.analisado.v1` | Implementado |
 | `catalog.order-stock.dlq` | `catalog-service-order-stock` | `order.order.placed.v1`, `order.order.cancelled.v1` | Implementado |
-| `order.marketplace-order.dlq` | order-service | `marketplace.order.received.v1` | Proposto |
+| `order.marketplace-order.dlq` | order-service | `marketplace.order.received.v1` | Implementado |
 | `order.stock-response.dlq` | order-service | `catalog.stock.reserved.v1`, `catalog.stock.insufficient.v1` | Proposto |
 | `order.billing-payment.dlq` | order-service | `billing.payment.*` | Proposto |
 | `marketplace.catalog-product.dlq` | marketplace-gateway | `catalog.product.approved.v1`, `catalog.product.stock-changed.v1` | Proposto |

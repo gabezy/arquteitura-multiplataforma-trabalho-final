@@ -47,10 +47,33 @@ export class KnexOrderRepository implements OrderRepositoryPort {
         return row ? this.toOrder(row) : null;
     }
 
-    async saveNew(order: Order): Promise<void> {
-        await this.knex.transaction(async tx => {
-            await this.insert(tx, order);
+    async saveNew(order: Order, eventId?: string): Promise<{ orderId: string; created: boolean }> {
+        return this.knex.transaction(async tx => {
+            if (eventId) {
+                const claimed = await tx('processed_events')
+                    .insert({ event_id: eventId, event_type: 'marketplace.order.received.v1' })
+                    .onConflict('event_id')
+                    .ignore()
+                    .returning('event_id');
+
+                if (claimed.length === 0) {
+                    return { orderId: order.id.value, created: false };
+                }
+            }
+
+            const inserted = await this.insert(tx, order);
+            if (!inserted) {
+                const existing = await tx(TABLE_NAME)
+                    .where({ marketplace: order.marketplace.value, external_order_id: order.externalOrderId })
+                    .first('id');
+                if (!existing) {
+                    throw new Error('Order disappeared after an idempotent insert.');
+                }
+                return { orderId: existing.id, created: false };
+            }
+
             await this.outbox.append(tx, 'Order', order.pullDomainEvents());
+            return { orderId: order.id.value, created: true };
         });
     }
 
@@ -119,9 +142,8 @@ export class KnexOrderRepository implements OrderRepositoryPort {
 
     // If another delivery of the same marketplace order stored it meanwhile, that one stands: the retry
     // finds it and does nothing.
-    private async insert(tx: Knex.Transaction, order: Order): Promise<void> {
-        try {
-            await tx(TABLE_NAME).insert({
+    private async insert(tx: Knex.Transaction, order: Order): Promise<boolean> {
+        const inserted = await tx(TABLE_NAME).insert({
                 id: order.id.value,
                 marketplace: order.marketplace.value,
                 external_order_id: order.externalOrderId,
@@ -131,15 +153,11 @@ export class KnexOrderRepository implements OrderRepositoryPort {
                 items: JSON.stringify(order.items.map(item => item.value)),
                 ordered_at: order.orderedAt,
                 updated_at: order.updatedAt,
-            });
-        } catch (err) {
-            if (isUniqueViolation(err)) {
-                throw new ConcurrentModificationError(
-                    `Order ${order.marketplace.value}:${order.externalOrderId} was received concurrently.`,
-                );
-            }
-            throw err;
-        }
+            })
+            .onConflict(['marketplace', 'external_order_id'])
+            .ignore()
+            .returning('id');
+        return inserted.length > 0;
     }
 
     private toOrder(row: OrderRow): Order {
@@ -168,6 +186,3 @@ function toInteger(value: string | number): number {
 }
 
 // Postgres reports unique and primary key violations as 23505.
-function isUniqueViolation(err: unknown): boolean {
-    return ((err ?? {}) as { code?: string }).code === '23505';
-}

@@ -27,9 +27,8 @@ export interface MarketplaceSales {
 export interface OrderRepositoryPort {
     findById(id: Id): Promise<Order | null>;
     findByExternalId(marketplace: Marketplace, externalOrderId: string): Promise<Order | null>;
-    // Saves a new order and its events in one transaction. Fails, saving nothing, when an order of the same
-    // marketplace and external order id exists, which a concurrent delivery of the same message may have created.
-    saveNew(order: Order): Promise<void>;
+    // Saves the consumed event id, a new order and its events together. Repeated event or marketplace ids are no-ops.
+    saveNew(order: Order, eventId?: string): Promise<{ orderId: string; created: boolean }>;
     // Saves the changes of an order and its events in one transaction. Fails, saving nothing, when the order
     // was changed since it was read.
     save(order: Order): Promise<void>;
