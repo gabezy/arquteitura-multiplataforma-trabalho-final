@@ -48,7 +48,15 @@ func newKafka(t *testing.T) []string {
 }
 
 // testConfig loads the configuration the way the service does, so the tests run with the real defaults.
+// The payment worker is switched off (its first round is an hour away), so that the invoice tests see
+// the invoices as they are issued.
 func testConfig(t *testing.T, databaseURL string, brokers []string) config.Config {
+	t.Helper()
+	return testConfigWith(t, databaseURL, brokers, map[string]string{"PAYMENT_POLL_INTERVAL": "1h"})
+}
+
+// testConfigWith is testConfig with variables on top: a test that charges invoices sets the PSP ones.
+func testConfigWith(t *testing.T, databaseURL string, brokers []string, overrides map[string]string) config.Config {
 	t.Helper()
 	values := map[string]string{
 		"PORT":                 strconv.Itoa(freePort(t)),
@@ -56,6 +64,11 @@ func testConfig(t *testing.T, databaseURL string, brokers []string) config.Confi
 		"KAFKA_BROKERS":        strings.Join(brokers, ","),
 		"OTEL_COLLECTOR_URL":   "http://127.0.0.1:1",
 		"OUTBOX_POLL_INTERVAL": "50ms",
+		"PSP_BASE_URL":         "http://127.0.0.1:1",
+		"PSP_WEBHOOK_TOKEN":    testWebhookToken,
+	}
+	for key, value := range overrides {
+		values[key] = value
 	}
 	cfg, err := config.Load(func(key string) (string, bool) {
 		value, ok := values[key]

@@ -22,7 +22,7 @@ Monorepo do sistema **omni-market**, trabalho final de Arquitetura Multiplatafor
 | [`catalog-service`](catalog-service/) | Node.js, TypeScript, Express | 8082 | Catálogo de produtos; publica `catalog.product.created.v1` |
 | [`compliance-service`](compliance-service/) | Python, FastAPI, uv | 8083 | Análise de conformidade dos produtos; publica `produto.analisado.v1` |
 | [`order-service`](order-service/) | Node.js, TypeScript, Express | 8084 | Pedidos dos marketplaces; publica eventos de pedido via outbox (em construção: #20, #29, #31) |
-| [`billing-service`](billing-service/) | Go | 8086 | Cobrança dos pedidos confirmados: fatura com a comissão do marketplace e pagamento pelo PSP simulado; publica `billing.*` via outbox (em construção: #23, #32) |
+| [`billing-service`](billing-service/) | Go | 8086 | Cobrança dos pedidos confirmados: fatura com a comissão do marketplace e pagamento pelo PSP simulado; publica `billing.*` via outbox |
 
 Cada serviço tem build próprio e um `CLAUDE.md` com comandos e arquitetura. Todos seguem Clean Architecture (core sem framework, adapters em `infra`).
 

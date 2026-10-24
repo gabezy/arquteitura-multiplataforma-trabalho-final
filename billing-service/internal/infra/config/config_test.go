@@ -11,7 +11,19 @@ import (
 	"github.com/gabezy/arquteitura-multiplataforma-trabalho-final/billing-service/internal/infra/config"
 )
 
-const validDatabaseURL = "postgresql://billing:s3cr3t-pw@localhost:5435/billing"
+const (
+	validDatabaseURL  = "postgresql://billing:s3cr3t-pw@localhost:5435/billing"
+	validWebhookToken = "psp-demo-token"
+)
+
+// requiredEnv is the minimum a valid environment has, plus what the test sets on top of it.
+func requiredEnv(extra map[string]string) map[string]string {
+	values := map[string]string{"DATABASE_URL": validDatabaseURL, "PSP_WEBHOOK_TOKEN": validWebhookToken}
+	for key, value := range extra {
+		values[key] = value
+	}
+	return values
+}
 
 func lookupFrom(values map[string]string) config.Lookup {
 	return func(key string) (string, bool) {
@@ -21,7 +33,7 @@ func lookupFrom(values map[string]string) config.Lookup {
 }
 
 func TestLoadAppliesTheDocumentedDefaults(t *testing.T) {
-	cfg, err := config.Load(lookupFrom(map[string]string{"DATABASE_URL": validDatabaseURL}))
+	cfg, err := config.Load(lookupFrom(requiredEnv(nil)))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -39,6 +51,12 @@ func TestLoadAppliesTheDocumentedDefaults(t *testing.T) {
 		CancelledTopic:     "order.order.cancelled.v1",
 		DeadLetterTopic:    "billing.order-events.dlq",
 		CommissionBps:      map[string]int{"AMAZON": 1200, "MERCADO_LIVRE": 1100, "SHOPEE": 1400},
+
+		PSPBaseURL:          "http://localhost:8089",
+		PSPCallbackURL:      "http://host.docker.internal:8086/webhooks/psp",
+		PSPWebhookToken:     validWebhookToken,
+		PaymentPollInterval: 2 * time.Second,
+		ReconcileInterval:   30 * time.Second,
 	}
 	if !reflect.DeepEqual(cfg, want) {
 		t.Fatalf("Load() = %+v, want %+v", cfg, want)
@@ -62,6 +80,12 @@ func TestLoadReadsEveryVariable(t *testing.T) {
 		"COMMISSION_AMAZON_PERCENT":        "10",
 		"COMMISSION_MERCADO_LIVRE_PERCENT": "9.5",
 		"COMMISSION_SHOPEE_PERCENT":        "0",
+
+		"PSP_BASE_URL":          "http://psp.example:8080",
+		"PSP_CALLBACK_URL":      "https://billing.example/webhooks/psp",
+		"PSP_WEBHOOK_TOKEN":     "another-token",
+		"PAYMENT_POLL_INTERVAL": "500ms",
+		"RECONCILE_INTERVAL":    "5s",
 	}))
 	if err != nil {
 		t.Fatal(err)
@@ -80,6 +104,12 @@ func TestLoadReadsEveryVariable(t *testing.T) {
 		CancelledTopic:     "orders.cancelled",
 		DeadLetterTopic:    "billing.dlq",
 		CommissionBps:      map[string]int{"AMAZON": 1000, "MERCADO_LIVRE": 950, "SHOPEE": 0},
+
+		PSPBaseURL:          "http://psp.example:8080",
+		PSPCallbackURL:      "https://billing.example/webhooks/psp",
+		PSPWebhookToken:     "another-token",
+		PaymentPollInterval: 500 * time.Millisecond,
+		ReconcileInterval:   5 * time.Second,
 	}
 	if !reflect.DeepEqual(cfg, want) {
 		t.Fatalf("Load() = %+v, want %+v", cfg, want)
@@ -87,12 +117,22 @@ func TestLoadReadsEveryVariable(t *testing.T) {
 }
 
 func TestLoadTreatsABlankVariableAsUnset(t *testing.T) {
-	cfg, err := config.Load(lookupFrom(map[string]string{"DATABASE_URL": validDatabaseURL, "PORT": "  "}))
+	cfg, err := config.Load(lookupFrom(requiredEnv(map[string]string{"PORT": "  "})))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if cfg.Port != 8086 {
 		t.Fatalf("Port = %d, want the default 8086", cfg.Port)
+	}
+}
+
+func TestLoadPointsTheDefaultCallbackAtTheConfiguredPort(t *testing.T) {
+	cfg, err := config.Load(lookupFrom(requiredEnv(map[string]string{"PORT": "9000"})))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "http://host.docker.internal:9000/webhooks/psp"; cfg.PSPCallbackURL != want {
+		t.Fatalf("PSPCallbackURL = %q, want %q", cfg.PSPCallbackURL, want)
 	}
 }
 
@@ -125,11 +165,16 @@ func TestLoadNamesEachInvalidVariableWithoutItsValue(t *testing.T) {
 		{"COMMISSION_MERCADO_LIVRE_PERCENT", "-1"},
 		{"COMMISSION_SHOPEE_PERCENT", "12.345"},
 		{"COMMISSION_SHOPEE_PERCENT", "1e1"},
+		{"PSP_BASE_URL", "ftp://psp-2c7e:8080"},
+		{"PSP_BASE_URL", "::not a url 6d1b"},
+		{"PSP_CALLBACK_URL", "billing-9a3e/webhooks"},
+		{"PAYMENT_POLL_INTERVAL", "soon-4b8d"},
+		{"PAYMENT_POLL_INTERVAL", "0s"},
+		{"RECONCILE_INTERVAL", "-5s"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.variable+"="+tt.value, func(t *testing.T) {
-			values := map[string]string{"DATABASE_URL": validDatabaseURL}
-			values[tt.variable] = tt.value
+			values := requiredEnv(map[string]string{tt.variable: tt.value})
 
 			_, err := config.Load(lookupFrom(values))
 
@@ -156,12 +201,28 @@ func TestLoadRequiresDatabaseURLAndNeverPrintsItsDefaultCredentials(t *testing.T
 	}
 }
 
+// PAY-06: without the secret the webhook could not tell the PSP from anyone else, so the service does not start.
+func TestLoadRequiresThePSPWebhookToken(t *testing.T) {
+	for name, values := range map[string]map[string]string{
+		"unset": {"DATABASE_URL": validDatabaseURL},
+		"blank": {"DATABASE_URL": validDatabaseURL, "PSP_WEBHOOK_TOKEN": "   "},
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, err := config.Load(lookupFrom(values))
+
+			var invalid *config.InvalidError
+			if !errors.As(err, &invalid) || len(invalid.Problems) != 1 || invalid.Problems[0].Variable != "PSP_WEBHOOK_TOKEN" {
+				t.Fatalf("Load() error = %v, want one problem naming PSP_WEBHOOK_TOKEN", err)
+			}
+		})
+	}
+}
+
 func TestLoadReportsEveryInvalidVariableTogether(t *testing.T) {
-	_, err := config.Load(lookupFrom(map[string]string{
-		"PORT":         "abc",
-		"LOG_LEVEL":    "loud",
-		"DATABASE_URL": validDatabaseURL,
-	}))
+	_, err := config.Load(lookupFrom(requiredEnv(map[string]string{
+		"PORT":      "abc",
+		"LOG_LEVEL": "loud",
+	})))
 
 	var invalid *config.InvalidError
 	if !errors.As(err, &invalid) {

@@ -63,8 +63,9 @@ func environment(overrides map[string]string) []string {
 func TestAnInvalidVariableEndsTheProcessNamingItWithoutItsValue(t *testing.T) {
 	command := exec.Command(binary)
 	command.Env = environment(map[string]string{
-		"PORT":         "not-a-port-9f3a",
-		"DATABASE_URL": "postgresql://billing:hunter2-77c1@127.0.0.1:5435/billing",
+		"PORT":              "not-a-port-9f3a",
+		"DATABASE_URL":      "postgresql://billing:hunter2-77c1@127.0.0.1:5435/billing",
+		"PSP_WEBHOOK_TOKEN": "test-webhook-token",
 	})
 	var stderr bytes.Buffer
 	command.Stderr = &stderr
@@ -113,6 +114,7 @@ func TestSigtermStopsTheServiceWithinTenSecondsAndTheHealthcheckFollowsIt(t *tes
 		"DATABASE_URL":       testsupport.NewDatabase(t),
 		"KAFKA_BROKERS":      strings.Join(cluster.ListenAddrs(), ","),
 		"OTEL_COLLECTOR_URL": "http://127.0.0.1:1",
+		"PSP_WEBHOOK_TOKEN":  "test-webhook-token",
 	})
 
 	service := exec.Command(binary)

@@ -20,7 +20,9 @@ import (
 	"github.com/gabezy/arquteitura-multiplataforma-trabalho-final/billing-service/internal/infra/messaging"
 	"github.com/gabezy/arquteitura-multiplataforma-trabalho-final/billing-service/internal/infra/outbox"
 	"github.com/gabezy/arquteitura-multiplataforma-trabalho-final/billing-service/internal/infra/persistence"
+	"github.com/gabezy/arquteitura-multiplataforma-trabalho-final/billing-service/internal/infra/psp"
 	"github.com/gabezy/arquteitura-multiplataforma-trabalho-final/billing-service/internal/infra/system"
+	"github.com/gabezy/arquteitura-multiplataforma-trabalho-final/billing-service/internal/infra/worker"
 )
 
 // ShutdownTimeout is how long Run takes to stop once its context ends. With the
@@ -57,13 +59,21 @@ func Run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 		return err
 	}
 	store := outbox.NewStore(db, messaging.ToIntegrationEvent)
+	invoiceRepository := persistence.NewInvoiceRepository(db, store)
 	invoices := invoice.NewFacade(
-		persistence.NewInvoiceRepository(db, store),
+		invoiceRepository,
 		persistence.NewOrderCancellationRepository(db),
 		db,
 		system.UUIDGenerator{},
 		system.Clock{},
 		policies,
+	)
+	payments := invoice.NewPaymentFacade(
+		invoiceRepository,
+		db,
+		psp.NewClient(psp.DefaultConfig(cfg.PSPBaseURL, cfg.PSPCallbackURL), logger),
+		system.Clock{},
+		invoice.PaymentOptions{},
 	)
 
 	consumerClient, tracer, err := messaging.NewConsumerClient(cfg.KafkaBrokers, cfg.ConsumerGroup, cfg.ConfirmedTopic, cfg.CancelledTopic)
@@ -79,7 +89,15 @@ func Run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 	relay := outbox.NewRelay(db, outbox.NewKafkaProducer(kafkaClient), logger, outbox.RelayOptions{
 		PollInterval: cfg.OutboxPollInterval,
 	})
-	router := httpapi.NewRouter(httpapi.Deps{Logger: logger, CheckHealth: db.Ping, Invoices: invoices})
+	paymentWorker := worker.NewPaymentWorker(payments, cfg.PaymentPollInterval, logger)
+	reconciliationWorker := worker.NewReconciliationWorker(payments, cfg.ReconcileInterval, logger)
+	router := httpapi.NewRouter(httpapi.Deps{
+		Logger:       logger,
+		CheckHealth:  db.Ping,
+		Invoices:     invoices,
+		Payments:     payments,
+		WebhookToken: cfg.PSPWebhookToken,
+	})
 	server := httpapi.NewServer(fmt.Sprintf(":%d", cfg.Port), router.Handler())
 
 	group, groupCtx := errgroup.WithContext(ctx)
@@ -92,6 +110,8 @@ func Run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 	})
 	group.Go(func() error { return relay.Run(groupCtx) })
 	group.Go(func() error { return consumer.Run(groupCtx) })
+	group.Go(func() error { return paymentWorker.Run(groupCtx) })
+	group.Go(func() error { return reconciliationWorker.Run(groupCtx) })
 	group.Go(func() error {
 		<-groupCtx.Done()
 		shutdownCtx, cancel := context.WithTimeout(context.WithoutCancel(groupCtx), ShutdownTimeout)

@@ -445,6 +445,49 @@ func TestASuccessStartsTheCountOfConsecutiveFailuresOver(t *testing.T) {
 	}
 }
 
+// Operating the service: a postponed invoice has to say why, so every failed attempt is logged with what it was about.
+func TestEveryFailedAttemptIsLoggedWithWhatTheCallWasAbout(t *testing.T) {
+	tests := []struct {
+		name      string
+		call      func(client *psp.Client) error
+		attribute string
+		value     string
+	}{
+		{"creating a charge", func(client *psp.Client) error {
+			_, err := client.CreateCharge(context.Background(), chargeRequest(t))
+			return err
+		}, "invoiceId", invoiceID},
+		{"reading a charge", func(client *psp.Client) error {
+			_, err := client.GetCharge(context.Background(), "ch_x")
+			return err
+		}, "chargeId", "ch_x"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fake := newFakePSP(t, always(http.StatusServiceUnavailable, `{}`))
+			var logs bytes.Buffer
+			client := psp.NewClient(fastConfig(fake.server.URL), slog.New(slog.NewJSONHandler(&logs, nil)))
+
+			_ = tt.call(client)
+
+			lines := strings.Split(strings.TrimSpace(logs.String()), "\n")
+			if len(lines) != 3 {
+				t.Fatalf("logged %d lines, want one per failed attempt (3): %s", len(lines), logs.String())
+			}
+			for i, line := range lines {
+				var entry map[string]any
+				if err := json.Unmarshal([]byte(line), &entry); err != nil {
+					t.Fatalf("log line %q is not JSON: %v", line, err)
+				}
+				if message, _ := entry["error"].(string); entry["level"] != "WARN" || entry["attempt"] != float64(i+1) || entry["attempts"] != float64(3) ||
+					entry[tt.attribute] != tt.value || !strings.Contains(message, "503") {
+					t.Errorf("log line %d = %v, want a warning for attempt %d of 3 about %s %s with the cause", i+1, entry, i+1, tt.attribute, tt.value)
+				}
+			}
+		})
+	}
+}
+
 // The PSP answering, even to refuse, is not the PSP failing.
 func TestAnswersOfThePSPNeverOpenTheCircuit(t *testing.T) {
 	tests := []struct {

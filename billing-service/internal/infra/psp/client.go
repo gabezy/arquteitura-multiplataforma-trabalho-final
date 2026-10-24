@@ -61,6 +61,7 @@ type Client struct {
 	config  Config
 	http    *http.Client
 	breaker *gobreaker.CircuitBreaker[*answer]
+	logger  *slog.Logger
 }
 
 // answer is what the PSP said, with its body already read: an attempt holds the connection, and the
@@ -78,6 +79,7 @@ func NewClient(config Config, logger *slog.Logger) *Client {
 	config.BaseURL = strings.TrimRight(config.BaseURL, "/")
 	return &Client{
 		config: config,
+		logger: logger,
 		http:   &http.Client{Timeout: config.Timeout, Transport: otelhttp.NewTransport(http.DefaultTransport)},
 		breaker: gobreaker.NewCircuitBreaker[*answer](gobreaker.Settings{
 			Name:        "psp",
@@ -126,7 +128,7 @@ func (c *Client) CreateCharge(ctx context.Context, request out.ChargeRequest) (o
 		return out.ChargeCreated{}, fmt.Errorf("encode the charge request: %w", err)
 	}
 
-	reply, err := c.do(ctx, func(ctx context.Context) (*http.Request, error) {
+	reply, err := c.do(ctx, []any{"invoiceId", request.InvoiceID}, func(ctx context.Context) (*http.Request, error) {
 		httpRequest, err := http.NewRequestWithContext(ctx, http.MethodPost, c.config.BaseURL+"/psp/v1/charges", bytes.NewReader(payload))
 		if err != nil {
 			return nil, err
@@ -160,7 +162,7 @@ func (c *Client) CreateCharge(ctx context.Context, request out.ChargeRequest) (o
 
 // GetCharge asks the PSP where a charge is. A charge the PSP does not know is out.ErrChargeNotFound.
 func (c *Client) GetCharge(ctx context.Context, chargeID string) (out.ChargeStatus, error) {
-	reply, err := c.do(ctx, func(ctx context.Context) (*http.Request, error) {
+	reply, err := c.do(ctx, []any{"chargeId", chargeID}, func(ctx context.Context) (*http.Request, error) {
 		return http.NewRequestWithContext(ctx, http.MethodGet, c.config.BaseURL+"/psp/v1/charges/"+url.PathEscape(chargeID), nil)
 	})
 	if err != nil {
@@ -190,8 +192,8 @@ func (c *Client) GetCharge(ctx context.Context, chargeID string) (out.ChargeStat
 // 5xx or a 429. A 4xx is the PSP answering, so it is never retried and never counts against the
 // circuit. A PSP that cannot be reached, or whose answer does not arrive whole in time, fails with
 // out.ErrUnavailable once the attempts are spent or the circuit is open, and a canceled context ends
-// the call at once.
-func (c *Client) do(ctx context.Context, build func(ctx context.Context) (*http.Request, error)) (*answer, error) {
+// the call at once. Every failed attempt is logged with attrs, which say what the call was about.
+func (c *Client) do(ctx context.Context, attrs []any, build func(ctx context.Context) (*http.Request, error)) (*answer, error) {
 	var last error
 	for attempt := 1; attempt <= c.config.Attempts; attempt++ {
 		reply, err := c.breaker.Execute(func() (*answer, error) { return c.attempt(ctx, build) })
@@ -205,6 +207,8 @@ func (c *Client) do(ctx context.Context, build func(ctx context.Context) (*http.
 			return nil, ctx.Err()
 		}
 
+		c.logger.WarnContext(ctx, "payment provider attempt failed",
+			append([]any{"attempt", attempt, "attempts", c.config.Attempts, "error", err.Error()}, attrs...)...)
 		last = err
 		if attempt < c.config.Attempts {
 			if err := sleep(ctx, c.backoff(attempt)); err != nil {

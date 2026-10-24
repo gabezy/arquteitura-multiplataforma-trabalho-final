@@ -34,6 +34,8 @@ create compliance.product-created.dlq 1 retention.ms=1209600000 # 14 days to ins
 
 # billing-service
 create billing.invoice.issued.v1 3
+create billing.payment.confirmed.v1 3
+create billing.payment.failed.v1 3
 create billing.order-events.dlq 1 retention.ms=1209600000 # 14 days to inspect and replay
 
 /opt/kafka/bin/kafka-topics.sh --bootstrap-server "$BOOTSTRAP_SERVER" --list

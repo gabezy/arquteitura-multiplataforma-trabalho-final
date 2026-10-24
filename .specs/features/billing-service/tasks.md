@@ -680,9 +680,9 @@ T18 → T19 → T20 → T21 → T22 → T23
 
 **Done when**:
 
-- [ ] Workers drain due work, stop on an unavailable PSP and on cancel (unit)
-- [ ] With `make up`: one iPhone ends `PAID`, seven iPhones end `PAYMENT_FAILED`, the outage stub opens the circuit
-- [ ] Gate check passes: build gate; test count ≥ 5 in `internal/infra/worker`
+- [x] Workers drain due work, stop on an unavailable PSP and on cancel (unit)
+- [x] With `make up`: one iPhone ends `PAID`, seven iPhones end `PAYMENT_FAILED`, the outage stub opens the circuit
+- [x] Gate check passes: build gate; test count ≥ 5 in `internal/infra/worker`
 
 **Tests**: unit
 **Gate**: build

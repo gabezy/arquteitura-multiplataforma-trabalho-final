@@ -173,7 +173,7 @@ Module `github.com/gabezy/arquteitura-multiplataforma-trabalho-final/billing-ser
 
 - **Purpose**: Background loops for charging and reconciliation.
 - **Location**: `billing-service/internal/infra/worker/`
-- **Interfaces**: `PaymentWorker.Run(ctx)` (every 2 s, drains due invoices one by one until none is due or the PSP is unavailable); `ReconciliationWorker.Run(ctx)` (every 30 s)
+- **Interfaces**: `PaymentWorker.Run(ctx)` (every `PAYMENT_POLL_INTERVAL`, 2 s by default, drains due invoices one by one until none is due or the PSP is unavailable); `ReconciliationWorker.Run(ctx)` (every `RECONCILE_INTERVAL`, 30 s by default). Both also expose `RunOnce(ctx)`, one round, for tests.
 
 ---
 
