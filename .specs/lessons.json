@@ -1,0 +1,46 @@
+{
+  "schema": 1,
+  "promote_threshold": 2,
+  "window_days": 45,
+  "quarantine_threshold": 2,
+  "next_id": 3,
+  "lessons": [
+    {
+      "id": "L-001",
+      "key": "surviving_mutant::for every check an end to end script makes the scenario harness must include a fault that makes that check fail or the check can be deleted unnoticed",
+      "text": "For every check an end-to-end script makes, the scenario harness must include a fault that makes that check fail, or the check can be deleted unnoticed",
+      "signal": "surviving_mutant",
+      "scope": "e2e",
+      "status": "candidate",
+      "features": [
+        "e2e-smoke"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "scripts/e2e-smoke.sh:83 (M1, E2E-06) (e2e)",
+        "scripts/e2e-smoke.sh:92 (M7, E2E-07, iteration 2) (e2e)"
+      ],
+      "created": "2026-10-24T16:03:49Z",
+      "last_seen": "2026-10-24T16:43:01Z"
+    },
+    {
+      "id": "L-002",
+      "key": "surviving_mutant::when an acceptance criterion requires two outcomes of one step assert each outcome separately so that removing either one fails a test",
+      "text": "When an acceptance criterion requires two outcomes of one step, assert each outcome separately so that removing either one fails a test",
+      "signal": "surviving_mutant",
+      "scope": "e2e",
+      "status": "candidate",
+      "features": [
+        "e2e-smoke"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "scripts/e2e-smoke.sh:119-120 (M2, E2E-09) (e2e)"
+      ],
+      "created": "2026-10-24T16:03:49Z",
+      "last_seen": "2026-10-24T16:03:49Z"
+    }
+  ]
+}
