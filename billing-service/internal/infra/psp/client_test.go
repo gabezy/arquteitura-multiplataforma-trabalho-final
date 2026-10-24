@@ -253,6 +253,35 @@ func TestCreateChargeTriesThreeTimesWhenThePSPFails(t *testing.T) {
 	}
 }
 
+// PAY-09: after each failed attempt the call waits the backoff of that attempt: the first, then the second.
+func TestCreateChargeWaitsTheBackoffOfEachAttemptBeforeTheNext(t *testing.T) {
+	var mu sync.Mutex
+	var arrivals []time.Time
+	fake := newFakePSP(t, func(w http.ResponseWriter, _ int) {
+		mu.Lock()
+		arrivals = append(arrivals, time.Now())
+		mu.Unlock()
+		reply(w, http.StatusInternalServerError, `{}`)
+	})
+	config := fastConfig(fake.server.URL)
+	config.Backoffs = []time.Duration{20 * time.Millisecond, time.Second}
+
+	_, _ = newClient(config).CreateCharge(context.Background(), chargeRequest(t))
+
+	mu.Lock()
+	defer mu.Unlock()
+	if len(arrivals) != 3 {
+		t.Fatalf("the PSP received %d requests, want 3", len(arrivals))
+	}
+	first, second := arrivals[1].Sub(arrivals[0]), arrivals[2].Sub(arrivals[1])
+	if first < 20*time.Millisecond || first > 700*time.Millisecond {
+		t.Errorf("the wait after the first attempt was %v, want the first backoff (20ms), not the last one", first)
+	}
+	if second < time.Second {
+		t.Errorf("the wait after the second attempt was %v, want at least the second backoff (1s)", second)
+	}
+}
+
 func TestCreateChargeReportsAPSPThatRefusesConnections(t *testing.T) {
 	fake := newFakePSP(t, always(http.StatusCreated, createdBody))
 	config := fastConfig(fake.server.URL)
