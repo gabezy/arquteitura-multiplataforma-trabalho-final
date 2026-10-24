@@ -204,9 +204,9 @@ T18 → T19 → T20 → T21 → T22 → T23
 
 **Done when**:
 
-- [ ] Migrating twice is a no-op; the tables exist afterwards
-- [ ] A nested `WithinTransaction` joins the outer transaction; an error rolls everything back
-- [ ] Gate check passes: full gate; test count ≥ 4
+- [x] Migrating twice is a no-op; the tables exist afterwards
+- [x] A nested `WithinTransaction` joins the outer transaction; an error rolls everything back
+- [x] Gate check passes: full gate; test count ≥ 4
 
 **Tests**: integration
 **Gate**: full

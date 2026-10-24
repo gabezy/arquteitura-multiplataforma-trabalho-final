@@ -205,7 +205,7 @@ Every ambiguity is resolved or recorded here - nothing is left silently unclear.
 | DOC-03 | P1: Billing scope and contracts recorded | Tasks T2 | Implementing |
 | BOOT-01 | P1: Service bootstrap | Tasks T6 | In Tasks |
 | BOOT-02 | P1: Service bootstrap | Tasks T6 | In Tasks |
-| BOOT-03 | P1: Service bootstrap | Tasks T5 | In Tasks |
+| BOOT-03 | P1: Service bootstrap | Tasks T5 | Implementing |
 | BOOT-04 | P1: Service bootstrap | Tasks T4 | Implementing |
 | BOOT-05 | P1: Service bootstrap | Tasks T4 | Implementing |
 | BOOT-06 | P1: Service bootstrap | Tasks T8 | In Tasks |
