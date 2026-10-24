@@ -1,3 +1,4 @@
+import { parseDay } from "./model/day";
 import { Marketplace } from "./model/marketplace.vo";
 import { Money } from "./model/money.vo";
 import { OrderStatus } from "./model/order-status.vo";
@@ -44,10 +45,9 @@ export class SalesReportFacade implements SalesReportPort {
     }
 
     private startOfDay(value: string, name: string): Date {
-        const day = new Date(`${value}T00:00:00Z`);
+        const day = parseDay(value);
 
-        // A day that rolls over (February 30) or carries more than the date does not read back as the same text.
-        if (Number.isNaN(day.getTime()) || day.toISOString().slice(0, 10) !== value) {
+        if (!day) {
             throw new InvalidOrderError(`Period ${name} must be a day as YYYY-MM-DD.`);
         }
         return day;
