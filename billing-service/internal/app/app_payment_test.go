@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strconv"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -23,16 +24,27 @@ const (
 	paymentConfirmed    = "billing.payment.confirmed.v1"
 	paymentFailed       = "billing.payment.failed.v1"
 	insufficientFunds   = int64(10_000_000) // R$ 100.000,00 in cents, where the simulated PSP starts to refuse
+	minimumCharge       = int64(100)        // R$ 1,00 in cents, below which this PSP refuses to create the charge
 	reportDelay         = 100 * time.Millisecond
 	paymentPollInterval = "50ms"
 )
 
 // fakePSP answers like the WireMock mappings of docker/wiremock: it accepts every charge with 201 PENDING and,
-// a moment later, reports PAID by webhook, or FAILED for a charge of R$ 100.000,00 or more.
+// a moment later, reports PAID by webhook, or FAILED for a charge of R$ 100.000,00 or more. A test can also make it
+// refuse, go down, forget the webhook, or stay undecided when asked about a charge.
 type fakePSP struct {
 	server   *httptest.Server
-	requests atomic.Int32
-	down     atomic.Bool
+	requests atomic.Int32 // charges asked for
+	queries  atomic.Int32 // charges asked about
+	down     atomic.Bool  // answers every charge with 503
+	silent   atomic.Bool  // accepts the charge but never calls the webhook
+	pending  atomic.Bool  // answers every query with PENDING
+}
+
+func replyJSON(w http.ResponseWriter, status int, body any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(body)
 }
 
 func newFakePSP(t *testing.T) *fakePSP {
@@ -51,15 +63,19 @@ func newFakePSP(t *testing.T) *fakePSP {
 			CallbackURL string `json:"callbackUrl"`
 		}
 		_ = json.NewDecoder(r.Body).Decode(&charge)
+		if charge.Amount < minimumCharge {
+			replyJSON(w, http.StatusUnprocessableEntity, map[string]any{"code": "AMOUNT_NOT_ALLOWED"})
+			return
+		}
 		id, status, reason := "ch_paid_"+charge.Reference, "PAID", any(nil)
 		if charge.Amount >= insufficientFunds {
 			id, status, reason = "ch_failed_"+charge.Reference, "FAILED", "INSUFFICIENT_FUNDS"
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusCreated)
-		_ = json.NewEncoder(w).Encode(map[string]any{"id": id, "reference": charge.Reference, "status": "PENDING"})
-
+		replyJSON(w, http.StatusCreated, map[string]any{"id": id, "reference": charge.Reference, "status": "PENDING"})
+		if psp.silent.Load() {
+			return
+		}
 		go func() {
 			time.Sleep(reportDelay)
 			body, _ := json.Marshal(map[string]any{
@@ -68,6 +84,18 @@ func newFakePSP(t *testing.T) *fakePSP {
 			})
 			_, _ = postWebhook(charge.CallbackURL, testWebhookToken, body)
 		}()
+	})
+	mux.HandleFunc("GET /psp/v1/charges/{id}", func(w http.ResponseWriter, r *http.Request) {
+		psp.queries.Add(1)
+		id := r.PathValue("id")
+		status, reason := "PAID", any(nil)
+		switch {
+		case psp.pending.Load():
+			status = "PENDING"
+		case strings.HasPrefix(id, "ch_failed_"):
+			status, reason = "FAILED", "INSUFFICIENT_FUNDS"
+		}
+		replyJSON(w, http.StatusOK, map[string]any{"id": id, "status": status, "failureReason": reason})
 	})
 	psp.server = httptest.NewServer(mux)
 	t.Cleanup(psp.server.Close)
@@ -94,13 +122,18 @@ func postWebhook(target, token string, body []byte) (int, error) {
 
 // iphonesBody is an order of n iPhones at R$ 15.000,00 each.
 func iphonesBody(orderID, marketplace string, n int) string {
-	total := strconv.Itoa(n*15000) + ".00"
+	return orderBody(orderID, marketplace, n, "15000.00", strconv.Itoa(n*15000)+".00")
+}
+
+// orderBody is an order of one item, with its unit price and the total the order declares.
+func orderBody(orderID, marketplace string, quantity int, unitPrice, total string) string {
 	return `{"orderId":"` + orderID + `","marketplace":"` + marketplace + `","externalOrderId":"EXT-` + orderID[len(orderID)-1:] + `",` +
-		`"items":[{"sku":"231","quantity":` + strconv.Itoa(n) + `,"unitPrice":15000.00}],"total":` + total + `}`
+		`"items":[{"sku":"231","quantity":` + strconv.Itoa(quantity) + `,"unitPrice":` + unitPrice + `}],"total":` + total + `}`
 }
 
 // startCharging runs the service with the fake PSP, a payment round every 50 ms, and the webhook pointed at itself.
-func startCharging(t *testing.T, psp *fakePSP) (cfgPort int, brokers []string, producer *kgo.Client) {
+// The settings of the extra maps are added on top, for a test that needs another interval.
+func startCharging(t *testing.T, psp *fakePSP, extra ...map[string]string) (cfgPort int, brokers []string, producer *kgo.Client) {
 	t.Helper()
 	cluster, err := kfake.NewCluster(kfake.NumBrokers(1), kfake.SeedTopics(1,
 		confirmedTopic, cancelledTopic, issuedTopic, deadLetter, paymentConfirmed, paymentFailed))
@@ -110,12 +143,18 @@ func startCharging(t *testing.T, psp *fakePSP) (cfgPort int, brokers []string, p
 	t.Cleanup(cluster.Close)
 	brokers = cluster.ListenAddrs()
 	port := freePort(t)
-	cfg := testConfigWith(t, testsupport.NewDatabase(t), brokers, map[string]string{
+	settings := map[string]string{
 		"PORT":                  strconv.Itoa(port),
 		"PSP_BASE_URL":          psp.server.URL,
 		"PSP_CALLBACK_URL":      "http://127.0.0.1:" + strconv.Itoa(port) + "/webhooks/psp",
 		"PAYMENT_POLL_INTERVAL": paymentPollInterval,
-	})
+	}
+	for _, more := range extra {
+		for key, value := range more {
+			settings[key] = value
+		}
+	}
+	cfg := testConfigWith(t, testsupport.NewDatabase(t), brokers, settings)
 	_, done := start(t, cfg)
 	waitUntilHealthy(t, cfg.Port, done)
 
@@ -174,8 +213,10 @@ func TestInvoicesAreChargedAndTheOutcomeIsPublished(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	eventually(t, "the first order to be paid", func() bool { return invoiceStatus(t, port, orderOne) == "PAID" })
-	eventually(t, "the second order to be refused", func() bool { return invoiceStatus(t, port, orderTwo) == "PAYMENT_FAILED" })
+	// The poll of the test is 50 ms and the webhook comes 100 ms later, so 15 s only passes if the payment worker
+	// really runs on PAYMENT_POLL_INTERVAL and not on the 30 s of the reconciliation.
+	eventuallyWithin(t, 15*time.Second, "the first order to be paid", func() bool { return invoiceStatus(t, port, orderOne) == "PAID" })
+	eventuallyWithin(t, 15*time.Second, "the second order to be refused", func() bool { return invoiceStatus(t, port, orderTwo) == "PAYMENT_FAILED" })
 
 	paid, _ := invoicesOf(t, port, orderOne)[0].(map[string]any)
 	if paid["pspTransactionId"] != "ch_paid_"+paid["id"].(string) || paid["paidAt"] == nil || paid["failureReason"] != nil || paid["failedAt"] != nil {
@@ -241,11 +282,107 @@ func TestAnInvoiceIsChargedWhenThePSPComesBack(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	eventually(t, "the three attempts of the first round", func() bool { return psp.requests.Load() >= 3 })
+	eventuallyWithin(t, 20*time.Second, "the three attempts of the first round", func() bool { return psp.requests.Load() >= 3 })
 	if got := invoiceStatus(t, port, orderOne); got != "ISSUED" {
 		t.Fatalf("the invoice is %s while the PSP is down, want ISSUED", got)
 	}
 
 	psp.down.Store(false)
-	eventually(t, "the invoice to be paid once the PSP is back", func() bool { return invoiceStatus(t, port, orderOne) == "PAID" })
+	eventuallyWithin(t, 20*time.Second, "the invoice to be paid once the PSP is back", func() bool { return invoiceStatus(t, port, orderOne) == "PAID" })
+}
+
+// REC-01 and REC-02: a charge whose webhook never comes is asked about once it has been pending for the window,
+// and the answer is applied as the webhook would apply it, with the same events.
+func TestAPaymentWhoseWebhookNeverArrivesIsReconciled(t *testing.T) {
+	psp := newFakePSP(t)
+	psp.silent.Store(true)
+	port, brokers, producer := startCharging(t, psp, map[string]string{
+		"RECONCILE_AFTER":    "1s",
+		"RECONCILE_INTERVAL": "200ms",
+	})
+	if err := producer.ProduceSync(context.Background(),
+		orderEvent(confirmedTopic, "evt-1", orderOne, iphonesBody(orderOne, "AMAZON", 1)),
+		orderEvent(confirmedTopic, "evt-2", orderTwo, iphonesBody(orderTwo, "SHOPEE", 7)),
+	).FirstErr(); err != nil {
+		t.Fatal(err)
+	}
+
+	eventuallyWithin(t, 15*time.Second, "the charges to wait for a webhook that does not come", func() bool {
+		return invoiceStatus(t, port, orderOne) == "PAYMENT_PENDING" && invoiceStatus(t, port, orderTwo) == "PAYMENT_PENDING"
+	})
+	eventuallyWithin(t, 20*time.Second, "the reconciliation to pay the first order", func() bool { return invoiceStatus(t, port, orderOne) == "PAID" })
+	eventuallyWithin(t, 20*time.Second, "the reconciliation to fail the second order", func() bool { return invoiceStatus(t, port, orderTwo) == "PAYMENT_FAILED" })
+
+	paid, _ := invoicesOf(t, port, orderOne)[0].(map[string]any)
+	refused, _ := invoicesOf(t, port, orderTwo)[0].(map[string]any)
+	if paid["paidAt"] == nil || paid["pspTransactionId"] != "ch_paid_"+paid["id"].(string) {
+		t.Errorf("reconciled paid invoice = %v, want its charge and the time it was paid", paid)
+	}
+	if refused["failureReason"] != "INSUFFICIENT_FUNDS" || refused["failedAt"] == nil {
+		t.Errorf("reconciled refused invoice = %v, want the reason of the PSP and the time it failed", refused)
+	}
+	if confirmed := consumeFor(t, brokers, paymentConfirmed, 2*time.Second); len(confirmed) != 1 || string(confirmed[0].Key) != paid["id"] {
+		t.Errorf("billing.payment.confirmed.v1 events = %v, want exactly one, of the paid invoice", confirmed)
+	}
+	if failed := consumeFor(t, brokers, paymentFailed, 2*time.Second); len(failed) != 1 || string(failed[0].Key) != refused["id"] {
+		t.Errorf("billing.payment.failed.v1 events = %v, want exactly one, of the refused invoice", failed)
+	}
+}
+
+// REC-01: the reconciliation asks at RECONCILE_INTERVAL, and not at the pace of the payment worker.
+func TestTheReconciliationAsksAtItsOwnInterval(t *testing.T) {
+	psp := newFakePSP(t)
+	psp.silent.Store(true)
+	psp.pending.Store(true)
+	port, _, producer := startCharging(t, psp, map[string]string{
+		"RECONCILE_AFTER":    "200ms",
+		"RECONCILE_INTERVAL": "500ms",
+	})
+	if err := producer.ProduceSync(context.Background(),
+		orderEvent(confirmedTopic, "evt-1", orderOne, iphonesBody(orderOne, "AMAZON", 1)),
+	).FirstErr(); err != nil {
+		t.Fatal(err)
+	}
+	eventuallyWithin(t, 20*time.Second, "the reconciliation to ask about the charge", func() bool { return psp.queries.Load() >= 1 })
+
+	before := psp.queries.Load()
+	time.Sleep(3 * time.Second)
+	asked := psp.queries.Load() - before
+
+	// One round every 500 ms is about 6 in 3 s. At the 50 ms of the payment worker it would be about 60.
+	if asked < 1 || asked > 12 {
+		t.Fatalf("the PSP was asked %d times in 3 s, want about 6: one round every 500 ms", asked)
+	}
+	if got := invoiceStatus(t, port, orderOne); got != "PAYMENT_PENDING" {
+		t.Fatalf("the invoice is %s while the PSP is still undecided, want PAYMENT_PENDING", got)
+	}
+}
+
+// PAY-05: a charge the PSP refuses to create fails the invoice at once, with the code of the PSP and no charge id.
+func TestAnInvoiceTheProviderRefusesToCreateFails(t *testing.T) {
+	psp := newFakePSP(t)
+	port, brokers, producer := startCharging(t, psp)
+	if err := producer.ProduceSync(context.Background(),
+		orderEvent(confirmedTopic, "evt-1", orderOne, orderBody(orderOne, "AMAZON", 1, "0.50", "0.50")),
+	).FirstErr(); err != nil {
+		t.Fatal(err)
+	}
+
+	eventuallyWithin(t, 15*time.Second, "the invoice to fail", func() bool { return invoiceStatus(t, port, orderOne) == "PAYMENT_FAILED" })
+
+	refused, _ := invoicesOf(t, port, orderOne)[0].(map[string]any)
+	if refused["failureReason"] != "AMOUNT_NOT_ALLOWED" || refused["pspTransactionId"] != nil || refused["failedAt"] == nil {
+		t.Fatalf("refused invoice = %v, want AMOUNT_NOT_ALLOWED, no charge and the time it failed", refused)
+	}
+	failed := consume(t, brokers, paymentFailed, 1)
+	if len(failed) != 1 || string(failed[0].Key) != refused["id"] {
+		t.Fatalf("billing.payment.failed.v1 events = %v, want one keyed by the refused invoice", failed)
+	}
+	body := valueOf(t, failed[0])
+	if _, hasCharge := body["pspTransactionId"]; hasCharge || body["reason"] != "AMOUNT_NOT_ALLOWED" || body["amount"] != 0.5 {
+		t.Fatalf("billing.payment.failed.v1 = %v, want the reason AMOUNT_NOT_ALLOWED, 0.50 and no pspTransactionId", body)
+	}
+	if psp.requests.Load() != 1 {
+		t.Errorf("the PSP received %d charge requests, want 1: a refusal is not retried", psp.requests.Load())
+	}
 }

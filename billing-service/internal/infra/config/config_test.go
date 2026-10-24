@@ -57,6 +57,7 @@ func TestLoadAppliesTheDocumentedDefaults(t *testing.T) {
 		PSPWebhookToken:     validWebhookToken,
 		PaymentPollInterval: 2 * time.Second,
 		ReconcileInterval:   30 * time.Second,
+		ReconcileAfter:      60 * time.Second,
 	}
 	if !reflect.DeepEqual(cfg, want) {
 		t.Fatalf("Load() = %+v, want %+v", cfg, want)
@@ -86,6 +87,7 @@ func TestLoadReadsEveryVariable(t *testing.T) {
 		"PSP_WEBHOOK_TOKEN":     "another-token",
 		"PAYMENT_POLL_INTERVAL": "500ms",
 		"RECONCILE_INTERVAL":    "5s",
+		"RECONCILE_AFTER":       "2m",
 	}))
 	if err != nil {
 		t.Fatal(err)
@@ -110,6 +112,7 @@ func TestLoadReadsEveryVariable(t *testing.T) {
 		PSPWebhookToken:     "another-token",
 		PaymentPollInterval: 500 * time.Millisecond,
 		ReconcileInterval:   5 * time.Second,
+		ReconcileAfter:      2 * time.Minute,
 	}
 	if !reflect.DeepEqual(cfg, want) {
 		t.Fatalf("Load() = %+v, want %+v", cfg, want)
@@ -171,6 +174,8 @@ func TestLoadNamesEachInvalidVariableWithoutItsValue(t *testing.T) {
 		{"PAYMENT_POLL_INTERVAL", "soon-4b8d"},
 		{"PAYMENT_POLL_INTERVAL", "0s"},
 		{"RECONCILE_INTERVAL", "-5s"},
+		{"RECONCILE_AFTER", "later-8c2f"},
+		{"RECONCILE_AFTER", "0s"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.variable+"="+tt.value, func(t *testing.T) {

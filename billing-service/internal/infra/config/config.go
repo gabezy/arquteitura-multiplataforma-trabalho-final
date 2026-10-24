@@ -24,6 +24,7 @@ const (
 	defaultPSPBaseURL         = "http://localhost:8089"
 	defaultPaymentInterval    = 2 * time.Second
 	defaultReconcileInterval  = 30 * time.Second
+	defaultReconcileAfter     = 60 * time.Second
 	maxPort                   = 65535
 	maxPercentBps             = 10000
 )
@@ -50,9 +51,11 @@ type Config struct {
 	PSPCallbackURL  string
 	PSPWebhookToken string
 	// PaymentPollInterval is how often the invoices that are due are charged, and ReconcileInterval how
-	// often the charges that stayed pending are asked about.
+	// often the charges that stayed pending are asked about. A charge is asked about once it has been
+	// pending for more than ReconcileAfter, which gives the webhook time to arrive first.
 	PaymentPollInterval time.Duration
 	ReconcileInterval   time.Duration
+	ReconcileAfter      time.Duration
 }
 
 // Lookup reads one variable, like os.LookupEnv.
@@ -111,6 +114,7 @@ func Load(lookup Lookup) (Config, error) {
 		PSPWebhookToken:     reader.required("PSP_WEBHOOK_TOKEN"),
 		PaymentPollInterval: reader.duration("PAYMENT_POLL_INTERVAL", defaultPaymentInterval),
 		ReconcileInterval:   reader.duration("RECONCILE_INTERVAL", defaultReconcileInterval),
+		ReconcileAfter:      reader.duration("RECONCILE_AFTER", defaultReconcileAfter),
 	}
 
 	if len(reader.problems) > 0 {

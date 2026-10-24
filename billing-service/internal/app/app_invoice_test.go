@@ -69,7 +69,14 @@ func invoicesOf(t *testing.T, port int, orderID string) []any {
 
 func eventually(t *testing.T, what string, condition func() bool) {
 	t.Helper()
-	deadline := time.Now().Add(45 * time.Second)
+	eventuallyWithin(t, 45*time.Second, what, condition)
+}
+
+// eventuallyWithin is eventually with a limit that says how long the thing is allowed to take, so that a
+// slow wiring (a worker on the wrong interval) fails the test instead of passing slowly.
+func eventuallyWithin(t *testing.T, limit time.Duration, what string, condition func() bool) {
+	t.Helper()
+	deadline := time.Now().Add(limit)
 	for time.Now().Before(deadline) {
 		if condition() {
 			return

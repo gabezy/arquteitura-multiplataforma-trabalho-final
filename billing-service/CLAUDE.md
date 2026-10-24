@@ -49,6 +49,7 @@ Config comes from env vars (see `.env.example`):
 | `PSP_WEBHOOK_TOKEN` | none, required | the secret the PSP sends in `X-PSP-Token`; the WireMock mappings send `psp-demo-token` |
 | `PAYMENT_POLL_INTERVAL` | `2s` | how often the invoices that are due are charged |
 | `RECONCILE_INTERVAL` | `30s` | how often the charges that stayed pending are asked about |
+| `RECONCILE_AFTER` | `60s` | how long a charge waits for its webhook before it is asked about |
 
 An invalid variable stops the service with a non-zero status and an error that names the variable, never its value (`DATABASE_URL` carries a password).
 
@@ -127,7 +128,7 @@ The charge is asynchronous (ADR-0007), so a slow or dead PSP never stops the con
 
 - `worker.PaymentWorker` runs every `PAYMENT_POLL_INTERVAL`. `PaymentFacade.RequestNextPayment` locks the oldest `ISSUED` invoice that is due (`FOR UPDATE SKIP LOCKED`), calls `POST /psp/v1/charges` with `Idempotency-Key` equal to the invoice id and the total in cents, and stores the charge id (`PAYMENT_PENDING`). A round keeps going until none is due, and stops when the PSP is unavailable.
 - The result comes back by `POST /webhooks/psp`: `X-PSP-Token` must match `PSP_WEBHOOK_TOKEN` (compared by digest; a wrong or missing token is a 401 before the body is read), the body has `chargeId`, `reference` (the invoice id), `status` (`PAID` or `FAILED`), `failureReason` and `occurredAt`. It answers 204 for an applied or repeated outcome, 400 naming the invalid fields, 404 for an unknown invoice and 409 (logged as an error) when the outcome contradicts the invoice. The invoice waits for the row lock that the payment worker may hold.
-- `worker.ReconciliationWorker` runs every `RECONCILE_INTERVAL` and queries `GET /psp/v1/charges/{id}` for the invoices `PAYMENT_PENDING` for more than 60 s, applying the final status as the webhook does. A charge the PSP cannot resolve does not stop the others.
+- `worker.ReconciliationWorker` runs every `RECONCILE_INTERVAL` and queries `GET /psp/v1/charges/{id}` for the invoices `PAYMENT_PENDING` for more than `RECONCILE_AFTER` (60 s), applying the final status as the webhook does. A charge the PSP cannot resolve does not stop the others.
 - `psp.Client` gives each attempt 3 s, tries up to 3 times (200 ms then 400 ms apart) on timeout, connection error, 5xx and 429, and a `gobreaker` circuit opens after 5 consecutive failed attempts for 30 s, with no call while it is open. A 422 is a refusal (`PAYMENT_FAILED`, never retried); any other 4xx is an unexpected error that postpones the invoice. When the PSP is unavailable the invoice stays `ISSUED` and its next attempt is min(2^attempts, 60) seconds later.
 - `PaymentConfirmed` and `PaymentFailed` reach `billing.payment.confirmed.v1` and `billing.payment.failed.v1` through the outbox, keyed by the invoice id. `GET /invoices` shows `pspTransactionId`, `failureReason`, `paidAt` and `failedAt`.
 - The simulated PSP is WireMock (`../docker/wiremock/mappings/psp.json`): a charge from R$ 100.000,00 ends `FAILED` with `INSUFFICIENT_FUNDS`, any other ends `PAID`, and the webhook comes 2 s after the answer. `../docker/wiremock/scenarios/psp-outage.json` is a stub for the outage scenario of the demo. The tests of `internal/infra/psp` run against a WireMock container with the real mappings.

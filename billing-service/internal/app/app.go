@@ -73,7 +73,7 @@ func Run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 		db,
 		psp.NewClient(psp.DefaultConfig(cfg.PSPBaseURL, cfg.PSPCallbackURL), logger),
 		system.Clock{},
-		invoice.PaymentOptions{},
+		invoice.PaymentOptions{ReconcileAfter: cfg.ReconcileAfter},
 	)
 
 	consumerClient, tracer, err := messaging.NewConsumerClient(cfg.KafkaBrokers, cfg.ConsumerGroup, cfg.ConfirmedTopic, cfg.CancelledTopic)
