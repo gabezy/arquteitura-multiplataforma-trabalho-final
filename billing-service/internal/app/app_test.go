@@ -7,12 +7,14 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/twmb/franz-go/pkg/kfake"
 
 	"github.com/gabezy/arquteitura-multiplataforma-trabalho-final/billing-service/internal/app"
@@ -48,7 +50,15 @@ func newKafka(t *testing.T) []string {
 }
 
 // testConfig loads the configuration the way the service does, so the tests run with the real defaults.
+// The payment worker is switched off (its first round is an hour away), so that the invoice tests see
+// the invoices as they are issued.
 func testConfig(t *testing.T, databaseURL string, brokers []string) config.Config {
+	t.Helper()
+	return testConfigWith(t, databaseURL, brokers, map[string]string{"PAYMENT_POLL_INTERVAL": "1h"})
+}
+
+// testConfigWith is testConfig with variables on top: a test that charges invoices sets the PSP ones.
+func testConfigWith(t *testing.T, databaseURL string, brokers []string, overrides map[string]string) config.Config {
 	t.Helper()
 	values := map[string]string{
 		"PORT":                 strconv.Itoa(freePort(t)),
@@ -56,6 +66,11 @@ func testConfig(t *testing.T, databaseURL string, brokers []string) config.Confi
 		"KAFKA_BROKERS":        strings.Join(brokers, ","),
 		"OTEL_COLLECTOR_URL":   "http://127.0.0.1:1",
 		"OUTBOX_POLL_INTERVAL": "50ms",
+		"PSP_BASE_URL":         "http://127.0.0.1:1",
+		"PSP_WEBHOOK_TOKEN":    testWebhookToken,
+	}
+	for key, value := range overrides {
+		values[key] = value
 	}
 	cfg, err := config.Load(func(key string) (string, bool) {
 		value, ok := values[key]
@@ -191,4 +206,39 @@ func TestRunReportsAPortThatIsAlreadyInUse(t *testing.T) {
 	case <-time.After(30 * time.Second):
 		t.Fatal("Run kept going although it could not listen")
 	}
+}
+
+// dropDatabase removes the database from under the running service, through the admin database of the same server.
+func dropDatabase(t *testing.T, databaseURL string) {
+	t.Helper()
+	parsed, err := url.Parse(databaseURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	name := strings.TrimPrefix(parsed.Path, "/")
+	parsed.Path = "/postgres"
+	ctx := context.Background()
+	admin, err := pgx.Connect(ctx, parsed.String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = admin.Close(ctx) }()
+	if _, err := admin.Exec(ctx, "DROP DATABASE "+name+" WITH (FORCE)"); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// BOOT-02: the health check asks the database the service really uses, so it turns to 503 when that database is gone.
+func TestHealthRespondsDownWhenTheDatabaseIsGone(t *testing.T) {
+	databaseURL := testsupport.NewDatabase(t)
+	cfg := testConfig(t, databaseURL, newKafka(t))
+	_, done := start(t, cfg)
+	waitUntilHealthy(t, cfg.Port, done)
+
+	dropDatabase(t, databaseURL)
+
+	eventuallyWithin(t, 15*time.Second, "the health check to report the database gone", func() bool {
+		status, body := getJSON(t, "http://127.0.0.1:"+strconv.Itoa(cfg.Port)+"/health")
+		return status == http.StatusServiceUnavailable && body["status"] == "DOWN"
+	})
 }

@@ -99,6 +99,12 @@ func (h *OrderEventHandler) Handle(ctx context.Context, message Message) error {
 		h.logger.InfoContext(ctx, "order event already processed", "eventId", event.eventID, "type", event.eventType)
 		return nil
 	}
+	if outcome == string(in.KeptPaid) {
+		// The customer paid and the order was cancelled afterwards: there is no refund, so somebody has to know.
+		h.logger.WarnContext(ctx, "order cancelled after its invoice was paid: the invoice stays paid, there is no refund",
+			"eventId", event.eventID, "orderId", event.cancelled.orderID, "reason", event.cancelled.reason)
+		return nil
+	}
 	h.logger.InfoContext(ctx, "order event processed", "eventId", event.eventID, "type", event.eventType, "outcome", outcome)
 	return nil
 }

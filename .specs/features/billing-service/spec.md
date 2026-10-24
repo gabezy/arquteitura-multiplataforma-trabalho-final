@@ -93,7 +93,7 @@ Every ambiguity is resolved or recorded here - nothing is left silently unclear.
 3. WHEN the service starts THEN the billing-service SHALL apply the pending database migrations before it accepts HTTP requests. (BOOT-03)
 4. IF a configuration variable is invalid THEN the billing-service SHALL exit with a non-zero status and an error that names the variable without printing its value. (BOOT-04)
 5. The billing-service SHALL export traces, metrics and logs over OTLP/HTTP to `OTEL_COLLECTOR_URL` with `service.name` `billing-service`. (BOOT-05)
-6. WHEN the process receives SIGTERM THEN the billing-service SHALL stop accepting requests, finish the work in progress and exit within 10 s. (BOOT-06)
+6. WHEN the process receives SIGTERM THEN the billing-service SHALL stop accepting requests, finish the HTTP requests being served, mark as published the outbox events the relay already sent (it stops at the next event), stop consuming (the message in process is not committed, so it is delivered again, and a charge in flight is rolled back and tried again with the same idempotency key) and exit within 10 s, also when a request is still waiting on the database: after 7 s its context is cancelled and it gives its connection back. (BOOT-06)
 7. WHEN `make up` runs THEN the `billing-db` and `billing-service` containers SHALL become healthy, with the service on port 8086 and the database on port 5435. (BOOT-07)
 8. WHEN a push changes `billing-service/**` THEN the CI SHALL run lint, the tests and the Docker build of billing only. (BOOT-08)
 9. The core packages SHALL import only the Go standard library and other core packages. (BOOT-09)
@@ -116,7 +116,7 @@ Every ambiguity is resolved or recorded here - nothing is left silently unclear.
 3. WHEN an invoice is created THEN the billing-service SHALL publish `billing.invoice.issued.v1` keyed by `invoiceId` through the outbox. (INV-03)
 4. IF an event whose `ce_id` was already processed arrives THEN the billing-service SHALL change nothing and publish nothing. (INV-04)
 5. IF a confirmation arrives for an order that already has an invoice THEN the billing-service SHALL keep the single existing invoice and publish nothing. (INV-05)
-6. IF a message lacks a required CloudEvents header, is not valid JSON, has an `orderId` that is not a UUID, an unknown marketplace, a `total` that differs from the sum of quantity × unit price or items out of bounds THEN the billing-service SHALL publish it to `billing.order-events.dlq` with `dlq-*` headers and commit its offset. (INV-06)
+6. IF a message lacks a required CloudEvents header (`ce_specversion`, `ce_id`, `ce_source` or `ce_type`), is not valid JSON, has an `orderId` that is not a UUID, an unknown marketplace, a `total` that differs from the sum of quantity × unit price or items out of bounds THEN the billing-service SHALL publish it to `billing.order-events.dlq` with `dlq-*` headers and commit its offset. (INV-06)
 7. IF processing fails for a transient reason THEN the billing-service SHALL retry the same message with a backoff that starts at 1 s and doubles up to 30 s, without committing its offset. (INV-07)
 8. WHEN `order.order.cancelled.v1` arrives for an invoice in `ISSUED` or `PAYMENT_PENDING` THEN the billing-service SHALL set the invoice to `CANCELLED`. (INV-08)
 9. IF `order.order.cancelled.v1` arrives for an order without an invoice THEN the billing-service SHALL record the cancellation of that order. (INV-09)
@@ -161,7 +161,7 @@ Every ambiguity is resolved or recorded here - nothing is left silently unclear.
 7. IF a webhook repeats the outcome the invoice already has THEN the billing-service SHALL respond 204 and publish nothing. (PAY-07)
 8. IF a webhook contradicts the final status of the invoice or its charge id THEN the billing-service SHALL respond 409 and change nothing. (PAY-08)
 9. IF a PSP attempt times out after 3 s, fails to connect or returns 5xx THEN the billing-service SHALL retry it, up to 3 attempts in total, with exponential backoff. (PAY-09)
-10. IF all attempts of a charge request fail THEN the billing-service SHALL keep the invoice `ISSUED` and schedule its next attempt min(2^attempts, 60) seconds later. (PAY-10)
+10. IF all attempts of a charge request fail THEN the billing-service SHALL keep the invoice `ISSUED` and schedule its next attempt min(2^attempts, 60) seconds later, where `attempts` counts the failed rounds including the one being scheduled (2 s after the first, 4 s after the second). (PAY-10)
 11. IF 5 consecutive PSP attempts fail THEN the billing-service SHALL open the circuit for 30 s and make no PSP call while it is open. (PAY-11)
 12. WHEN the simulated PSP receives a charge of R$ 100.000,00 or more THEN the WireMock mappings SHALL answer 201 and call the webhook with `FAILED` and `INSUFFICIENT_FUNDS`, and below that amount they SHALL call it with `PAID`. (PAY-12)
 
@@ -190,7 +190,7 @@ Every ambiguity is resolved or recorded here - nothing is left silently unclear.
 - WHEN a webhook arrives while the payment worker still holds the invoice THEN the webhook SHALL wait for the row lock and apply on top of `PAYMENT_PENDING`.
 - IF a webhook arrives for an invoice that is still `ISSUED` THEN the billing-service SHALL store its charge id and apply the outcome.
 - IF a webhook references an unknown invoice THEN the billing-service SHALL respond 404.
-- IF the webhook body is not valid JSON or misses a field THEN the billing-service SHALL respond 400.
+- IF the webhook body is not valid JSON or misses a required field (`chargeId`, `reference` or `status`; `failureReason` and `occurredAt` are optional, and `occurredAt` must be an RFC 3339 time when present) THEN the billing-service SHALL respond 400.
 - WHEN the commission falls exactly on half a cent THEN the billing-service SHALL round it up (total R$ 0,25 at 14% gives R$ 0,04).
 - WHILE the circuit is open the billing-service SHALL keep issuing invoices from Kafka.
 
@@ -200,48 +200,48 @@ Every ambiguity is resolved or recorded here - nothing is left silently unclear.
 
 | Requirement ID | Story | Phase | Status |
 | --- | --- | --- | --- |
-| DOC-01 | P1: Billing scope and contracts recorded | Tasks T1 | Implementing |
-| DOC-02 | P1: Billing scope and contracts recorded | Tasks T2 | Implementing |
-| DOC-03 | P1: Billing scope and contracts recorded | Tasks T2 | Implementing |
-| BOOT-01 | P1: Service bootstrap | Tasks T6 | Implementing |
-| BOOT-02 | P1: Service bootstrap | Tasks T6 | Implementing |
-| BOOT-03 | P1: Service bootstrap | Tasks T5 | Implementing |
-| BOOT-04 | P1: Service bootstrap | Tasks T4 | Implementing |
-| BOOT-05 | P1: Service bootstrap | Tasks T4 | Implementing |
-| BOOT-06 | P1: Service bootstrap | Tasks T8 | Implementing |
-| BOOT-07 | P1: Service bootstrap | Tasks T9 | Implementing |
-| BOOT-08 | P1: Service bootstrap | Tasks T10 | Implementing |
-| BOOT-09 | P1: Service bootstrap | Tasks T4 | Implementing |
-| BOOT-10 | P1: Service bootstrap | Tasks T7 | Implementing |
-| INV-01 | P1: Invoice from the confirmed order | Tasks T12, T13 | Implementing |
-| INV-02 | P1: Invoice from the confirmed order | Tasks T12 | Implementing |
-| INV-03 | P1: Invoice from the confirmed order | Tasks T14, T15 | Implementing |
-| INV-04 | P1: Invoice from the confirmed order | Tasks T15 | Implementing |
-| INV-05 | P1: Invoice from the confirmed order | Tasks T13, T14 | Implementing |
-| INV-06 | P1: Invoice from the confirmed order | Tasks T15 | Implementing |
-| INV-07 | P1: Invoice from the confirmed order | Tasks T15 | Implementing |
-| INV-08 | P1: Invoice from the confirmed order | Tasks T12, T13 | Implementing |
-| INV-09 | P1: Invoice from the confirmed order | Tasks T13, T14 | Implementing |
-| INV-10 | P1: Invoice from the confirmed order | Tasks T13 | Implementing |
-| INV-11 | P1: Invoice from the confirmed order | Tasks T12 | Implementing |
-| API-01 | P1: Query invoices | Tasks T16 | Implementing |
-| API-02 | P1: Query invoices | Tasks T16 | Implementing |
-| API-03 | P1: Query invoices | Tasks T14, T16 | Implementing |
-| API-04 | P1: Query invoices | Tasks T16 | Implementing |
-| PAY-01 | P2: Charge the invoice at the PSP | Tasks T19, T20, T23 | In Tasks |
-| PAY-02 | P2: Charge the invoice at the PSP | Tasks T19 | In Tasks |
-| PAY-03 | P2: Charge the invoice at the PSP | Tasks T19, T22 | In Tasks |
-| PAY-04 | P2: Charge the invoice at the PSP | Tasks T19, T22 | In Tasks |
-| PAY-05 | P2: Charge the invoice at the PSP | Tasks T19, T21 | In Tasks |
-| PAY-06 | P2: Charge the invoice at the PSP | Tasks T22 | In Tasks |
-| PAY-07 | P2: Charge the invoice at the PSP | Tasks T19, T22 | In Tasks |
-| PAY-08 | P2: Charge the invoice at the PSP | Tasks T19, T22 | In Tasks |
-| PAY-09 | P2: Charge the invoice at the PSP | Tasks T21 | In Tasks |
-| PAY-10 | P2: Charge the invoice at the PSP | Tasks T19 | In Tasks |
-| PAY-11 | P2: Charge the invoice at the PSP | Tasks T21 | In Tasks |
-| PAY-12 | P2: Charge the invoice at the PSP | Tasks T21 | In Tasks |
-| REC-01 | P3: Reconcile pending payments | Tasks T20, T23 | In Tasks |
-| REC-02 | P3: Reconcile pending payments | Tasks T19, T23 | In Tasks |
+| DOC-01 | P1: Billing scope and contracts recorded | Tasks T1 | Verified |
+| DOC-02 | P1: Billing scope and contracts recorded | Tasks T2 | Verified |
+| DOC-03 | P1: Billing scope and contracts recorded | Tasks T2 | Verified |
+| BOOT-01 | P1: Service bootstrap | Tasks T6 | Verified |
+| BOOT-02 | P1: Service bootstrap | Tasks T6 | Verified |
+| BOOT-03 | P1: Service bootstrap | Tasks T5 | Verified |
+| BOOT-04 | P1: Service bootstrap | Tasks T4 | Verified |
+| BOOT-05 | P1: Service bootstrap | Tasks T4 | Verified |
+| BOOT-06 | P1: Service bootstrap | Tasks T8 | Verified |
+| BOOT-07 | P1: Service bootstrap | Tasks T9 | Verified |
+| BOOT-08 | P1: Service bootstrap | Tasks T10 | Verified |
+| BOOT-09 | P1: Service bootstrap | Tasks T4 | Verified |
+| BOOT-10 | P1: Service bootstrap | Tasks T7 | Verified |
+| INV-01 | P1: Invoice from the confirmed order | Tasks T12, T13 | Verified |
+| INV-02 | P1: Invoice from the confirmed order | Tasks T12 | Verified |
+| INV-03 | P1: Invoice from the confirmed order | Tasks T14, T15 | Verified |
+| INV-04 | P1: Invoice from the confirmed order | Tasks T15 | Verified |
+| INV-05 | P1: Invoice from the confirmed order | Tasks T13, T14 | Verified |
+| INV-06 | P1: Invoice from the confirmed order | Tasks T15 | Verified |
+| INV-07 | P1: Invoice from the confirmed order | Tasks T15 | Verified |
+| INV-08 | P1: Invoice from the confirmed order | Tasks T12, T13 | Verified |
+| INV-09 | P1: Invoice from the confirmed order | Tasks T13, T14 | Verified |
+| INV-10 | P1: Invoice from the confirmed order | Tasks T13 | Verified |
+| INV-11 | P1: Invoice from the confirmed order | Tasks T12 | Verified |
+| API-01 | P1: Query invoices | Tasks T16 | Verified |
+| API-02 | P1: Query invoices | Tasks T16 | Verified |
+| API-03 | P1: Query invoices | Tasks T14, T16 | Verified |
+| API-04 | P1: Query invoices | Tasks T16 | Verified |
+| PAY-01 | P2: Charge the invoice at the PSP | Tasks T19, T20, T23 | Verified |
+| PAY-02 | P2: Charge the invoice at the PSP | Tasks T19 | Verified |
+| PAY-03 | P2: Charge the invoice at the PSP | Tasks T19, T22 | Verified |
+| PAY-04 | P2: Charge the invoice at the PSP | Tasks T19, T22 | Verified |
+| PAY-05 | P2: Charge the invoice at the PSP | Tasks T19, T21 | Verified |
+| PAY-06 | P2: Charge the invoice at the PSP | Tasks T22 | Verified |
+| PAY-07 | P2: Charge the invoice at the PSP | Tasks T19, T22 | Verified |
+| PAY-08 | P2: Charge the invoice at the PSP | Tasks T19, T22 | Verified |
+| PAY-09 | P2: Charge the invoice at the PSP | Tasks T21 | Verified |
+| PAY-10 | P2: Charge the invoice at the PSP | Tasks T19 | Verified |
+| PAY-11 | P2: Charge the invoice at the PSP | Tasks T21 | Verified |
+| PAY-12 | P2: Charge the invoice at the PSP | Tasks T21 | Verified |
+| REC-01 | P3: Reconcile pending payments | Tasks T20, T23 | Verified |
+| REC-02 | P3: Reconcile pending payments | Tasks T19, T23 | Verified |
 
 **ID format:** `[CATEGORY]-[NUMBER]`.
 

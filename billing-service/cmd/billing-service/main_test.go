@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -63,8 +64,9 @@ func environment(overrides map[string]string) []string {
 func TestAnInvalidVariableEndsTheProcessNamingItWithoutItsValue(t *testing.T) {
 	command := exec.Command(binary)
 	command.Env = environment(map[string]string{
-		"PORT":         "not-a-port-9f3a",
-		"DATABASE_URL": "postgresql://billing:hunter2-77c1@127.0.0.1:5435/billing",
+		"PORT":              "not-a-port-9f3a",
+		"DATABASE_URL":      "postgresql://billing:hunter2-77c1@127.0.0.1:5435/billing",
+		"PSP_WEBHOOK_TOKEN": "test-webhook-token",
 	})
 	var stderr bytes.Buffer
 	command.Stderr = &stderr
@@ -113,6 +115,7 @@ func TestSigtermStopsTheServiceWithinTenSecondsAndTheHealthcheckFollowsIt(t *tes
 		"DATABASE_URL":       testsupport.NewDatabase(t),
 		"KAFKA_BROKERS":      strings.Join(cluster.ListenAddrs(), ","),
 		"OTEL_COLLECTOR_URL": "http://127.0.0.1:1",
+		"PSP_WEBHOOK_TOKEN":  "test-webhook-token",
 	})
 
 	service := exec.Command(binary)
@@ -156,6 +159,20 @@ func TestSigtermStopsTheServiceWithinTenSecondsAndTheHealthcheckFollowsIt(t *tes
 
 	if code := runHealthcheck(env); code == 0 {
 		t.Fatal("healthcheck exit code = 0 after the service stopped, want non-zero")
+	}
+}
+
+// BOOT-07: the healthcheck of the image fails when the service answers anything but 200, and when PORT is not a number.
+func TestHealthcheckFailsWhenTheServiceIsNotHealthy(t *testing.T) {
+	unhealthy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusServiceUnavailable) }))
+	defer unhealthy.Close()
+	port := strconv.Itoa(unhealthy.Listener.Addr().(*net.TCPAddr).Port)
+
+	if code := runHealthcheck(environment(map[string]string{"PORT": port})); code != 1 {
+		t.Errorf("healthcheck exit code = %d against a service that answers 503, want 1", code)
+	}
+	if code := runHealthcheck(environment(map[string]string{"PORT": "not-a-port"})); code != 1 {
+		t.Errorf("healthcheck exit code = %d with a PORT that is not a number, want 1", code)
 	}
 }
 

@@ -106,6 +106,9 @@ func (f *Facade) CancelInvoice(ctx context.Context, command in.CancelInvoiceComm
 
 		if !invoice.Cancel(command.Reason, now) {
 			outcome = in.Unchanged
+			if invoice.Status() == model.StatusPaid {
+				outcome = in.KeptPaid
+			}
 			return nil
 		}
 		if err := f.invoices.Save(ctx, invoice); err != nil {

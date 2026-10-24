@@ -219,6 +219,10 @@ services:
     volumes:
       - ./docker/wiremock/mappings:/home/wiremock/mappings
       - ./docker/wiremock/__files:/home/wiremock/__files
+    # The webhooks of the PSP mappings reach a service that runs on the host, such as `go run` of the
+    # billing-service against `make up-infra`.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   # Applications, built from source. `make up-infra` leaves them out, for whoever runs a service
   # from its own directory.
@@ -274,6 +278,12 @@ services:
       DATABASE_URL: postgresql://${BILLING_DB_USER:-billing}:${BILLING_DB_PASSWORD:-billing}@billing-db:5432/${BILLING_DB_NAME:-billing}
       KAFKA_BROKERS: kafka:19092
       OTEL_COLLECTOR_URL: http://otel-collector:4318
+      PSP_BASE_URL: http://wiremock:8080
+      # Point it at an address that does not answer to see the reconciliation recover a lost webhook.
+      PSP_CALLBACK_URL: ${PSP_CALLBACK_URL:-http://billing-service:8086/webhooks/psp}
+      # The WireMock mappings send this token back (docker/wiremock/mappings/psp.json), so it stays
+      # fixed while the PSP is the simulator.
+      PSP_WEBHOOK_TOKEN: psp-demo-token
     ports:
       - "8086:8086"
     depends_on:
@@ -281,6 +291,8 @@ services:
         condition: service_healthy
       kafka-init:
         condition: service_completed_successfully
+      wiremock:
+        condition: service_started
 
   bff-gateway:
     build: ./bff-gateway

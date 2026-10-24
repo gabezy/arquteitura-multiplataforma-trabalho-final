@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gabezy/arquteitura-multiplataforma-trabalho-final/billing-service/internal/core/invoice/model"
+	"github.com/gabezy/arquteitura-multiplataforma-trabalho-final/billing-service/internal/core/shared/domain"
 	"github.com/gabezy/arquteitura-multiplataforma-trabalho-final/billing-service/internal/infra/messaging"
 	"github.com/gabezy/arquteitura-multiplataforma-trabalho-final/billing-service/internal/infra/outbox"
 )
@@ -66,6 +67,76 @@ func TestToIntegrationEventWritesCentsAndRatesWithoutRoundingErrors(t *testing.T
 		`"netAmount":13349.95,"issuedAt":"2026-10-28T13:05:03Z"}`
 	if got != want {
 		t.Fatalf("payload =\n %s\nwant\n %s (no external order id: the field is left out)", got, want)
+	}
+}
+
+func integrationPayload(t *testing.T, event domain.DomainEvent) (outbox.IntegrationEvent, string) {
+	t.Helper()
+	mapped, err := messaging.ToIntegrationEvent(event)
+	if err != nil {
+		t.Fatalf("ToIntegrationEvent() error = %v", err)
+	}
+	payload, err := json.Marshal(mapped.Data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return mapped, string(payload)
+}
+
+// PAY-03: billing.payment.confirmed.v1 as the catalog defines it.
+func TestToIntegrationEventMapsPaymentConfirmedToTheCatalogContract(t *testing.T) {
+	mapped, got := integrationPayload(t, model.PaymentConfirmed{
+		InvoiceID:        invoiceID,
+		OrderID:          orderID,
+		Amount:           1500000,
+		PSPTransactionID: "ch_paid_" + invoiceID,
+		PaidAt:           time.Date(2026, 10, 28, 13, 5, 6, 0, time.FixedZone("BRT", -3*3600)),
+	})
+
+	if mapped.Type != "billing.payment.confirmed.v1" || mapped.AggregateType != "invoice" {
+		t.Fatalf("type/aggregate = %q/%q, want billing.payment.confirmed.v1/invoice", mapped.Type, mapped.AggregateType)
+	}
+	want := `{"invoiceId":"a3c1d5e2-7b4f-4c8a-9e10-2d3f4a5b6c7d","orderId":"6f1c2b8e-0000-4000-8000-000000000001",` +
+		`"amount":15000.00,"pspTransactionId":"ch_paid_a3c1d5e2-7b4f-4c8a-9e10-2d3f4a5b6c7d","paidAt":"2026-10-28T16:05:06Z"}`
+	if got != want {
+		t.Fatalf("payload =\n %s\nwant\n %s (times in UTC)", got, want)
+	}
+}
+
+// PAY-04 and PAY-05: billing.payment.failed.v1 with the charge when the PSP created one, and without it when it refused.
+func TestToIntegrationEventMapsPaymentFailedToTheCatalogContract(t *testing.T) {
+	failedAt := time.Date(2026, 10, 28, 10, 10, 6, 500_000_000, time.FixedZone("BRT", -3*3600))
+	tests := []struct {
+		name   string
+		charge string
+		want   string
+	}{
+		{"refused after the charge was created", "ch_failed_" + invoiceID,
+			`{"invoiceId":"a3c1d5e2-7b4f-4c8a-9e10-2d3f4a5b6c7d","orderId":"6f1c2b8e-0000-4000-8000-000000000001",` +
+				`"amount":105000.00,"pspTransactionId":"ch_failed_a3c1d5e2-7b4f-4c8a-9e10-2d3f4a5b6c7d",` +
+				`"reason":"INSUFFICIENT_FUNDS","failedAt":"2026-10-28T13:10:06.5Z"}`},
+		{"refused when creating the charge", "",
+			`{"invoiceId":"a3c1d5e2-7b4f-4c8a-9e10-2d3f4a5b6c7d","orderId":"6f1c2b8e-0000-4000-8000-000000000001",` +
+				`"amount":105000.00,"reason":"INSUFFICIENT_FUNDS","failedAt":"2026-10-28T13:10:06.5Z"}`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mapped, got := integrationPayload(t, model.PaymentFailed{
+				InvoiceID:        invoiceID,
+				OrderID:          orderID,
+				Amount:           10500000,
+				PSPTransactionID: tt.charge,
+				Reason:           "INSUFFICIENT_FUNDS",
+				FailedAt:         failedAt,
+			})
+
+			if mapped.Type != "billing.payment.failed.v1" || mapped.AggregateType != "invoice" {
+				t.Fatalf("type/aggregate = %q/%q, want billing.payment.failed.v1/invoice", mapped.Type, mapped.AggregateType)
+			}
+			if got != tt.want {
+				t.Fatalf("payload =\n %s\nwant\n %s", got, tt.want)
+			}
+		})
 	}
 }
 

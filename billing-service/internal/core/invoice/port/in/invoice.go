@@ -25,7 +25,9 @@ type CancelOutcome string
 const (
 	// Cancelled: the invoice was cancelled.
 	Cancelled CancelOutcome = "CANCELLED"
-	// Unchanged: the invoice is paid, failed or already cancelled and kept its state.
+	// KeptPaid: the invoice is paid, so it stays paid: there is no refund, and the caller should say so.
+	KeptPaid CancelOutcome = "KEPT_PAID"
+	// Unchanged: the invoice has failed or was already cancelled and kept its state.
 	Unchanged CancelOutcome = "UNCHANGED"
 	// Recorded: there is no invoice yet, so the cancellation of the order was recorded.
 	Recorded CancelOutcome = "RECORDED"

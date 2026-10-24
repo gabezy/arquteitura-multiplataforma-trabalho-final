@@ -25,20 +25,26 @@ type DeadLetter interface {
 	Publish(ctx context.Context, message Message, reason string) error
 }
 
+// offsetCommitter moves the offset of the consumer group past a record; *kgo.Client does it.
+type offsetCommitter interface {
+	CommitRecords(ctx context.Context, records ...*kgo.Record) error
+}
+
 // OrderEventsConsumer reads the order topics and hands each message to the
 // handler, one at a time. It commits an offset only after the message was
 // processed or dead-lettered, so a crash or a failure never loses a message.
 type OrderEventsConsumer struct {
-	client  *kgo.Client
-	tracer  *kotel.Tracer
-	handler MessageHandler
-	dead    DeadLetter
-	logger  *slog.Logger
-	sleep   func(ctx context.Context, delay time.Duration) error
+	client    *kgo.Client
+	committer offsetCommitter
+	tracer    *kotel.Tracer
+	handler   MessageHandler
+	dead      DeadLetter
+	logger    *slog.Logger
+	sleep     func(ctx context.Context, delay time.Duration) error
 }
 
 func NewOrderEventsConsumer(client *kgo.Client, tracer *kotel.Tracer, handler MessageHandler, dead DeadLetter, logger *slog.Logger) *OrderEventsConsumer {
-	return &OrderEventsConsumer{client: client, tracer: tracer, handler: handler, dead: dead, logger: logger, sleep: sleepContext}
+	return &OrderEventsConsumer{client: client, committer: client, tracer: tracer, handler: handler, dead: dead, logger: logger, sleep: sleepContext}
 }
 
 // Run consumes until ctx ends and returns nil. The message in progress is not
@@ -73,7 +79,7 @@ func (c *OrderEventsConsumer) processRecord(ctx context.Context, record *kgo.Rec
 	if err := c.process(ctx, messageOf(record)); err != nil {
 		return err
 	}
-	if err := c.client.CommitRecords(ctx, record); err != nil {
+	if err := c.committer.CommitRecords(ctx, record); err != nil {
 		c.logger.ErrorContext(ctx, "committing the offset failed; the message may be delivered again",
 			"topic", record.Topic, "partition", record.Partition, "offset", record.Offset, "error", err.Error())
 	}

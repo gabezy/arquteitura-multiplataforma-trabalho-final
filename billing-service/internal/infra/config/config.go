@@ -2,6 +2,7 @@
 package config
 
 import (
+	"fmt"
 	"log/slog"
 	"net"
 	"net/url"
@@ -20,6 +21,10 @@ const (
 	defaultOTelCollectorURL   = "http://localhost:4318"
 	defaultKafkaBrokers       = "localhost:9092"
 	defaultOutboxPollInterval = time.Second
+	defaultPSPBaseURL         = "http://localhost:8089"
+	defaultPaymentInterval    = 2 * time.Second
+	defaultReconcileInterval  = 30 * time.Second
+	defaultReconcileAfter     = 60 * time.Second
 	maxPort                   = 65535
 	maxPercentBps             = 10000
 )
@@ -40,6 +45,17 @@ type Config struct {
 	DeadLetterTopic string
 	// CommissionBps is the commission of each marketplace, in basis points (1100 is 11%).
 	CommissionBps map[string]int
+	// PSPBaseURL is the payment provider, PSPCallbackURL is where it reports the outcome of a charge, and
+	// PSPWebhookToken is the secret it sends along, which the webhook checks.
+	PSPBaseURL      string
+	PSPCallbackURL  string
+	PSPWebhookToken string
+	// PaymentPollInterval is how often the invoices that are due are charged, and ReconcileInterval how
+	// often the charges that stayed pending are asked about. A charge is asked about once it has been
+	// pending for more than ReconcileAfter, which gives the webhook time to arrive first.
+	PaymentPollInterval time.Duration
+	ReconcileInterval   time.Duration
+	ReconcileAfter      time.Duration
 }
 
 // Lookup reads one variable, like os.LookupEnv.
@@ -74,8 +90,9 @@ func FromEnv() (Config, error) {
 func Load(lookup Lookup) (Config, error) {
 	reader := reader{lookup: lookup}
 
+	port := reader.port()
 	cfg := Config{
-		Port:               reader.port(),
+		Port:               port,
 		LogLevel:           reader.logLevel(),
 		ServiceName:        reader.text("OTEL_SERVICE_NAME", defaultServiceName),
 		OTelCollectorURL:   reader.collectorURL(),
@@ -91,6 +108,13 @@ func Load(lookup Lookup) (Config, error) {
 			"MERCADO_LIVRE": reader.percentBps("COMMISSION_MERCADO_LIVRE_PERCENT", 1100),
 			"SHOPEE":        reader.percentBps("COMMISSION_SHOPEE_PERCENT", 1400),
 		},
+		PSPBaseURL: reader.httpURL("PSP_BASE_URL", defaultPSPBaseURL),
+		// The default reaches a service that runs on the host from the WireMock of the compose file.
+		PSPCallbackURL:      reader.httpURL("PSP_CALLBACK_URL", fmt.Sprintf("http://host.docker.internal:%d/webhooks/psp", port)),
+		PSPWebhookToken:     reader.required("PSP_WEBHOOK_TOKEN"),
+		PaymentPollInterval: reader.duration("PAYMENT_POLL_INTERVAL", defaultPaymentInterval),
+		ReconcileInterval:   reader.duration("RECONCILE_INTERVAL", defaultReconcileInterval),
+		ReconcileAfter:      reader.duration("RECONCILE_AFTER", defaultReconcileAfter),
 	}
 
 	if len(reader.problems) > 0 {
@@ -154,13 +178,25 @@ func (r *reader) logLevel() slog.Level {
 }
 
 func (r *reader) collectorURL() string {
-	raw, ok := r.value("OTEL_COLLECTOR_URL")
+	return r.httpURL("OTEL_COLLECTOR_URL", defaultOTelCollectorURL)
+}
+
+func (r *reader) httpURL(name, fallback string) string {
+	raw, ok := r.value(name)
 	if !ok {
-		return defaultOTelCollectorURL
+		return fallback
 	}
 	if !hasURLShape(raw, "http", "https") {
-		r.invalid("OTEL_COLLECTOR_URL", "must be an http or https URL with a host")
-		return ""
+		r.invalid(name, "must be an http or https URL with a host")
+		return fallback
+	}
+	return raw
+}
+
+func (r *reader) required(name string) string {
+	raw, ok := r.value(name)
+	if !ok {
+		r.invalid(name, "is required")
 	}
 	return raw
 }

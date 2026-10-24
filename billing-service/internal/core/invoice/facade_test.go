@@ -303,18 +303,31 @@ func TestCancelInvoiceCancelsAnIssuedInvoice(t *testing.T) {
 	}
 }
 
-// INV-11: a paid invoice keeps its state, and nothing is saved.
-func TestCancelInvoiceKeepsAPaidInvoice(t *testing.T) {
-	f := newFixture(t)
-	f.repository.seed(model.Snapshot{ID: "invoice-9", OrderID: orderID, Marketplace: model.MercadoLivre, Status: model.StatusPaid, IssuedAt: now, UpdatedAt: now})
-
-	outcome, err := f.facade.CancelInvoice(context.Background(), in.CancelInvoiceCommand{OrderID: orderID, Reason: "PAYMENT_FAILED"})
-
-	if err != nil || outcome != in.Unchanged {
-		t.Fatalf("CancelInvoice() = (%q, %v), want (UNCHANGED, nil)", outcome, err)
+// INV-11: an invoice that is paid, failed or already cancelled keeps its state, and nothing is saved. Only the
+// paid one is told apart, because it is the one whose money is not given back.
+func TestCancelInvoiceKeepsAnInvoiceThatCannotBeCancelled(t *testing.T) {
+	tests := []struct {
+		status model.Status
+		want   in.CancelOutcome
+	}{
+		{model.StatusPaid, in.KeptPaid},
+		{model.StatusPaymentFailed, in.Unchanged},
+		{model.StatusCancelled, in.Unchanged},
 	}
-	if len(f.repository.saved) != 0 {
-		t.Fatalf("saved %d invoices, want none", len(f.repository.saved))
+	for _, tt := range tests {
+		t.Run(string(tt.status), func(t *testing.T) {
+			f := newFixture(t)
+			f.repository.seed(model.Snapshot{ID: "invoice-9", OrderID: orderID, Marketplace: model.MercadoLivre, Status: tt.status, IssuedAt: now, UpdatedAt: now})
+
+			outcome, err := f.facade.CancelInvoice(context.Background(), in.CancelInvoiceCommand{OrderID: orderID, Reason: "PAYMENT_FAILED"})
+
+			if err != nil || outcome != tt.want {
+				t.Fatalf("CancelInvoice() = (%q, %v), want (%s, nil)", outcome, err, tt.want)
+			}
+			if len(f.repository.saved) != 0 {
+				t.Fatalf("saved %d invoices, want none", len(f.repository.saved))
+			}
+		})
 	}
 }
 

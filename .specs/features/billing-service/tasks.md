@@ -551,8 +551,8 @@ T18 → T19 → T20 → T21 → T22 → T23
 
 **Done when**:
 
-- [ ] Three alternatives with trade-offs, negatives and two references
-- [ ] Gate check passes: docs gate
+- [x] Three alternatives with trade-offs, negatives and two references
+- [x] Gate check passes: docs gate
 
 **Tests**: none
 **Gate**: docs
@@ -576,10 +576,10 @@ T18 → T19 → T20 → T21 → T22 → T23
 
 **Done when**:
 
-- [ ] Every row of the status machine in the design has a test
-- [ ] Unavailable PSP increments attempts and schedules min(2^n, 60) s; refused fails the invoice; accepted stores the charge id
-- [ ] Repeated outcome is unchanged; contradicting outcome is `ConflictError`
-- [ ] Gate check passes: quick gate; test count ≥ 15
+- [x] Every row of the status machine in the design has a test
+- [x] Unavailable PSP increments attempts and schedules min(2^n, 60) s; refused fails the invoice; accepted stores the charge id
+- [x] Repeated outcome is unchanged; contradicting outcome is `ConflictError`
+- [x] Gate check passes: quick gate; test count ≥ 15
 
 **Tests**: unit
 **Gate**: quick
@@ -603,9 +603,9 @@ T18 → T19 → T20 → T21 → T22 → T23
 
 **Done when**:
 
-- [ ] Two concurrent `LockNextDue` never return the same invoice
-- [ ] Only due `ISSUED` invoices are returned; only pending ones older than the cut are listed
-- [ ] Gate check passes: full gate; test count ≥ 5
+- [x] Two concurrent `LockNextDue` never return the same invoice
+- [x] Only due `ISSUED` invoices are returned; only pending ones older than the cut are listed
+- [x] Gate check passes: full gate; test count ≥ 5
 
 **Tests**: integration
 **Gate**: full
@@ -629,9 +629,9 @@ T18 → T19 → T20 → T21 → T22 → T23
 
 **Done when**:
 
-- [ ] Against WireMock with the real mappings: approved, refused (≥ R$ 100.000,00) and status query behave as the design says
-- [ ] With `httptest`: timeout and 5xx are retried 3 times; 422 is not retried; 5 failures open the circuit
-- [ ] Gate check passes: full gate; test count ≥ 8
+- [x] Against WireMock with the real mappings: approved, refused (≥ R$ 100.000,00) and status query behave as the design says
+- [x] With `httptest`: timeout and 5xx are retried 3 times; 422 is not retried; 5 failures open the circuit
+- [x] Gate check passes: full gate; test count ≥ 8
 
 **Tests**: integration
 **Gate**: full
@@ -642,7 +642,7 @@ T18 → T19 → T20 → T21 → T22 → T23
 
 #### T22: PSP webhook
 
-**What**: `POST /webhooks/psp` with token check, body validation and translation to `ApplyPaymentResult`.
+**What**: `POST /webhooks/psp` with token check, body validation and translation to `ApplyPaymentResult`, plus what the outcome needs to be seen: the outbox mapping of `PaymentConfirmed` and `PaymentFailed` to their catalog contracts and the payment fields of the invoice API.
 **Where**: `billing-service/internal/infra/httpapi/`
 **Depends on**: T21
 **Reuses**: problem details from T6
@@ -655,8 +655,8 @@ T18 → T19 → T20 → T21 → T22 → T23
 
 **Done when**:
 
-- [ ] 204 for applied and repeated outcomes, 401 for a bad token, 400 for a bad body, 404 for an unknown invoice, 409 for a conflict
-- [ ] Gate check passes: quick gate; test count ≥ 7
+- [x] 204 for applied and repeated outcomes, 401 for a bad token, 400 for a bad body, 404 for an unknown invoice, 409 for a conflict
+- [x] Gate check passes: quick gate; test count ≥ 7
 
 **Tests**: unit
 **Gate**: quick
@@ -680,9 +680,9 @@ T18 → T19 → T20 → T21 → T22 → T23
 
 **Done when**:
 
-- [ ] Workers drain due work, stop on an unavailable PSP and on cancel (unit)
-- [ ] With `make up`: one iPhone ends `PAID`, seven iPhones end `PAYMENT_FAILED`, the outage stub opens the circuit
-- [ ] Gate check passes: build gate; test count ≥ 5 in `internal/infra/worker`
+- [x] Workers drain due work, stop on an unavailable PSP and on cancel (unit)
+- [x] With `make up`: one iPhone ends `PAID`, seven iPhones end `PAYMENT_FAILED`, the outage stub opens the circuit
+- [x] Gate check passes: build gate; test count ≥ 5 in `internal/infra/worker`
 
 **Tests**: unit
 **Gate**: build
