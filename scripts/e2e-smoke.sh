@@ -97,4 +97,42 @@ wait_for compliance "analysisStatus de $PROHIBITED_TERM" REJECTED product_field 
 wait_for compliance "analysisStatus de $ABOVE_CEILING" REJECTED product_field "$ABOVE_CEILING" analysisStatus
 ok compliance
 
+# Until the order-service publishes orders (#20), the test publishes the order events itself.
+# MSYS_NO_PATHCONV keeps Git Bash from rewriting the /opt/... paths given to docker exec.
+publish() {
+  printf '%s|%s\n' "$2" "$3" | MSYS_NO_PATHCONV=1 docker exec -i kafka /opt/kafka/bin/kafka-console-producer.sh \
+    --bootstrap-server kafka:19092 --topic "$1" \
+    --reader-property parse.key=true --reader-property key.separator='|' > /dev/null 2>&1
+}
+messages_keyed() {
+  MSYS_NO_PATHCONV=1 docker exec kafka /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server kafka:19092 \
+    --topic "$1" --from-beginning --timeout-ms 5000 --formatter-property print.key=true 2>/dev/null \
+    | grep -c "^$2"
+}
+order=$(printf '%04x%04x-%04x-4%03x-%04x-%04x%04x%04x' $RANDOM $RANDOM $RANDOM $((RANDOM & 0xfff)) \
+  $(((RANDOM & 0x3fff) | 0x8000)) $RANDOM $RANDOM $RANDOM)
+
+wait_for "estoque: reserva" "estoque inicial de $APPROVED" 2 product_field "$APPROVED" stock
+publish order.order.placed.v1 "$order" "{\"orderId\":\"$order\",\"items\":[{\"sku\":\"$APPROVED\",\"quantity\":1}]}" \
+  || fail "estoque: reserva" "nao foi possivel publicar order.order.placed.v1"
+wait_for "estoque: reserva" "estoque de $APPROVED" 1 product_field "$APPROVED" stock
+wait_for "estoque: reserva" "mensagens em catalog.stock.reserved.v1 com a chave $order" 1 \
+  messages_keyed catalog.stock.reserved.v1 "$order"
+ok "estoque: reserva"
+
+publish order.order.cancelled.v1 "$order" "{\"orderId\":\"$order\",\"reason\":\"PAYMENT_FAILED\"}" \
+  || fail "estoque: devolucao" "nao foi possivel publicar order.order.cancelled.v1"
+wait_for "estoque: devolucao" "estoque de $APPROVED" 2 product_field "$APPROVED" stock
+ok "estoque: devolucao"
+
+# Steps of the services still under construction; the final version of #37 automates them.
+pending "anuncio nos marketplaces (#21)"
+pending "pedido recebido do marketplace (#20, #22)"
+pending "confirmacao do pedido (#20, #29)"
+pending "cobranca (#23)"
+
 summary
+if [ "${E2E_STRICT:-}" = 1 ] && [ "$pending" -gt 0 ]; then
+  echo "[FALHA] E2E_STRICT=1 e ha $pending etapa(s) pendente(s)"
+  exit 1
+fi

@@ -164,8 +164,8 @@ The demo script (#27) proves the flow by hand, and nothing re-checks it when a s
 | E2E-06 | P1 Run: 401 without token | Execute | Implementing |
 | E2E-07 | P1 Run: import with `importedProducts` 3 | Execute | Implementing |
 | E2E-08 | P1 Run: compliance statuses | Execute | Implementing |
-| E2E-09 | P1 Run: reservation (stock 1 and `reserved`) | Execute | Pending |
-| E2E-10 | P1 Run: cancellation (stock 2) | Execute | Pending |
+| E2E-09 | P1 Run: reservation (stock 1 and `reserved`) | Execute | Implementing |
+| E2E-10 | P1 Run: cancellation (stock 2) | Execute | Implementing |
 | E2E-11 | P1 Run: `[OK]` lines and exit 0 | Execute | Implementing |
 | E2E-12 | P1 Fail: `[FALHA]` and exit 1, stop | Execute | Implementing |
 | E2E-13 | P1 Fail: stack timeout lists unhealthy services | Execute | Implementing |
@@ -173,10 +173,10 @@ The demo script (#27) proves the flow by hand, and nothing re-checks it when a s
 | E2E-15 | P1 Repeat: run-unique SKUs | Execute | Implementing |
 | E2E-16 | P1 Repeat: two runs pass | Execute | Implementing |
 | E2E-17 | P1 Repeat: no deletion | Execute | Implementing |
-| E2E-18 | P1 Pending: four `[PENDENTE]` lines | Execute | Pending |
-| E2E-19 | P1 Pending: exit 0 without strict | Execute | Pending |
-| E2E-20 | P1 Pending: exit 1 with `E2E_STRICT=1` | Execute | Pending |
-| E2E-21 | P1 Pending: summary line | Execute | Pending |
+| E2E-18 | P1 Pending: four `[PENDENTE]` lines | Execute | Implementing |
+| E2E-19 | P1 Pending: exit 0 without strict | Execute | Implementing |
+| E2E-20 | P1 Pending: exit 1 with `E2E_STRICT=1` | Execute | Implementing |
+| E2E-21 | P1 Pending: summary line | Execute | Implementing |
 | E2E-22 | P2 Docs: README section | Execute | Pending |
 | E2E-23 | P2 Docs: `e2e` in `make help` | Execute | Pending |
 

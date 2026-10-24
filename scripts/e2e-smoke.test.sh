@@ -55,6 +55,19 @@ check "second run on the same environment exits 0 (E2E-16)" '[ "$code" = 0 ]'
 second_run=$(sed -n 's/^Execucao: //p' <<< "$output")
 check "each run uses a different run id in the SKUs (E2E-15)" '[ -n "$first_run" ] && [ "$first_run" != "$second_run" ]'
 
+# E2E-09, E2E-10, E2E-18, E2E-19, E2E-21 (output of the previous run)
+check "reserves and gives back the stock after compliance (E2E-09, E2E-10)" \
+  '[ "$(ok_lines)" = "[OK] ambiente|[OK] autenticacao|[OK] importacao|[OK] compliance|[OK] estoque: reserva|[OK] estoque: devolucao|" ]'
+check "lists the four pending steps (E2E-18)" \
+  '[ "$(grep "^\[PENDENTE\]" <<< "$output" | tr "\n" "|")" = "[PENDENTE] anuncio nos marketplaces (#21)|[PENDENTE] pedido recebido do marketplace (#20, #22)|[PENDENTE] confirmacao do pedido (#20, #29)|[PENDENTE] cobranca (#23)|" ]'
+check "pending steps alone keep exit 0 without E2E_STRICT (E2E-19)" '[ "$code" = 0 ]'
+check "prints the summary of passed, failed and pending steps (E2E-21)" 'has "Resumo: 6 ok, 0 falha(s), 4 pendente(s)"'
+
+# E2E-20
+e2e E2E_SKIP_UP=1 E2E_STRICT=1
+check "E2E_STRICT=1 fails the run when steps are pending (E2E-20)" \
+  '[ "$code" = 1 ] && has "Resumo: 6 ok, 0 falha(s), 4 pendente(s)" && has "[FALHA] E2E_STRICT=1 e ha 4 etapa(s) pendente(s)"'
+
 # E2E-12, E2E-14: compliance cannot reach Kafka, so the products stay PENDING
 isolate compliance-service
 e2e E2E_SKIP_UP=1
