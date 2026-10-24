@@ -457,6 +457,15 @@ Os serviços internos não validam token: a autenticação e a autorização por
 
 O catalog responde erros em `application/problem+json`: 422 para validação, 404 para não encontrado e 409 para conflito (ex.: SKU repetido na importação).
 
+## Divergências conhecidas
+
+| # | Divergência | Impacto | Sugestão |
+|---|---|---|---|
+| 1 | O compliance publica com `ce_source=compliance-service`. Os outros serviços usam `/catalog-service` e `/order-service` | Só cosmético hoje; filtros por `ce_source` precisam tratar os dois formatos | Trocar para `/compliance-service` (follow-up do compliance) |
+| 2 | O compliance gera um `ce_id` novo a cada publicação de `produto.analisado.v1`, então uma reanálise reentregue sai com outro id | Um consumidor que deduplique só por `ce_id` processaria duas vezes. O catalog não sofre, porque é idempotente pelo estado do produto | Derivar o `ce_id` do evento de entrada (ex.: UUIDv5 do `ce_id` consumido), ou gravar o resultado e publicá-lo via outbox |
+| 3 | `produto.analisado.v1` foge do padrão de nome (português, sem o serviço) | Só de convenção | Manter até a entrega. Se mudar, publicar `compliance.product.analyzed.v1` em paralelo e migrar o catalog |
+| 4 | `catalog.product.rejected.v1` não tem consumidor | Nenhum | Manter para auditoria (Fiscal) e relatórios |
+
 ## Como adicionar ou mudar um evento
 
 1. Abrir um PR alterando este arquivo, com a ficha do evento no estado **Proposto**, e marcar os donos do produtor e dos consumidores.
