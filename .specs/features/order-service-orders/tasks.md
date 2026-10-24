@@ -174,11 +174,11 @@ T8 → T9 → T10
 
 **Done when**:
 
-- [ ] A new order round trips with its items and money in cents
-- [ ] The unique marketplace and external order id raises `ConcurrentModificationError`
-- [ ] A stale version raises `ConcurrentModificationError`
-- [ ] List filters, pagination and order; report counts only `CONFIRMED` and `PAID` inside the period
-- [ ] Gate check passes: full gate; test count ≥ 10
+- [x] A new order round trips with its items and money in cents
+- [x] The unique marketplace and external order id raises `ConcurrentModificationError`
+- [x] A stale version raises `ConcurrentModificationError`
+- [x] List filters, pagination and order; the report counts only the statuses it is asked for (the facade asks for `CONFIRMED` and `PAID`), from the first instant of the period to just before its end
+- [x] Gate check passes: full gate; test count ≥ 10
 
 **Tests**: integration
 **Gate**: full

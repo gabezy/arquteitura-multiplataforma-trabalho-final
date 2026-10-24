@@ -161,7 +161,7 @@ Every ambiguity is resolved or recorded here - nothing is left silently unclear.
 | --- | --- | --- | --- |
 | ORD-01 | P1: Receive the marketplace order | Tasks T2, T3, T4, T5, T7 | Implementing |
 | ORD-02 | P1: Receive the marketplace order | Tasks T3, T4 | Implementing |
-| ORD-03 | P1: Receive the marketplace order | Tasks T4 | In Tasks |
+| ORD-03 | P1: Receive the marketplace order | Tasks T4 | Implementing |
 | ORD-04 | P1: Receive the marketplace order | Tasks T2, T7 | Implementing |
 | ORD-05 | P1: Receive the marketplace order | Tasks T7 | In Tasks |
 | STK-01 | P1: Follow the stock answer | Tasks T2, T3, T5, T7 | Implementing |
@@ -174,10 +174,10 @@ Every ambiguity is resolved or recorded here - nothing is left silently unclear.
 | PAY-04 | P1: Follow the payment result | Tasks T3, T7 | Implementing |
 | API-01 | P1: Query the orders | Tasks T3, T6 | Implementing |
 | API-02 | P1: Query the orders | Tasks T6 | In Tasks |
-| API-03 | P1: Query the orders | Tasks T4, T6 | In Tasks |
+| API-03 | P1: Query the orders | Tasks T4, T6 | Implementing |
 | API-04 | P1: Query the orders | Tasks T6 | In Tasks |
 | RPT-01 | P2: Sales report by marketplace | Tasks T3, T4, T6 | Implementing |
-| RPT-02 | P2: Sales report by marketplace | Tasks T4 | In Tasks |
+| RPT-02 | P2: Sales report by marketplace | Tasks T4 | Implementing |
 | RPT-03 | P2: Sales report by marketplace | Tasks T6 | In Tasks |
 | RPT-04 | P2: Sales report by marketplace | Tasks T9 | In Tasks |
 | INF-01 | P2: Infrastructure and documentation | Tasks T8 | In Tasks |
