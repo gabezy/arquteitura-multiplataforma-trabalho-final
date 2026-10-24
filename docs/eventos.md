@@ -221,6 +221,129 @@ Algum item não tinha estoque, e nada foi baixado. O order-service cancela o ped
 }
 ```
 
+---
+
+## Contratos propostos
+
+Precisam da aprovação do dono indicado. Os nomes de campo seguem as convenções acima. Os detalhes que dependem de uma ADR ainda aberta estão marcados.
+
+### `marketplace.order.received.v1`
+
+**Estado:** Proposto · **A aprovar:** @diegodiogenes (produtor, #22) e @RodrigoPretes-257199 (consumidor, #20) · **Depende de:** ADR #12 (webhook ou polling)
+
+Pedido recebido de um marketplace, já traduzido para o formato canônico pela anti-corruption layer do marketplace-gateway.
+
+| Campo | Tipo | Regra |
+|---|---|---|
+| `marketplace` | `"AMAZON"` \| `"MERCADO_LIVRE"` \| `"SHOPEE"` | |
+| `externalOrderId` | string | id do pedido no marketplace |
+| `items` | array, mín. 1, de `{ sku, quantity, unitPrice }` | `sku` do catálogo (o anúncio é feito pelo SKU), `quantity` > 0, `unitPrice` ≥ 0 |
+| `total` | number | soma dos itens, como o marketplace informou |
+| `orderedAt` | string (ISO-8601) | data do pedido no marketplace |
+
+```json
+{
+  "marketplace": "MERCADO_LIVRE",
+  "externalOrderId": "ML-2000001",
+  "items": [{ "sku": "NB-001", "quantity": 1, "unitPrice": 4500 }],
+  "total": 4500,
+  "orderedAt": "2026-10-28T13:05:00Z"
+}
+```
+
+- **Chave e `ce_subject`:** `<marketplace>:<externalOrderId>` (ex.: `MERCADO_LIVRE:ML-2000001`). O pedido ainda não tem id interno nesse ponto, e é por essa dupla que o order-service garante a idempotência pedida na #20.
+- **Deduplicação dupla:**
+  - o marketplace-gateway não publica o mesmo pedido duas vezes (#22);
+  - o order-service ignora um `marketplace + externalOrderId` que já existe, mesmo vindo com outro `ce_id`.
+- **DLQ do consumidor:** `order.marketplace-order.dlq`.
+- **Em aberto:** dados do comprador e do frete ficam fora até algum serviço precisar deles.
+
+### `order.order.confirmed.v1`
+
+**Estado:** Proposto · **A aprovar:** @RodrigoPretes-257199 (produtor, #20) e @paulnune (consumidor, #23) · **Origem:** ADR-0004
+
+O estoque do pedido foi reservado (`catalog.stock.reserved.v1`), então o pedido está confirmado. É o gatilho da cobrança: o billing só cobra a partir dele.
+
+| Campo | Tipo | Regra |
+|---|---|---|
+| `orderId` | string (UUID) | |
+| `marketplace` | string | como no `placed` |
+| `externalOrderId` | string | como no `placed` |
+| `items` | array de `{ sku, quantity, unitPrice }` | |
+| `total` | number | soma de `quantity × unitPrice` |
+| `confirmedAt` | string (ISO-8601) | |
+
+```json
+{
+  "orderId": "6f1c2b8e-0000-4000-8000-000000000001",
+  "marketplace": "MERCADO_LIVRE",
+  "externalOrderId": "ML-2000001",
+  "items": [{ "sku": "NB-001", "quantity": 1, "unitPrice": 4500 }],
+  "total": 4500,
+  "confirmedAt": "2026-10-28T13:05:02Z"
+}
+```
+
+O billing deduplica por `orderId`, já que um pedido gera exatamente uma cobrança (#23). DLQ do consumidor: `billing.order-confirmed.dlq`.
+
+### `marketplace.listing.published.v1` e `marketplace.listing.failed.v1`
+
+**Estado:** Proposto · **A aprovar:** @diegodiogenes (#21) · **Depende de:** ADR #12
+
+Resultado da publicação de um produto aprovado em **um** marketplace. Um produto gera um evento por marketplace.
+
+| Campo | Tipo | Evento |
+|---|---|---|
+| `productId` | string (UUID) | ambos |
+| `sku` | string | ambos |
+| `marketplace` | string | ambos |
+| `externalListingId` | string | `published` |
+| `publishedAt` | string (ISO-8601) | `published` |
+| `reason` | string | `failed`: motivo da última tentativa |
+| `attempts` | integer | `failed`: tentativas feitas antes de desistir |
+
+```json
+{ "productId": "0b8f2c1e-6a4d-4d1e-9a51-3f0f1b2c7d10", "sku": "NB-001", "marketplace": "SHOPEE", "reason": "HTTP 503 after retries", "attempts": 3 }
+```
+
+Ainda não há consumidor: o status dos anúncios é consultado pela API do marketplace-gateway (#35). Os eventos ficam para auditoria e para o dashboard (#36).
+
+### `billing.invoice.issued.v1`
+
+**Estado:** Proposto · **A aprovar:** @paulnune (#11, #23) · **Depende de:** ADR #11 (o que é cobrado, de quem e quando)
+
+| Campo | Tipo |
+|---|---|
+| `invoiceId` | string (UUID) |
+| `orderId` | string (UUID) |
+| `marketplace` | string |
+| `amount` | number |
+| `issuedAt` | string (ISO-8601) |
+
+```json
+{ "invoiceId": "a3c1d5e2-7b4f-4c8a-9e10-2d3f4a5b6c7d", "orderId": "6f1c2b8e-0000-4000-8000-000000000001", "marketplace": "MERCADO_LIVRE", "amount": 4500, "issuedAt": "2026-10-28T13:05:03Z" }
+```
+
+O valor depende do escopo da ADR #11. Se a cobrança for a comissão do Omni Market, o `amount` é a comissão, e não o total do pedido.
+
+### `billing.payment.confirmed.v1` e `billing.payment.failed.v1`
+
+**Estado:** Proposto · **A aprovar:** @paulnune (produtor, #32) e @RodrigoPretes-257199 (consumidor) · **Depende de:** ADR #11 e simulador do PSP (#26)
+
+| Campo | Tipo | Evento |
+|---|---|---|
+| `invoiceId` | string (UUID) | ambos |
+| `orderId` | string (UUID) | ambos |
+| `amount` | number | ambos |
+| `pspTransactionId` | string | `confirmed` |
+| `paidAt` | string (ISO-8601) | `confirmed` |
+| `reason` | string | `failed` (ex.: `CARD_DECLINED`, `PSP_TIMEOUT`) |
+| `failedAt` | string (ISO-8601) | `failed` |
+
+- Com `failed`, o order-service cancela o pedido com `reason: PAYMENT_FAILED`. O catalog devolve o estoque, e o marketplace-gateway cancela no marketplace (ADR-0004).
+- Com `confirmed`, o order-service pode marcar o pedido como pago. A decisão é da #20.
+- DLQ do consumidor no order: `order.billing-payment.dlq`.
+
 ## Como adicionar ou mudar um evento
 
 1. Abrir um PR alterando este arquivo, com a ficha do evento no estado **Proposto**, e marcar os donos do produtor e dos consumidores.
