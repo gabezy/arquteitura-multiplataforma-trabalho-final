@@ -303,12 +303,22 @@ Source: the 110 `push` runs of `gh api repos/gabezy/arquteitura-multiplataforma-
 
 **Done when**:
 
-- [ ] `billing-service` shows `Go 1.27, net/http` and `marketplace-gateway` shows `Node.js 22, TypeScript, Express 5` (PLAT-19, PLAT-20)
-- [ ] `billing-db` and `marketplace-db` show the descriptions of PLAT-21
-- [ ] `grep -ci 'a definir'` on the `.drawio` prints `0` (PLAT-22)
+- [x] `billing-service` shows `Go 1.27, net/http` and `marketplace-gateway` shows `Node.js 22, TypeScript, Express 5` (PLAT-19, PLAT-20)
+- [x] `billing-db` and `marketplace-db` show the descriptions of PLAT-21
+- [x] `grep -ci 'a definir'` on the `.drawio` prints `0` (PLAT-22)
 - [ ] The re-exported PNG shows the four new labels; the PNG export is done by a person with draw.io desktop, since the CLI is not installed (PLAT-22)
-- [ ] The `.drawio` still opens in draw.io with no other change to the diagram
-- [ ] PLAT-19..22 marked `Implementing`
+- [x] The `.drawio` still opens in draw.io with no other change to the diagram
+- [x] PLAT-19..22 marked `Implementing`
 
 **Tests**: none (static check)
 **Gate**: Static
+
+**Evidence (2026-10-24):**
+
+- `.drawio` attributes changed (4 lines, nothing else): `marketplace-gateway` `c4Technology="Node.js 22, TypeScript, Express 5"`, `billing-service` `c4Technology="Go 1.27, net/http"`, `billing-db` `c4Description="Faturas, pagamentos, outbox e inbox"`, `marketplace-db` `c4Description="Anúncios, pedidos recebidos, cursores de polling, outbox e inbox"` (PLAT-19..21).
+- `grep -ci 'a definir'` on the `.drawio` → `0` (PLAT-22, `.drawio` half).
+- `xml.dom.minidom.parse` on the `.drawio` → parses with no error.
+- Executed before T6, so the spec copy made in T6 includes this task's status.
+- **Pending (human):** open the `.drawio` in draw.io desktop and export the `C4 - Container` page over `docs/c4/Omni Market - C4 Model Contexto-C4 - Container.drawio.png`. The PNG still shows the old labels (PLAT-22, PNG half).
+
+**Status**: ⚠️ Partial (PNG export pending)

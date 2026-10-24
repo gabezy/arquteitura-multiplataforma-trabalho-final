@@ -185,10 +185,10 @@ The order-service, billing-service and marketplace-gateway need their own databa
 | PLAT-16 | P2: Ports - 8085 only for Keycloak | T2 | Implementing |
 | PLAT-17 | P2: Ports - README services table | Tasks | Pending |
 | PLAT-18 | P2: Ports - README components table | Tasks | Pending |
-| PLAT-19 | P2: C4 - `billing-service` technology | Tasks | Pending |
-| PLAT-20 | P2: C4 - `marketplace-gateway` technology | Tasks | Pending |
-| PLAT-21 | P2: C4 - `billing-db` and `marketplace-db` descriptions | Tasks | Pending |
-| PLAT-22 | P2: C4 - no `a definir` left in `.drawio` or PNG | Tasks | Pending |
+| PLAT-19 | P2: C4 - `billing-service` technology | T7 | Implementing |
+| PLAT-20 | P2: C4 - `marketplace-gateway` technology | T7 | Implementing |
+| PLAT-21 | P2: C4 - `billing-db` and `marketplace-db` descriptions | T7 | Implementing |
+| PLAT-22 | P2: C4 - no `a definir` left in `.drawio` or PNG | T7 | Implementing (PNG export pending) |
 
 **ID format:** `PLAT-NN` (platform).
 
