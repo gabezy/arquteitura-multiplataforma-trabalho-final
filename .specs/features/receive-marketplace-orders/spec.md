@@ -50,7 +50,7 @@ The marketplace-gateway (#22) already polls the marketplaces and publishes `mark
 | States in #20 | The status column and the API accept `RECEIVED`, `CONFIRMED`, `PAID`, `CANCELLED`; #20 only creates `RECEIVED` | The BFF filter and enum use the four values; the transitions and their guards come with their triggers in #29 | y |
 | Timestamps | `createdAt` and `updatedAt` are when the order-service saved the order; the marketplace date is kept as `orderedAt` and also returned by the API | The BFF reads `createdAt`/`updatedAt` (ignores unknown fields); #31 may need `orderedAt` | y |
 | API errors | Invalid query or path parameter → 422 `application/problem+json`; unknown id → 404 | Existing error handler categories; the BFF turns 400/422 into its own 400 and 404 into 404 | y |
-| List order | `createdAt` descending, then `id` | The BFF mock and doc promise newest first; `id` makes pages stable | y |
+| List order | `createdAt` descending, then `id` descending | The BFF mock and doc promise newest first; `id` makes pages stable | y |
 | Contract approval | Mark `marketplace.order.received.v1`, `order.order.placed.v1` and the BFF → order REST call as Implementado in `docs/eventos.md` in the same PR | The owner of the consumer side (us) approves by implementing; both sides then exist | y |
 
 **Open questions:** none - all resolved or logged above.
@@ -123,7 +123,7 @@ The marketplace-gateway (#22) already polls the marketplaces and publishes `mark
 
 **Acceptance Criteria**:
 
-1. WHEN `GET /orders` is called THEN the order-service SHALL answer 200 with `{ "orders": [...], "limit": <n>, "offset": <n> }`, orders sorted by `createdAt` descending and then by `id`.  <!-- event-driven -->
+1. WHEN `GET /orders` is called THEN the order-service SHALL answer 200 with `{ "orders": [...], "limit": <n>, "offset": <n> }`, orders sorted by `createdAt` descending and then by `id` descending.  <!-- event-driven -->
 2. The order-service SHALL represent each order as `{ id, marketplace, externalOrderId, status, total, items: [{ sku, quantity, unitPrice }], cancellationReason, orderedAt, createdAt, updatedAt }`, with money as JSON numbers in reais and instants as ISO-8601 in UTC.  <!-- ubiquitous -->
 3. WHEN `marketplace` and/or `status` are given THEN the order-service SHALL return only the orders that match all given filters.  <!-- event-driven -->
 4. WHEN `limit` or `offset` is omitted THEN the order-service SHALL use `limit` 20 and `offset` 0 and echo them in the response.  <!-- event-driven -->
@@ -184,15 +184,15 @@ The marketplace-gateway (#22) already polls the marketplaces and publishes `mark
 | --- | --- | --- | --- |
 | ORDER-01 | P1: received order becomes an order (AC 1) | T1, T2 | Implementing |
 | ORDER-02 | P1: received order becomes an order (AC 2) | T1 | Implementing |
-| ORDER-03 | P1: received order becomes an order (AC 3) | T3 | In Tasks |
-| ORDER-04 | P1: received order becomes an order (AC 4) | T3 | In Tasks |
+| ORDER-03 | P1: received order becomes an order (AC 3) | T3 | Implementing |
+| ORDER-04 | P1: received order becomes an order (AC 4) | T3 | Implementing |
 | ORDER-05 | P1: received order becomes an order (AC 5) | T5 | In Tasks |
 | ORDER-06 | P1: received order becomes an order (AC 6) | T1 | Implementing |
 | ORDER-07 | P1: received order becomes an order (AC 7) | T5, T7 | In Tasks |
-| ORDER-08 | P1: redelivery (AC 1) | T3, T5 | In Tasks |
+| ORDER-08 | P1: redelivery (AC 1) | T3, T5 | Implementing |
 | ORDER-09 | P1: redelivery (AC 2) | T2, T3 | Implementing |
-| ORDER-10 | P1: redelivery (AC 3) | T3 | In Tasks |
-| ORDER-11 | P1: redelivery (AC 4) | T3 | In Tasks |
+| ORDER-10 | P1: redelivery (AC 3) | T3 | Implementing |
+| ORDER-11 | P1: redelivery (AC 4) | T3 | Implementing |
 | ORDER-12 | P1: DLQ (AC 1) | T5 | In Tasks |
 | ORDER-13 | P1: DLQ (AC 2) | T5 | In Tasks |
 | ORDER-14 | P1: DLQ (AC 3) | T5 | In Tasks |

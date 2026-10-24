@@ -143,7 +143,7 @@ T7 → T8
 
 ### T3: Persist received orders with inbox and outbox in one transaction
 
-**What**: migration `create_orders_tables` (`orders`: `id` uuid PK, `marketplace`, `external_order_id`, `status`, `total` `decimal(14,2)`, `cancellation_reason` null, `ordered_at`, `created_at`, `updated_at`, unique `(marketplace, external_order_id)`, index `(created_at desc, id)`; `order_items`: `order_id` FK, `line`, `sku`, `quantity`, `unit_price` `decimal(14,2)`, PK `(order_id, line)`), the `order.order.placed.v1` mapper in `infra/messaging/order.integration-events.ts`, and the write side of `KnexOrderRepository.saveReceived`: one transaction that inserts the order with `on conflict do nothing`, its items, the `processed_events` row (when there is an `eventId`, `on conflict do nothing`) and the outbox row only when the order was created.
+**What**: migration `create_orders_tables` (`orders`: `id` uuid PK, `marketplace`, `external_order_id`, `status`, `total` `decimal(14,2)`, `cancellation_reason` null, `ordered_at`, `created_at`, `updated_at`, unique `(marketplace, external_order_id)`, index `(created_at, id)` (scanned backwards); `order_items`: `order_id` FK, `line`, `sku`, `quantity`, `unit_price` `decimal(14,2)`, PK `(order_id, line)`), the `order.order.placed.v1` mapper in `infra/messaging/order.integration-events.ts`, and the write side of `KnexOrderRepository.saveReceived`: one transaction that inserts the order with `on conflict do nothing`, its items, the `processed_events` row (when there is an `eventId`, `on conflict do nothing`) and the outbox row only when the order was created.
 **Where**: `order-service/src/infra/persistence/knex-order.repository.ts` (plus the migration and the mapper)
 **Depends on**: T2
 **Reuses**: `KnexOutboxRepository.append`, `processed_events` table, `migrations.spec.ts` Testcontainers setup
@@ -156,28 +156,30 @@ T7 → T8
 
 **Done when**:
 
-- [ ] Migration up creates both tables with the columns, the unique constraint and the index; down drops them; re-run applies nothing
-- [ ] Mapper: `OrderPlaced` → type `order.order.placed.v1`, data `{ orderId, marketplace, externalOrderId, items: [{ sku, quantity, unitPrice }] }` with `unitPrice` in reais; an unmapped event throws
-- [ ] A new order writes 1 `orders` row, N `order_items` rows, 1 `processed_events` row and 1 outbox row with key = order id, and returns `true`
-- [ ] The same `marketplace + externalOrderId` with a new `eventId` writes only the `processed_events` row and returns `false`; the stored order is unchanged
-- [ ] Two concurrent `saveReceived` of the same marketplace order leave 1 order and 1 outbox row
-- [ ] A failure in the outbox append (mapper throws) leaves no `orders`, `order_items` or `processed_events` row
-- [ ] `total` and `unit_price` read back exactly (`18689.90`, `0.00`)
-- [ ] Gate check passes: `cd order-service && npm run typecheck && npm test`
-- [ ] Test count: at least 9 new tests pass
+- [x] Migration up creates both tables with the columns, the unique constraint and the index; down drops them; re-run applies nothing
+- [x] Mapper: `OrderPlaced` → type `order.order.placed.v1`, data `{ orderId, marketplace, externalOrderId, items: [{ sku, quantity, unitPrice }] }` with `unitPrice` in reais; an unmapped event throws
+- [x] A new order writes 1 `orders` row, N `order_items` rows, 1 `processed_events` row and 1 outbox row with key = order id, and returns `true`
+- [x] The same `marketplace + externalOrderId` with a new `eventId` writes only the `processed_events` row and returns `false`; the stored order is unchanged
+- [x] Two concurrent `saveReceived` of the same marketplace order leave 1 order and 1 outbox row
+- [x] A failure in the outbox append (mapper throws) leaves no `orders`, `order_items` or `processed_events` row
+- [x] `total` and `unit_price` read back exactly (`18689.90`, `0.00`)
+- [x] Gate check passes: `cd order-service && npm run typecheck && npm test`
+- [x] Test count: 10 new tests pass (`knex-order.repository.spec.ts` 7, `order.integration-events.spec.ts` 2, `migrations.spec.ts` 1); 115 in total
 
 **Tests**: integration
 **Gate**: full
 
 **Commit**: `feat(order): persiste o pedido recebido com inbox e outbox na mesma transação`
 
-**Status**: Pending
+**Status**: ✅ Complete
+
+**Deviations**: `migrations.spec.ts` and `migration-source.spec.ts` list the migrations by name; both lists were extended with `20261024120000_create_orders_tables` (no assertion removed). The list tiebreaker was made precise in the spec: `id` descending.
 
 ---
 
 ### T4: Add the read side of the order repository
 
-**What**: `KnexOrderRepository.findById` and `list({ marketplace?, status? }, { limit, offset })`, sorted by `created_at desc, id`, rebuilding `Order` with its items in line order and money from `decimal` strings.
+**What**: `KnexOrderRepository.findById` and `list({ marketplace?, status? }, { limit, offset })`, sorted by `created_at desc, id desc`, rebuilding `Order` with its items in line order and money from `decimal` strings.
 **Where**: `order-service/src/infra/persistence/knex-order.repository.ts` (modify)
 **Depends on**: T3
 **Reuses**: T3 test setup
@@ -191,7 +193,7 @@ T7 → T8
 **Done when**:
 
 - [ ] `findById` returns the order with all fields and items in line order; an unknown id returns `null`
-- [ ] `list` with no filter returns newest first, with `id` as tiebreaker for equal `created_at`
+- [ ] `list` with no filter returns newest first, with `id` descending as tiebreaker for equal `created_at`
 - [ ] Filter by `marketplace`, by `status` and by both returns only matching orders
 - [ ] `limit` and `offset` page through the result; an offset past the end returns an empty list
 - [ ] Gate check passes: `cd order-service && npm run typecheck && npm test`

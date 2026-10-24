@@ -3,6 +3,7 @@ import path from 'node:path';
 import knex, { Knex } from 'knex';
 import pino, { Logger } from 'pino';
 import { PostgreSqlContainer, StartedPostgreSqlContainer } from '@testcontainers/postgresql';
+import { createMigrationSource } from './migration-source';
 import { runMigrations } from './migrator';
 
 // Same image as order-db in ../docker-compose.yaml: the outbox uses jsonb.
@@ -41,10 +42,10 @@ describe('migrations', () => {
     await container?.stop();
   });
 
-  it('creates the outbox and processed_events tables, then applies nothing on a second run', async () => {
+  it('creates the outbox, processed_events, orders and order_items tables, then applies nothing on a second run', async () => {
     const first = capturingLogger();
     expect(await runMigrations(db, first.logger)).toBe(true);
-    expect(first.lines.map(line => line.msg)).toEqual(['Applied 2 migration(s)']);
+    expect(first.lines.map(line => line.msg)).toEqual(['Applied 3 migration(s)']);
 
     expect(await columnsOf(db, 'outbox')).toEqual([
       { column_name: 'sequence', data_type: 'bigint', is_nullable: 'NO', column_default: expect.stringContaining('nextval') },
@@ -68,6 +69,32 @@ describe('migrations', () => {
         where i.indrelid = 'processed_events'::regclass and i.indisprimary`,
     );
     expect(primaryKey.rows).toEqual([{ attname: 'event_id' }]);
+    expect(await columnsOf(db, 'orders')).toEqual([
+      { column_name: 'id', data_type: 'uuid', is_nullable: 'NO', column_default: null },
+      { column_name: 'marketplace', data_type: 'text', is_nullable: 'NO', column_default: null },
+      { column_name: 'external_order_id', data_type: 'text', is_nullable: 'NO', column_default: null },
+      { column_name: 'status', data_type: 'text', is_nullable: 'NO', column_default: null },
+      { column_name: 'total', data_type: 'numeric', is_nullable: 'NO', column_default: null },
+      { column_name: 'cancellation_reason', data_type: 'text', is_nullable: 'YES', column_default: null },
+      { column_name: 'ordered_at', data_type: 'timestamp with time zone', is_nullable: 'NO', column_default: null },
+      { column_name: 'created_at', data_type: 'timestamp with time zone', is_nullable: 'NO', column_default: null },
+      { column_name: 'updated_at', data_type: 'timestamp with time zone', is_nullable: 'NO', column_default: null },
+    ]);
+    expect(await columnsOf(db, 'order_items')).toEqual([
+      { column_name: 'order_id', data_type: 'uuid', is_nullable: 'NO', column_default: null },
+      { column_name: 'line', data_type: 'integer', is_nullable: 'NO', column_default: null },
+      { column_name: 'sku', data_type: 'text', is_nullable: 'NO', column_default: null },
+      { column_name: 'quantity', data_type: 'integer', is_nullable: 'NO', column_default: null },
+      { column_name: 'unit_price', data_type: 'numeric', is_nullable: 'NO', column_default: null },
+    ]);
+    expect(await db('pg_indexes').where({ tablename: 'orders' }).orderBy('indexname').pluck('indexdef')).toEqual([
+      'CREATE INDEX orders_created_at_id_index ON public.orders USING btree (created_at, id)',
+      'CREATE UNIQUE INDEX orders_marketplace_external_order_id_unique ON public.orders USING btree (marketplace, external_order_id)',
+      'CREATE UNIQUE INDEX orders_pkey ON public.orders USING btree (id)',
+    ]);
+    expect(await db('pg_indexes').where({ tablename: 'order_items' }).pluck('indexdef')).toEqual([
+      'CREATE UNIQUE INDEX order_items_pkey ON public.order_items USING btree (order_id, line)',
+    ]);
 
     const second = capturingLogger();
     expect(await runMigrations(db, second.logger)).toBe(true);
@@ -75,7 +102,18 @@ describe('migrations', () => {
     expect(await db('knex_migrations').pluck('name')).toEqual([
       '20261023120000_create_outbox_table',
       '20261023120100_create_processed_events_table',
+      '20261024120000_create_orders_tables',
     ]);
+  });
+
+  it('drops the orders tables when the last migration is undone', async () => {
+    await db.migrate.down({ migrationSource: createMigrationSource() });
+
+    expect(await columnsOf(db, 'orders')).toEqual([]);
+    expect(await columnsOf(db, 'order_items')).toEqual([]);
+    expect(await columnsOf(db, 'outbox')).not.toEqual([]);
+
+    await db.migrate.latest({ migrationSource: createMigrationSource() });
   });
 
   it('exits with code 1 and logs the failure when Vault is unreachable', () => {
