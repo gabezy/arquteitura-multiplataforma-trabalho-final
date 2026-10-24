@@ -54,9 +54,9 @@ No GitHub, os workflows também podem ser iniciados manualmente em **Actions →
 Para implantar diretamente no kind, sem executar o workflow pelo `act`, instale `kubectl` e Helm no host e use:
 
 ```bash
-make k8s-up            # cria o cluster e implanta a stack diretamente
+make k8s-deploy        # cria o cluster e implanta a stack diretamente
 make k8s-status        # mostra pods, serviços e jobs
-make k8s-down          # remove o cluster e os dados locais
+make k8s-destroy       # remove o cluster e os dados locais
 ```
 
 Pré-requisitos completos, portas, detalhes do registry e solução de problemas estão em [`docs/kubernetes-kind.md`](docs/kubernetes-kind.md).
@@ -104,7 +104,7 @@ curl -s http://localhost:8082/products/sku/<sku>   # status da análise feita pe
 
 Os secrets das aplicações ficam num HashiCorp Vault em modo dev (decisão em [ADR-0003](docs/adr/0003-vault-para-secrets-das-aplicacoes.md)). Nenhum secret de aplicação é versionado.
 
-- `make env` (chamado pelo `make k8s-up`) gera o `.env` a partir do `.env.example`: cada `__GENERATE__` vira um valor aleatório. Chaves que já existem no `.env` nunca são reescritas, então as senhas não mudam entre execuções. Os logins de admin do Keycloak e do Grafana ficam fixos em `admin`/`admin`.
+- `make env` (chamado pelo `make k8s-deploy`) gera o `.env` a partir do `.env.example`: cada `__GENERATE__` vira um valor aleatório. Chaves que já existem no `.env` nunca são reescritas, então as senhas não mudam entre execuções. Os logins de admin do Keycloak e do Grafana ficam fixos em `admin`/`admin`.
 - O job `vault-init` grava `secret/catalog-service`, `secret/compliance-service`, `secret/order-service` e `secret/bff-gateway` e cria um AppRole por serviço, que só lê o próprio path. Cada aplicação lê seus secrets ao subir e não sobe sem o Vault.
 - O Vault em modo dev guarda tudo em memória. A implantação pelo kind executa o job de bootstrap da stack; no caminho Compose, veja os comandos da seção opcional ao final.
 - Para rodar um serviço fora do cluster pelo código, copie o `<SERVIÇO>_VAULT_ROLE_ID` / `_SECRET_ID` do `.env` da raiz para `VAULT_ROLE_ID` / `VAULT_SECRET_ID` (no `.env` do catalog, do compliance e do order; variáveis exportadas no BFF).

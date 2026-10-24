@@ -14,7 +14,7 @@ No WSL2 com Docker Desktop, habilite a integração do Docker Desktop para a dis
 
 O fluxo padrão executa localmente o workflow [`deploy`](../.github/workflows/deploy.yaml), que é acionado no GitHub pelo evento `workflow_dispatch`. Suas etapas geram/completam `.env`, instalam ferramentas, criam o cluster `omni-market`, iniciam o registry, constroem e publicam as imagens, preparam a configuração do chart e fazem o deploy gradual com Helm. O workflow [`destroy`](../.github/workflows/destroy.yaml), também manual, remove o cluster e o registry locais. As credenciais são geradas localmente; `.env` não deve ser versionado.
 
-Para subir diretamente, sem `act`, instale `kubectl` e Helm no host e use `make k8s-up`. A instalação explícita do kind também está disponível com `make kind-install`.
+Para implantar diretamente, sem `act`, instale `kubectl` e Helm no host e use `make k8s-deploy`. A instalação explícita do kind também está disponível com `make kind-install`.
 
 ## Executar o workflow com act
 
@@ -28,7 +28,7 @@ make act-deploy
 
 O `act` baixa a imagem do runner configurada em `.actrc` se ela ainda não estiver no cache do Docker. O wrapper monta no runner local o socket do Docker, o diretório de kubeconfig e o Docker CLI. Ele usa a rede do host para que o runner alcance a API do cluster local. Não envie kubeconfig ou `.env` para o GitHub.
 
-Para executar apenas o deploy num cluster já criado, use `make k8s-deploy`. Veja pods, serviços e jobs com `make k8s-status`.
+Para aplicar novamente os manifests num cluster já criado, use `make k8s-apply`. Veja pods, serviços e jobs com `make k8s-status`.
 
 ## Endereços locais
 
@@ -48,7 +48,7 @@ Para executar apenas o deploy num cluster já criado, use `make k8s-deploy`. Vej
 | OTel gRPC / HTTP | localhost:4317 / localhost:4318 |
 | Grafana | http://localhost:3000 |
 
-Os dados de bancos, Kafka, Vault e observabilidade usam volumes efêmeros no cluster local. `make k8s-down` remove o cluster. O registry e seu volume Docker ficam disponíveis para reutilizar as imagens no próximo `make k8s-up`.
+Os dados de bancos, Kafka, Vault e observabilidade usam volumes efêmeros no cluster local. `make k8s-destroy` remove o cluster. O registry e seu volume Docker ficam disponíveis para reutilizar as imagens no próximo `make k8s-deploy`.
 
 ## Limitações
 

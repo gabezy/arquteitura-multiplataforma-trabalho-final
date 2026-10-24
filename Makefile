@@ -8,7 +8,7 @@ HELM := $(shell command -v helm 2>/dev/null)
 K8S_CONTEXT := kind-omni-market
 
 .DEFAULT_GOAL := help
-.PHONY: help env up up-infra down clean restart ps logs topics vault kind-install k8s-up k8s-registry k8s-build k8s-push k8s-load k8s-config k8s-deploy k8s-status k8s-down act-install act-list act-deploy act-destroy
+.PHONY: help env up up-infra down clean restart ps logs topics vault kind-install k8s-deploy k8s-registry k8s-build k8s-push k8s-load k8s-config k8s-apply k8s-status k8s-destroy act-install act-list act-deploy act-destroy
 
 help: ## lista os comandos disponíveis
 	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2}'
@@ -47,7 +47,7 @@ vault: env ## regrava secrets e AppRoles no Vault (necessário após reiniciar o
 kind-install: ## instala kind em ~/.local/bin
 	sh scripts/install-kind.sh
 
-k8s-up: env ## cria kind, constrói/carrega imagens locais e instala o Omni Market
+k8s-deploy: env ## cria kind, constrói/carrega imagens locais e instala o Omni Market
 	@test -x "$(KIND)" || sh scripts/install-kind.sh
 	@test -n "$(KUBECTL)" || { echo "kubectl is required" >&2; exit 1; }
 	@test -n "$(HELM)" || { echo "Helm 3 is required" >&2; exit 1; }
@@ -56,7 +56,7 @@ k8s-up: env ## cria kind, constrói/carrega imagens locais e instala o Omni Mark
 	$(MAKE) k8s-registry
 	$(MAKE) k8s-build
 	$(MAKE) k8s-push
-	$(MAKE) k8s-deploy
+	$(MAKE) k8s-apply
 	$(KUBECTL) --context $(K8S_CONTEXT) rollout restart deployment/wiremock --namespace omni-market
 	$(KUBECTL) --context $(K8S_CONTEXT) rollout status deployment/wiremock --namespace omni-market --timeout=5m
 
@@ -91,7 +91,7 @@ k8s-config: ## sincroniza os arquivos de configuração do Docker Compose com o 
 	cp docker/otel-collector/config.yaml k8s/helm/omni-market/files/otel-collector-config.yaml
 	cp docker/prometheus/prometheus.yml k8s/helm/omni-market/files/prometheus.yml
 
-k8s-deploy: env k8s-config ## aplica os manifests e aguarda os workloads em kind
+k8s-apply: env k8s-config ## aplica os manifests e aguarda os workloads em kind existente
 	$(KUBECTL) --context $(K8S_CONTEXT) apply -f k8s/namespace.yaml
 	$(KUBECTL) --context $(K8S_CONTEXT) create secret generic omni-market-secrets --namespace omni-market --from-env-file=.env --dry-run=client -o yaml | $(KUBECTL) --context $(K8S_CONTEXT) apply -f -
 	$(KUBECTL) --context $(K8S_CONTEXT) delete job vault-init kafka-init --namespace omni-market --ignore-not-found
@@ -101,7 +101,7 @@ k8s-deploy: env k8s-config ## aplica os manifests e aguarda os workloads em kind
 k8s-status: ## mostra pods e services do namespace omni-market
 	$(KUBECTL) --context $(K8S_CONTEXT) get pods,services,jobs -n omni-market -o wide
 
-k8s-down: ## remove o cluster kind do Omni Market e seus dados locais
+k8s-destroy: ## remove o cluster kind do Omni Market e seus dados locais
 	$(KIND) delete cluster --name omni-market
 
 act-install: ## instala act em ~/.local/bin (opcional; Docker precisa estar instalado à parte)
