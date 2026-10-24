@@ -200,48 +200,48 @@ Every ambiguity is resolved or recorded here - nothing is left silently unclear.
 
 | Requirement ID | Story | Phase | Status |
 | --- | --- | --- | --- |
-| DOC-01 | P1: Billing scope and contracts recorded | Tasks T1 | Implementing |
-| DOC-02 | P1: Billing scope and contracts recorded | Tasks T2 | Implementing |
-| DOC-03 | P1: Billing scope and contracts recorded | Tasks T2 | Implementing |
-| BOOT-01 | P1: Service bootstrap | Tasks T6 | Implementing |
-| BOOT-02 | P1: Service bootstrap | Tasks T6 | Implementing |
-| BOOT-03 | P1: Service bootstrap | Tasks T5 | Implementing |
-| BOOT-04 | P1: Service bootstrap | Tasks T4 | Implementing |
-| BOOT-05 | P1: Service bootstrap | Tasks T4 | Implementing |
-| BOOT-06 | P1: Service bootstrap | Tasks T8 | Implementing |
-| BOOT-07 | P1: Service bootstrap | Tasks T9 | Implementing |
-| BOOT-08 | P1: Service bootstrap | Tasks T10 | Implementing |
-| BOOT-09 | P1: Service bootstrap | Tasks T4 | Implementing |
-| BOOT-10 | P1: Service bootstrap | Tasks T7 | Implementing |
-| INV-01 | P1: Invoice from the confirmed order | Tasks T12, T13 | Implementing |
-| INV-02 | P1: Invoice from the confirmed order | Tasks T12 | Implementing |
-| INV-03 | P1: Invoice from the confirmed order | Tasks T14, T15 | Implementing |
-| INV-04 | P1: Invoice from the confirmed order | Tasks T15 | Implementing |
-| INV-05 | P1: Invoice from the confirmed order | Tasks T13, T14 | Implementing |
-| INV-06 | P1: Invoice from the confirmed order | Tasks T15 | Implementing |
-| INV-07 | P1: Invoice from the confirmed order | Tasks T15 | Implementing |
-| INV-08 | P1: Invoice from the confirmed order | Tasks T12, T13 | Implementing |
-| INV-09 | P1: Invoice from the confirmed order | Tasks T13, T14 | Implementing |
-| INV-10 | P1: Invoice from the confirmed order | Tasks T13 | Implementing |
-| INV-11 | P1: Invoice from the confirmed order | Tasks T12 | Implementing |
-| API-01 | P1: Query invoices | Tasks T16 | Implementing |
-| API-02 | P1: Query invoices | Tasks T16 | Implementing |
-| API-03 | P1: Query invoices | Tasks T14, T16 | Implementing |
-| API-04 | P1: Query invoices | Tasks T16 | Implementing |
-| PAY-01 | P2: Charge the invoice at the PSP | Tasks T19, T20, T23 | Implementing |
-| PAY-02 | P2: Charge the invoice at the PSP | Tasks T19 | Implementing |
-| PAY-03 | P2: Charge the invoice at the PSP | Tasks T19, T22 | Implementing |
-| PAY-04 | P2: Charge the invoice at the PSP | Tasks T19, T22 | Implementing |
-| PAY-05 | P2: Charge the invoice at the PSP | Tasks T19, T21 | Implementing |
-| PAY-06 | P2: Charge the invoice at the PSP | Tasks T22 | Implementing |
-| PAY-07 | P2: Charge the invoice at the PSP | Tasks T19, T22 | Implementing |
-| PAY-08 | P2: Charge the invoice at the PSP | Tasks T19, T22 | Implementing |
-| PAY-09 | P2: Charge the invoice at the PSP | Tasks T21 | Implementing |
-| PAY-10 | P2: Charge the invoice at the PSP | Tasks T19 | Implementing |
-| PAY-11 | P2: Charge the invoice at the PSP | Tasks T21 | Implementing |
-| PAY-12 | P2: Charge the invoice at the PSP | Tasks T21 | Implementing |
-| REC-01 | P3: Reconcile pending payments | Tasks T20, T23 | Implementing |
-| REC-02 | P3: Reconcile pending payments | Tasks T19, T23 | Implementing |
+| DOC-01 | P1: Billing scope and contracts recorded | Tasks T1 | Verified |
+| DOC-02 | P1: Billing scope and contracts recorded | Tasks T2 | Verified |
+| DOC-03 | P1: Billing scope and contracts recorded | Tasks T2 | Verified |
+| BOOT-01 | P1: Service bootstrap | Tasks T6 | Verified |
+| BOOT-02 | P1: Service bootstrap | Tasks T6 | Verified |
+| BOOT-03 | P1: Service bootstrap | Tasks T5 | Verified |
+| BOOT-04 | P1: Service bootstrap | Tasks T4 | Verified |
+| BOOT-05 | P1: Service bootstrap | Tasks T4 | Verified |
+| BOOT-06 | P1: Service bootstrap | Tasks T8 | Verified |
+| BOOT-07 | P1: Service bootstrap | Tasks T9 | Verified |
+| BOOT-08 | P1: Service bootstrap | Tasks T10 | Verified |
+| BOOT-09 | P1: Service bootstrap | Tasks T4 | Verified |
+| BOOT-10 | P1: Service bootstrap | Tasks T7 | Verified |
+| INV-01 | P1: Invoice from the confirmed order | Tasks T12, T13 | Verified |
+| INV-02 | P1: Invoice from the confirmed order | Tasks T12 | Verified |
+| INV-03 | P1: Invoice from the confirmed order | Tasks T14, T15 | Verified |
+| INV-04 | P1: Invoice from the confirmed order | Tasks T15 | Verified |
+| INV-05 | P1: Invoice from the confirmed order | Tasks T13, T14 | Verified |
+| INV-06 | P1: Invoice from the confirmed order | Tasks T15 | Verified |
+| INV-07 | P1: Invoice from the confirmed order | Tasks T15 | Verified |
+| INV-08 | P1: Invoice from the confirmed order | Tasks T12, T13 | Verified |
+| INV-09 | P1: Invoice from the confirmed order | Tasks T13, T14 | Verified |
+| INV-10 | P1: Invoice from the confirmed order | Tasks T13 | Verified |
+| INV-11 | P1: Invoice from the confirmed order | Tasks T12 | Verified |
+| API-01 | P1: Query invoices | Tasks T16 | Verified |
+| API-02 | P1: Query invoices | Tasks T16 | Verified |
+| API-03 | P1: Query invoices | Tasks T14, T16 | Verified |
+| API-04 | P1: Query invoices | Tasks T16 | Verified |
+| PAY-01 | P2: Charge the invoice at the PSP | Tasks T19, T20, T23 | Verified |
+| PAY-02 | P2: Charge the invoice at the PSP | Tasks T19 | Verified |
+| PAY-03 | P2: Charge the invoice at the PSP | Tasks T19, T22 | Verified |
+| PAY-04 | P2: Charge the invoice at the PSP | Tasks T19, T22 | Verified |
+| PAY-05 | P2: Charge the invoice at the PSP | Tasks T19, T21 | Verified |
+| PAY-06 | P2: Charge the invoice at the PSP | Tasks T22 | Verified |
+| PAY-07 | P2: Charge the invoice at the PSP | Tasks T19, T22 | Verified |
+| PAY-08 | P2: Charge the invoice at the PSP | Tasks T19, T22 | Verified |
+| PAY-09 | P2: Charge the invoice at the PSP | Tasks T21 | Verified |
+| PAY-10 | P2: Charge the invoice at the PSP | Tasks T19 | Verified |
+| PAY-11 | P2: Charge the invoice at the PSP | Tasks T21 | Verified |
+| PAY-12 | P2: Charge the invoice at the PSP | Tasks T21 | Verified |
+| REC-01 | P3: Reconcile pending payments | Tasks T20, T23 | Verified |
+| REC-02 | P3: Reconcile pending payments | Tasks T19, T23 | Verified |
 
 **ID format:** `[CATEGORY]-[NUMBER]`.
 
