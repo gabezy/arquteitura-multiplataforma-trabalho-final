@@ -183,8 +183,8 @@ The order-service, billing-service and marketplace-gateway need their own databa
 | PLAT-14 | P1: CI - change to `_node-service.yml` runs every caller | T5 | Implementing |
 | PLAT-15 | P2: Ports - 8084/8086/8087 published | T2 | Implementing |
 | PLAT-16 | P2: Ports - 8085 only for Keycloak | T2 | Implementing |
-| PLAT-17 | P2: Ports - README services table | Tasks | Pending |
-| PLAT-18 | P2: Ports - README components table | Tasks | Pending |
+| PLAT-17 | P2: Ports - README services table | T6 | Implementing |
+| PLAT-18 | P2: Ports - README components table | T6 | Implementing |
 | PLAT-19 | P2: C4 - `billing-service` technology | T7 | Implementing |
 | PLAT-20 | P2: C4 - `marketplace-gateway` technology | T7 | Implementing |
 | PLAT-21 | P2: C4 - `billing-db` and `marketplace-db` descriptions | T7 | Implementing |

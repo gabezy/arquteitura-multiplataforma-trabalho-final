@@ -278,13 +278,22 @@ Source: the 110 `push` runs of `gh api repos/gabezy/arquteitura-multiplataforma-
 
 **Done when**:
 
-- [ ] Services table: `order-service` 8084, `billing-service` 8086, `marketplace-gateway` 8087 (PLAT-17)
-- [ ] Components table: `order-db` 5434, `billing-db` 5435, `marketplace-db` 5436, each with its user and password source (PLAT-18)
-- [ ] `diff .specs/features/new-services-infra/spec.md docs/specs/platform/new-services-infra/spec.md` prints nothing
-- [ ] PLAT-17 and PLAT-18 marked `Implementing`
+- [x] Services table: `order-service` 8084, `billing-service` 8086, `marketplace-gateway` 8087 (PLAT-17)
+- [x] Components table: `order-db` 5434, `billing-db` 5435, `marketplace-db` 5436, each with its user and password source (PLAT-18)
+- [x] `diff .specs/features/new-services-infra/spec.md docs/specs/platform/new-services-infra/spec.md` prints nothing
+- [x] PLAT-17 and PLAT-18 marked `Implementing`
 
 **Tests**: none (static check)
 **Gate**: Static
+
+**Evidence (2026-10-24):**
+
+- README services table (PLAT-17): `README.md:24` `order-service` … `8084`; `README.md:25` `billing-service` … `8086`; `README.md:26` `marketplace-gateway` … `8087`. These match the compose ports from T2.
+- README components table (PLAT-18): `README.md:61` `order-db` `localhost:5434` `orders` / `ORDER_DB_PASSWORD` do `.env`; `README.md:62` `billing-db` `localhost:5435` `billing` / `billing`; `README.md:63` `marketplace-db` `localhost:5436` `marketplace` / `marketplace`. These match the compose defaults (`BILLING_DB_PASSWORD:-billing`, `MARKETPLACE_DB_PASSWORD:-marketplace`).
+- No gap found; `README.md` unchanged.
+- Spec copied to `docs/specs/platform/new-services-infra/spec.md` after this task's traceability update; `diff` prints nothing.
+
+**Status**: ✅ Complete
 
 ---
 
