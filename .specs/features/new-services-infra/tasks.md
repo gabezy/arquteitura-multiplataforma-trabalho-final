@@ -36,9 +36,34 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 | Gate Level | When to Use | Command |
 | --- | --- | --- |
 | Static | Tasks that read or change compose, docs or workflows | `docker compose config -q && echo OK` |
-| Topics diff | Tasks that touch `docs/eventos.md` or `create-topics.sh` | `grep -c '^create ' docs/eventos.md` prints `0` |
+| Topics diff | Tasks that touch `docs/eventos.md` or `create-topics.sh` | Script "eventos gate" below prints `OK` |
+| C4 labels | Tasks that touch the C4 `.drawio` | Script "C4 gate" below prints `OK` |
 | Smoke | Tasks that check runtime behaviour | `make up-infra`, then after 60 s `docker inspect -f '{{.Name}} {{.State.Health.Status}}' order-db billing-db marketplace-db` and `make topics` |
 | CI | Tasks that check the workflows | `gh run list --commit <sha> --json workflowName,event,status,conclusion` |
+
+
+**eventos gate** (the section exists, there are no `create` lines in the file, and the section names no topic):
+
+```sh
+f=docs/eventos.md
+[ "$(grep -c '^## Tópicos no `create-topics.sh`' "$f")" = 1 ] &&
+[ "$(grep -c '^create ' "$f")" = 0 ] &&
+[ "$(sed -n '/^## Tópicos no `create-topics.sh`/,/^## Como adicionar/p' "$f" | grep -cE '[a-z-]+\.[a-z.-]+\.(v[0-9]+|dlq)')" = 0 ] && echo OK
+```
+
+**C4 gate** (each of the four labels is exact on the line of its element, and no `a definir` is left):
+
+```sh
+f="docs/c4/Omni Market - C4 Model Contexto.drawio"
+chk() { [ "$(grep -F "$1" "$f" | grep -cF "$2")" = 1 ]; }
+chk 'c4Name="billing-service"' 'c4Technology="Go 1.27, net/http"' &&
+chk 'c4Name="marketplace-gateway"' 'c4Technology="Node.js 22, TypeScript, Express 5"' &&
+chk 'c4Name="billing-db"' 'c4Description="Faturas, pagamentos, outbox e inbox"' &&
+chk 'c4Name="marketplace-db"' 'c4Description="Anúncios, pedidos recebidos, cursores de polling, outbox e inbox"' &&
+[ "$(grep -ci 'a definir' "$f")" = 0 ] && echo OK
+```
+
+Both gates were checked against mutated copies: a pending list re-added as prose, a re-added `create` line, `Go 1.26` instead of `Go 1.27`, and an `a definir` label put back. Each gate rejects all of them (Verifier fix 3).
 
 ---
 
@@ -98,7 +123,7 @@ T7
 - Before the change, each of the 13 `create` lines of the section was found in `create-topics.sh` (`grep -qE "^create $t "`, 13 × `ok`).
 - No Markdown file links to the section (`grep -rn --include='*.md' 'picos-novos'` finds nothing outside this feature).
 - The section was renamed to "Tópicos no `create-topics.sh`" and now points to the script and to "Como adicionar ou mudar um evento".
-- Gate: `grep -c '^create ' docs/eventos.md` → `0`.
+- Gate: `grep -c '^create ' docs/eventos.md` → `0`. Re-run with the stronger eventos gate after Verifier fix 3 → `OK`.
 - Adjustment: the gate now counts `create` lines in the whole file, because the section heading changed and the old `sed` range would match nothing.
 
 **Status**: ✅ Complete
@@ -137,7 +162,7 @@ T7
 - Published host ports (PLAT-15, PLAT-16): `8084 → order-service`, `8086 → billing-service`, `8087 → marketplace-gateway`, `8085 → keycloak` only.
 - `make up-infra` at 17:11 UTC; at 17:12:08 UTC `docker inspect` printed `/order-db healthy`, `/billing-db healthy`, `/marketplace-db healthy` (started 17:11:10–17:11:15, under 60 s) (PLAT-02).
 - `docker compose ps -a` after `make up-infra` lists none of `order-service`, `billing-service`, `marketplace-gateway` (PLAT-04).
-- `ORDER_DB_PASSWORD= docker compose --env-file /dev/null config -q` → exit 1 with `required variable ORDER_DB_PASSWORD is missing a value: run make env` (PLAT-05).
+- PLAT-05, isolated check: a copy of `.env` without only the `ORDER_DB_PASSWORD` line, then `env -u ORDER_DB_PASSWORD docker compose --env-file <copy> config -q` → exit 1 with `required variable ORDER_DB_PASSWORD is missing a value: run make env`. Control with the full `.env`: `docker compose config -q` → exit 0. This replaces the first reading, which used `--env-file /dev/null` and emptied every variable (Verifier fix 4).
 - No gap found; `docker-compose.yaml` unchanged.
 
 **Status**: ✅ Complete
@@ -320,12 +345,13 @@ Source: the 110 `push` runs of `gh api repos/gabezy/arquteitura-multiplataforma-
 - [x] PLAT-19..22 marked `Implementing`
 
 **Tests**: none (static check)
-**Gate**: Static
+**Gate**: Static + C4 labels
 
 **Evidence (2026-10-24):**
 
 - `.drawio` attributes changed (4 lines, nothing else): `marketplace-gateway` `c4Technology="Node.js 22, TypeScript, Express 5"`, `billing-service` `c4Technology="Go 1.27, net/http"`, `billing-db` `c4Description="Faturas, pagamentos, outbox e inbox"`, `marketplace-db` `c4Description="Anúncios, pedidos recebidos, cursores de polling, outbox e inbox"` (PLAT-19..21).
 - `grep -ci 'a definir'` on the `.drawio` → `0` (PLAT-22, `.drawio` half).
+- C4 gate → `OK` (exact labels, added after Verifier fix 3).
 - `xml.dom.minidom.parse` on the `.drawio` → parses with no error.
 - Executed before T6, so the spec copy made in T6 includes this task's status.
 - **Pending (human):** open the `.drawio` in draw.io desktop and export the `C4 - Container` page over `docs/c4/Omni Market - C4 Model Contexto-C4 - Container.drawio.png`. The PNG still shows the old labels (PLAT-22, PNG half).
