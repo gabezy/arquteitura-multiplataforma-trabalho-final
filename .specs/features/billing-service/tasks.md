@@ -523,9 +523,9 @@ T18 → T19 → T20 → T21 → T22 → T23
 
 **Done when**:
 
-- [ ] An app test with Testcontainers Kafka and Postgres publishes a confirmation twice and finds one invoice through the API and one `billing.invoice.issued.v1` on Kafka
-- [ ] The demo runs against `make up`
-- [ ] Gate check passes: build gate; test count ≥ 3 in `internal/app`
+- [x] An app test with Testcontainers Kafka and Postgres publishes a confirmation twice and finds one invoice through the API and one `billing.invoice.issued.v1` on Kafka
+- [x] The demo runs against `make up`
+- [x] Gate check passes: build gate; test count ≥ 3 in `internal/app`
 
 **Tests**: integration
 **Gate**: build
