@@ -348,13 +348,14 @@ func TestListPendingRequestedBeforeReturnsTheOldPendingChargesOldestFirst(t *tes
 		t.Fatal(err)
 	}
 	cutoff := base.Add(5 * time.Minute)
+	requestPending("ch_edge", cutoff) // pending for exactly the window, which is not "more than" it
 
 	all, err := f.invoices.ListPendingRequestedBefore(ctx, cutoff, 10)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if want := []string{first, second, third}; !slices.Equal(idsOf(all), want) {
-		t.Fatalf("pending before the cutoff = %v, want %v: oldest first, without the recent one, the issued one and the paid one", idsOf(all), want)
+		t.Fatalf("pending before the cutoff = %v, want %v: oldest first, without the recent one, the one at the cutoff, the issued one and the paid one", idsOf(all), want)
 	}
 	if all[0].PSPTransactionID != "ch_1" {
 		t.Errorf("first charge = %q, want ch_1", all[0].PSPTransactionID)
