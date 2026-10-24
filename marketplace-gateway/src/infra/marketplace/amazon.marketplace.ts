@@ -7,6 +7,7 @@ import {
     CanonicalOrder,
     ListingDraft,
     MarketplacePort,
+    PriceUpdate,
     PublishedListing,
     StockUpdate,
 } from '../../core/marketplace/port/out/marketplace.port';
@@ -117,6 +118,28 @@ export class AmazonMarketplace implements MarketplacePort {
         const accepted = changeAcceptedSchema.safeParse(body);
         if (!accepted.success) {
             throw new MarketplaceRejectedError(`The stock was not accepted: ${z.prettifyError(accepted.error)}`, this.marketplace);
+        }
+    }
+
+    // A JSON Patch by SKU: it replaces the price and leaves the rest of the listing as it is.
+    async updatePrice({ sku, price }: PriceUpdate): Promise<void> {
+        const { body } = await this.http.send({
+            method: 'PATCH',
+            path: `/listings/2021-08-01/items/${encodeURIComponent(this.options.sellerId)}/${encodeURIComponent(sku)}`,
+            query: { marketplaceIds: this.options.marketplaceId },
+            body: {
+                productType: 'PRODUCT',
+                patches: [{
+                    op: 'replace',
+                    path: '/attributes/list_price',
+                    value: [{ currency: 'BRL', value: price }],
+                }],
+            },
+        });
+
+        const accepted = changeAcceptedSchema.safeParse(body);
+        if (!accepted.success) {
+            throw new MarketplaceRejectedError(`The price was not accepted: ${z.prettifyError(accepted.error)}`, this.marketplace);
         }
     }
 

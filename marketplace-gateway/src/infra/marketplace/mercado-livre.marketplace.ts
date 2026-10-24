@@ -7,6 +7,7 @@ import {
     CanonicalOrder,
     ListingDraft,
     MarketplacePort,
+    PriceUpdate,
     PublishedListing,
     StockUpdate,
 } from '../../core/marketplace/port/out/marketplace.port';
@@ -100,6 +101,14 @@ export class MercadoLivreMarketplace implements MarketplacePort {
             method: 'PUT',
             path: `/items/${encodeURIComponent(externalListingId)}`,
             body: { available_quantity: stock },
+        });
+    }
+
+    async updatePrice({ externalListingId, price }: PriceUpdate): Promise<void> {
+        await this.http.send({
+            method: 'PUT',
+            path: `/items/${encodeURIComponent(externalListingId)}`,
+            body: { price },
         });
     }
 

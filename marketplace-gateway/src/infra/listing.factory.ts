@@ -14,6 +14,7 @@ import { KnexListingStockRepository } from './persistence/knex-listing-stock.rep
 import { KnexListingRepository } from './persistence/knex-listing.repository';
 import { KnexOutboxRepository } from './persistence/knex-outbox.repository';
 import { StockSynchronizers } from './polling/stock-synchronizers';
+import { PriceSynchronizers } from './polling/price-synchronizers';
 
 interface ListingModuleProps {
   db: Knex;
@@ -23,6 +24,7 @@ interface ListingModuleProps {
   catalogProductKafkaConsumer: Consumer;
   catalogProductTopics: CatalogProductTopics;
   stockSync: { intervalMs: number; batchSize: number };
+  priceSync?: { intervalMs: number; batchSize: number };
   logger: Logger;
 }
 
@@ -30,6 +32,7 @@ export interface ListingModule {
   listingController: ListingController;
   catalogProductConsumer: CatalogProductConsumer;
   stockSynchronizers: StockSynchronizers;
+  priceSynchronizers?: PriceSynchronizers;
 }
 
 export function createListingModule(props: ListingModuleProps): ListingModule {
@@ -39,12 +42,18 @@ export function createListingModule(props: ListingModuleProps): ListingModule {
     new KnexListingReadRepository(props.db),
     new HttpProductCatalog(props.catalog),
   );
-  const stockFacade = new StockFacade(props.marketplaces, new KnexListingStockRepository(props.db), props.stockSync.batchSize);
+  const stockFacade = new StockFacade(
+    props.marketplaces,
+    new KnexListingStockRepository(props.db),
+    props.stockSync.batchSize,
+    props.priceSync?.batchSize ?? props.stockSync.batchSize,
+  );
 
   return {
     listingController: new ListingController(listingFacade),
     catalogProductConsumer: new CatalogProductConsumer(
       listingFacade,
+      stockFacade,
       stockFacade,
       props.catalogProductKafkaConsumer,
       props.producer,
@@ -53,5 +62,6 @@ export function createListingModule(props: ListingModuleProps): ListingModule {
       props.logger,
     ),
     stockSynchronizers: new StockSynchronizers(stockFacade, props.marketplaces.marketplaces(), props.stockSync.intervalMs, props.logger),
+    priceSynchronizers: new PriceSynchronizers(stockFacade, props.marketplaces.marketplaces(), props.priceSync?.intervalMs ?? props.stockSync.intervalMs, props.logger),
   };
 }

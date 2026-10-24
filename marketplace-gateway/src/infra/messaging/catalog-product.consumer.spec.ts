@@ -33,10 +33,11 @@ describe('CatalogProductConsumer', () => {
   const catalogProductConsumer = new CatalogProductConsumer(
     publishPort,
     stockPort,
+    stockPort,
     consumer as unknown as Consumer,
     producer as unknown as Producer,
     inbox,
-    { approvedTopic: APPROVED_TOPIC, stockChangedTopic: STOCK_CHANGED_TOPIC, deadLetterTopic: DEAD_LETTER_TOPIC },
+    { approvedTopic: APPROVED_TOPIC, stockChangedTopic: STOCK_CHANGED_TOPIC, priceChangedTopic: 'catalog.product.price-changed.v1', deadLetterTopic: DEAD_LETTER_TOPIC },
     pino({ level: 'silent' }),
   );
 
@@ -64,7 +65,7 @@ describe('CatalogProductConsumer', () => {
     await catalogProductConsumer.start();
 
     expect(consumer.connect).toHaveBeenCalled();
-    expect(consumer.subscribe).toHaveBeenCalledWith({ topics: [APPROVED_TOPIC, STOCK_CHANGED_TOPIC], fromBeginning: true });
+    expect(consumer.subscribe).toHaveBeenCalledWith({ topics: [APPROVED_TOPIC, STOCK_CHANGED_TOPIC, 'catalog.product.price-changed.v1'], fromBeginning: true });
   });
 
   describe('an approved product', () => {

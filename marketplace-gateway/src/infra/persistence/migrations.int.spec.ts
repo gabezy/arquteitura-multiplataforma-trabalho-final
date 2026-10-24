@@ -40,7 +40,7 @@ describe('migrations', () => {
   it('creates the tables of the service, then applies nothing on a second run', async () => {
     const first = capturingLogger();
     expect(await runMigrations(db, first.logger)).toBe(true);
-    expect(first.lines.map(line => line.msg)).toEqual(['Applied 6 migration(s)']);
+    expect(first.lines.map(line => line.msg)).toEqual(['Applied 7 migration(s)']);
 
     expect(await columnsOf(db, 'outbox')).toEqual([
       { column_name: 'sequence', data_type: 'bigint', is_nullable: 'NO', column_default: expect.stringContaining('nextval') },
@@ -98,6 +98,7 @@ describe('migrations', () => {
       { column_name: 'created_at', data_type: 'timestamp with time zone', is_nullable: 'NO', column_default: 'now()' },
       { column_name: 'updated_at', data_type: 'timestamp with time zone', is_nullable: 'NO', column_default: null },
       { column_name: 'stock_synced', data_type: 'boolean', is_nullable: 'NO', column_default: 'true' },
+      { column_name: 'price_synced', data_type: 'boolean', is_nullable: 'NO', column_default: 'true' },
     ]);
     const listingUniqueness = await db.raw(
       `select a.attname from pg_index i
@@ -107,6 +108,8 @@ describe('migrations', () => {
     expect(listingUniqueness.rows.map((row: { attname: string }) => row.attname).sort()).toEqual(['marketplace', 'sku']);
     const unsyncedIndex = await db.raw(`select indexdef from pg_indexes where tablename = 'listings' and indexname = 'listings_stock_unsynced_idx'`);
     expect(unsyncedIndex.rows[0].indexdef).toMatch(/\(marketplace, updated_at\) WHERE/);
+    const unsyncedPriceIndex = await db.raw(`select indexdef from pg_indexes where tablename = 'listings' and indexname = 'listings_price_unsynced_idx'`);
+    expect(unsyncedPriceIndex.rows[0].indexdef).toMatch(/\(marketplace, updated_at\) WHERE/);
 
     const second = capturingLogger();
     expect(await runMigrations(db, second.logger)).toBe(true);
@@ -118,6 +121,7 @@ describe('migrations', () => {
       '20261024130100_create_order_cursors_table',
       '20261024140000_create_listings_table',
       '20261024150000_add_stock_synced_to_listings',
+      '20261025120000_add_price_synced_to_listings',
     ]);
   });
 

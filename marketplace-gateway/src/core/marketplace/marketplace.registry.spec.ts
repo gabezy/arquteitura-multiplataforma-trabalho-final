@@ -6,9 +6,10 @@ const portOf = (marketplace: Marketplace): MarketplacePort => ({
   marketplace,
   publishListing: jest.fn(),
   updateStock: jest.fn(),
+  updatePrice: jest.fn(),
   fetchNewOrders: jest.fn(),
   cancelOrder: jest.fn(),
-});
+} as MarketplacePort);
 
 describe('MarketplaceRegistry', () => {
   const amazon = portOf('AMAZON');
