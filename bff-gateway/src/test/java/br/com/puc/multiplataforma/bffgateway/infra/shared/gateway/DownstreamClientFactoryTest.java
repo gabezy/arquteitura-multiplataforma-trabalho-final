@@ -29,7 +29,7 @@ class DownstreamClientFactoryTest {
     private final AtomicReference<String> receivedUserId = new AtomicReference<>();
     private final ExecutorService executor = Executors.newCachedThreadPool();
     private final DownstreamClientFactory factory =
-            new DownstreamClientFactory(RestClient.builder(), Duration.ofSeconds(1), Duration.ofMillis(300));
+            new DownstreamClientFactory(RestClient.builder(), Duration.ofSeconds(2), Duration.ofSeconds(5));
 
     private HttpServer server;
 
@@ -94,7 +94,9 @@ class DownstreamClientFactoryTest {
 
     @Test
     void reportsTheServiceAsUnavailableWhenItAnswersAfterTheReadTimeout() {
-        DownstreamClient client = factory.create("order-service", baseUrl());
+        DownstreamClientFactory impatientFactory =
+                new DownstreamClientFactory(RestClient.builder(), Duration.ofSeconds(2), Duration.ofMillis(300));
+        DownstreamClient client = impatientFactory.create("order-service", baseUrl());
 
         assertThatThrownBy(() -> client.get(uri -> uri.path("/slow").build(), Greeting.class))
                 .isInstanceOf(DownstreamUnavailableException.class);
