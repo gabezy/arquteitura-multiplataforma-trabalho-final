@@ -105,6 +105,24 @@ services:
       retries: 5
       start_period: 10s
 
+  order-db:
+    image: postgres:18-alpine
+    container_name: order-db
+    environment:
+      POSTGRES_DB: ${ORDER_DB_NAME:-orders}
+      POSTGRES_USER: ${ORDER_DB_USER:-orders}
+      POSTGRES_PASSWORD: ${ORDER_DB_PASSWORD:-orders}
+    ports:
+      - "5434:5432"
+    volumes:
+      - order-db-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   kafka:
     image: apache/kafka:4.3.1
     container_name: kafka
@@ -277,6 +295,21 @@ services:
       kafka-init:
         condition: service_completed_successfully
 
+  order-service:
+    build: ./order-service
+    container_name: order-service
+    environment:
+      DATABASE_URL: postgresql://${ORDER_DB_USER:-orders}:${ORDER_DB_PASSWORD:-orders}@order-db:5432/${ORDER_DB_NAME:-orders}
+      KAFKA_BROKERS: kafka:19092
+      OTEL_COLLECTOR_URL: http://otel-collector:4318
+    ports:
+      - "8084:8084"
+    depends_on:
+      order-db:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+
   bff-gateway:
     build: ./bff-gateway
     container_name: bff-gateway
@@ -304,6 +337,7 @@ volumes:
   keycloak-data:
   catalog-db-data:
   compliance-db-data:
+  order-db-data:
   kafka-data:
   grafana-data:
   loki-data:
