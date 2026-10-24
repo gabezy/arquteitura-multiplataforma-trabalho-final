@@ -10,7 +10,7 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 
 **Spec**: `.specs/features/new-services-infra/spec.md`
 **Design**: skipped - no architectural decision; the infra follows ADR-0001 and the patterns already on `dev`
-**Status**: Done (pending re-verification)
+**Status**: Done (Verifier PASS, `validation.md`)
 
 **Nature of the tasks:** the infra of #14 is already on `dev`. Most tasks verify a group of requirements and record the evidence (command and output) under the task. They change files only when the check finds a gap. Each task ends in one commit with the traceability update, plus the fix when there is one.
 

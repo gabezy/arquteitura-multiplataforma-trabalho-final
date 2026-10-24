@@ -168,34 +168,34 @@ The order-service, billing-service and marketplace-gateway need their own databa
 
 | Requirement ID | Story | Phase | Status |
 | --- | --- | --- | --- |
-| PLAT-01 | P1: Databases - three databases on 5434/5435/5436 | T2 | Implementing |
-| PLAT-02 | P1: Databases - healthy within 60 s | T2 | Implementing |
-| PLAT-03 | P1: Databases - named volumes | T2 | Implementing |
-| PLAT-04 | P1: Databases - `make compose-up-infra` leaves the apps out | T2 | Implementing |
-| PLAT-05 | P1: Databases - missing password fails with `run make env` | T2 | Implementing |
-| PLAT-06 | P1: Topics - 9 event topics, 3 partitions | T3 | Implementing |
-| PLAT-07 | P1: Topics - 6 DLQs, 1 partition, 14 days | T3 | Implementing |
-| PLAT-08 | P1: Topics - `make compose-topics` is idempotent | T3 | Implementing |
-| PLAT-09 | P1: Topics - `docs/eventos.md` lists nothing already created | T1 | Implementing |
-| PLAT-10 | P1: CI - each workflow calls its stack's reusable workflow | T4 | Implementing |
-| PLAT-11 | P1: CI - push to `order-service/` runs only its CI | T5 | Implementing |
-| PLAT-12 | P1: CI - push to `billing-service/` runs only its CI | T5 | Implementing |
-| PLAT-13 | P1: CI - push to `marketplace-gateway/` runs only its CI | T5 | Implementing |
-| PLAT-14 | P1: CI - change to `_node-service.yml` runs every caller | T5 | Implementing |
-| PLAT-15 | P2: Ports - 8084/8086/8087 published | T2 | Implementing |
-| PLAT-16 | P2: Ports - 8085 only for Keycloak | T2 | Implementing |
-| PLAT-17 | P2: Ports - README services table | T6 | Implementing |
-| PLAT-18 | P2: Ports - README components table | T6 | Implementing |
-| PLAT-19 | P2: C4 - `billing-service` technology | T7 | Implementing |
-| PLAT-20 | P2: C4 - `marketplace-gateway` technology | T7 | Implementing |
-| PLAT-21 | P2: C4 - `billing-db` and `marketplace-db` descriptions | T7 | Implementing |
-| PLAT-22 | P2: C4 - no `a definir` left in `.drawio` or PNG | T7 | Implementing |
+| PLAT-01 | P1: Databases - three databases on 5434/5435/5436 | T2 | Verified |
+| PLAT-02 | P1: Databases - healthy within 60 s | T2 | Verified |
+| PLAT-03 | P1: Databases - named volumes | T2 | Verified |
+| PLAT-04 | P1: Databases - `make compose-up-infra` leaves the apps out | T2 | Verified |
+| PLAT-05 | P1: Databases - missing password fails with `run make env` | T2 | Verified |
+| PLAT-06 | P1: Topics - 9 event topics, 3 partitions | T3 | Verified |
+| PLAT-07 | P1: Topics - 6 DLQs, 1 partition, 14 days | T3 | Verified |
+| PLAT-08 | P1: Topics - `make compose-topics` is idempotent | T3 | Verified |
+| PLAT-09 | P1: Topics - `docs/eventos.md` lists nothing already created | T1 | Verified |
+| PLAT-10 | P1: CI - each workflow calls its stack's reusable workflow | T4 | Verified |
+| PLAT-11 | P1: CI - push to `order-service/` runs only its CI | T5 | Verified |
+| PLAT-12 | P1: CI - push to `billing-service/` runs only its CI | T5 | Verified |
+| PLAT-13 | P1: CI - push to `marketplace-gateway/` runs only its CI | T5 | Verified |
+| PLAT-14 | P1: CI - change to `_node-service.yml` runs every caller | T5 | Verified |
+| PLAT-15 | P2: Ports - 8084/8086/8087 published | T2 | Verified |
+| PLAT-16 | P2: Ports - 8085 only for Keycloak | T2 | Verified |
+| PLAT-17 | P2: Ports - README services table | T6 | Verified |
+| PLAT-18 | P2: Ports - README components table | T6 | Verified |
+| PLAT-19 | P2: C4 - `billing-service` technology | T7 | Verified |
+| PLAT-20 | P2: C4 - `marketplace-gateway` technology | T7 | Verified |
+| PLAT-21 | P2: C4 - `billing-db` and `marketplace-db` descriptions | T7 | Verified |
+| PLAT-22 | P2: C4 - no `a definir` left in `.drawio` or PNG | T7 | Verified |
 
 **ID format:** `PLAT-NN` (platform).
 
 **Status values:** Pending → In Design → In Tasks → Implementing → Verified
 
-**Coverage:** 22 total, 22 mapped to tasks, 0 unmapped.
+**Coverage:** 22 total, 22 mapped to tasks, 0 unmapped, 22 verified (`validation.md`, PASS on 2026-10-24).
 
 ---
 
