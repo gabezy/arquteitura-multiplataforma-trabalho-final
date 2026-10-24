@@ -1,0 +1,13 @@
+{
+    "id": "8b3d9a52-7e1c-4a0e-9a41-5d3f6c2e0b01",
+    "name": "PSP fora do ar (cenário da demo, não carregado por padrão)",
+    "priority": 0,
+    "request": {
+        "urlPathPattern": "/psp/v1/.*"
+    },
+    "response": {
+        "status": 503,
+        "headers": { "Content-Type": "application/json" },
+        "jsonBody": { "code": "PSP_UNAVAILABLE" }
+    }
+}

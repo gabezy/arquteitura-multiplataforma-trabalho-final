@@ -27,6 +27,7 @@ create catalog.order-stock.dlq 1 retention.ms=1209600000 # 14 days to inspect an
 # order-service (consumed by catalog-service until order-service exists)
 create order.order.placed.v1 3
 create order.order.cancelled.v1 3
+create order.order.confirmed.v1 3 # consumed by billing-service
 
 # marketplace-gateway (consumes catalog.product.approved.v1, catalog.product.stock-changed.v1 and order.order.cancelled.v1)
 create marketplace.order.received.v1 3
@@ -37,5 +38,11 @@ create marketplace.order-cancelled.dlq 1 retention.ms=1209600000 # 14 days to in
 
 # compliance-service
 create compliance.product-created.dlq 1 retention.ms=1209600000 # 14 days to inspect and replay
+
+# billing-service
+create billing.invoice.issued.v1 3
+create billing.payment.confirmed.v1 3
+create billing.payment.failed.v1 3
+create billing.order-events.dlq 1 retention.ms=1209600000 # 14 days to inspect and replay
 
 /opt/kafka/bin/kafka-topics.sh --bootstrap-server "$BOOTSTRAP_SERVER" --list

@@ -9,6 +9,7 @@ dependencies = [
     "asyncpg>=0.32.0",
     "cloudevents>=2.2.0",
     "fastapi[standard]>=0.143.2",
+    "hvac>=2.4.0",
     "opentelemetry-exporter-otlp-proto-http>=1.45.1",
     "opentelemetry-instrumentation-aiokafka>=0.66b1",
     "opentelemetry-instrumentation-fastapi>=0.66b1",

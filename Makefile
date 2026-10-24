@@ -1,32 +1,40 @@
 COMPOSE := docker compose -f docker-compose.yaml
 # Applications built from source; `up-infra` leaves them out. A new service is added here too.
-APPS := bff-gateway catalog-service compliance-service order-service marketplace-gateway
+APPS := bff-gateway catalog-service compliance-service order-service billing-service marketplace-gateway
 
 .DEFAULT_GOAL := help
-.PHONY: help up up-infra down clean restart ps logs topics
+.PHONY: help env up up-infra down clean restart ps logs topics vault
 
 help: ## lista os comandos disponíveis
 	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2}'
 
-up: ## sobe tudo: infra, observabilidade, WireMock e aplicações (com build)
+# Every target that runs docker compose depends on `env`: the compose file refuses to start without
+# the secrets in .env, so even `make clean` or `make ps` would fail on a .env that lacks a new key.
+env: ## cria/completa o .env (secrets aleatórios, mantém os valores existentes)
+	@sh scripts/generate-env.sh
+
+up: env ## sobe tudo: infra, observabilidade, WireMock e aplicações (com build)
 	$(COMPOSE) up -d --build
 
-up-infra: ## sobe tudo menos as aplicações (para rodar um serviço pelo código)
+up-infra: env ## sobe tudo menos as aplicações (para rodar um serviço pelo código)
 	$(COMPOSE) up -d $(foreach app,$(APPS),--scale $(app)=0)
 
-down: ## para todos os containers (mantém os volumes)
+down: env ## para todos os containers (mantém os volumes)
 	$(COMPOSE) down
 
-clean: ## para todos os containers e apaga os volumes (necessário para reimportar o realm)
+clean: env ## para todos os containers e apaga os volumes (necessário para reimportar o realm)
 	$(COMPOSE) down -v
 
 restart: down up ## reinicia tudo
 
-ps: ## mostra o estado dos containers
+ps: env ## mostra o estado dos containers
 	$(COMPOSE) ps
 
-logs: ## segue os logs (ex.: make logs s=kafka)
+logs: env ## segue os logs (ex.: make logs s=kafka)
 	$(COMPOSE) logs -f $(s)
 
-topics: ## cria os tópicos novos do Kafka (create-topics.sh)
+topics: env ## cria os tópicos novos do Kafka (create-topics.sh)
 	$(COMPOSE) up -d kafka-init
+
+vault: env ## regrava secrets e AppRoles no Vault (necessário após reiniciar o Vault)
+	$(COMPOSE) up -d --force-recreate vault-init
