@@ -143,11 +143,11 @@ T8 → T9 → T10
 
 **Done when**:
 
-- [ ] A repeated marketplace order returns the existing order and saves nothing
-- [ ] Each outcome applied once, repeated once more and contradicted, with the repository fake
-- [ ] An unknown order is a `NotFoundError`
-- [ ] The report fills the marketplaces without sales with zeros and rejects a reversed period
-- [ ] Gate check passes: quick gate; test count ≥ 20
+- [x] A repeated marketplace order returns the existing order and saves nothing
+- [x] Each outcome applied once, repeated once more and contradicted, with the repository fake
+- [x] An unknown order is a `NotFoundError`
+- [x] The report fills the marketplaces without sales with zeros and rejects a reversed period
+- [x] Gate check passes: quick gate; test count ≥ 20
 
 **Tests**: unit
 **Gate**: quick
