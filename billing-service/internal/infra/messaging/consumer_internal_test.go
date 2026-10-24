@@ -1,15 +1,18 @@
 package messaging
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io"
 	"log/slog"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/twmb/franz-go/pkg/kgo"
+	"github.com/twmb/franz-go/plugin/kotel"
 )
 
 type scriptedHandler struct {
@@ -170,5 +173,105 @@ func TestMessageOfCopiesTheRecord(t *testing.T) {
 	}
 	if len(got.Headers) != 2 || got.Headers[0].Key != "ce_id" || string(got.Headers[0].Value) != "evt-9" {
 		t.Fatalf("headers = %+v, want the two record headers", got.Headers)
+	}
+}
+
+type recordingCommitter struct {
+	committed []*kgo.Record
+	err       error
+}
+
+func (c *recordingCommitter) CommitRecords(_ context.Context, records ...*kgo.Record) error {
+	c.committed = append(c.committed, records...)
+	return c.err
+}
+
+// handlerFunc is a MessageHandler made of a function.
+type handlerFunc func(ctx context.Context, message Message) error
+
+func (f handlerFunc) Handle(ctx context.Context, message Message) error { return f(ctx, message) }
+
+func committingConsumer(handler MessageHandler, dead DeadLetter, s *sleeper, committer offsetCommitter, logs io.Writer) *OrderEventsConsumer {
+	return &OrderEventsConsumer{
+		committer: committer, tracer: kotel.NewTracer(), handler: handler, dead: dead, sleep: s.sleep,
+		logger: slog.New(slog.NewTextHandler(logs, nil)),
+	}
+}
+
+var anyRecord = &kgo.Record{Topic: "order.order.confirmed.v1", Partition: 2, Offset: 7, Key: []byte("k"), Value: []byte("{}")}
+
+// INV-06: a message that was processed, or sent to the dead letter, has its offset committed.
+func TestProcessRecordCommitsTheOffsetOfAMessageThatIsDone(t *testing.T) {
+	tests := []struct {
+		name    string
+		handler MessageHandler
+	}{
+		{"processed", &scriptedHandler{}},
+		{"dead-lettered", &scriptedHandler{results: []error{&UnprocessableError{Reason: "bad"}}}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			committer := &recordingCommitter{}
+
+			err := committingConsumer(tt.handler, &scriptedDeadLetter{}, &sleeper{}, committer, io.Discard).processRecord(context.Background(), anyRecord)
+
+			if err != nil {
+				t.Fatalf("processRecord() error = %v, want nil", err)
+			}
+			if len(committer.committed) != 1 || committer.committed[0] != anyRecord {
+				t.Fatalf("committed %v, want the record of partition 2 offset 7, once", committer.committed)
+			}
+		})
+	}
+}
+
+// INV-07: while a message keeps failing its offset is not committed, so the next instance takes it again.
+func TestProcessRecordDoesNotCommitTheOffsetOfAMessageThatKeepsFailing(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	down := errors.New("database down")
+	handler := &scriptedHandler{results: []error{down, down, down, down}}
+	committer := &recordingCommitter{}
+	s := &sleeper{cancelAfter: 2, cancel: cancel}
+
+	err := committingConsumer(handler, &scriptedDeadLetter{}, s, committer, io.Discard).processRecord(ctx, anyRecord)
+
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("processRecord() error = %v, want the context error that ended the retries", err)
+	}
+	if len(committer.committed) != 0 {
+		t.Fatalf("committed %v while the message was still failing, want nothing", committer.committed)
+	}
+}
+
+func TestProcessRecordCommitsOnlyAfterTheMessageWasHandled(t *testing.T) {
+	committer := &recordingCommitter{}
+	var committedWhileHandling int
+	handler := handlerFunc(func(context.Context, Message) error {
+		committedWhileHandling = len(committer.committed)
+		return nil
+	})
+
+	if err := committingConsumer(handler, &scriptedDeadLetter{}, &sleeper{}, committer, io.Discard).processRecord(context.Background(), anyRecord); err != nil {
+		t.Fatal(err)
+	}
+
+	if committedWhileHandling != 0 || len(committer.committed) != 1 {
+		t.Fatalf("commits while handling = %d, after = %d, want 0 and 1", committedWhileHandling, len(committer.committed))
+	}
+}
+
+// A commit that fails is logged and the consumer goes on: the message is delivered again, and the inbox makes that harmless.
+func TestProcessRecordLogsAFailedCommitAndGoesOn(t *testing.T) {
+	var logs bytes.Buffer
+	committer := &recordingCommitter{err: errors.New("broker unavailable")}
+
+	err := committingConsumer(&scriptedHandler{}, &scriptedDeadLetter{}, &sleeper{}, committer, &logs).processRecord(context.Background(), anyRecord)
+
+	if err != nil {
+		t.Fatalf("processRecord() error = %v, want nil", err)
+	}
+	if !strings.Contains(logs.String(), "level=ERROR") || !strings.Contains(logs.String(), "broker unavailable") || !strings.Contains(logs.String(), "offset=7") {
+		t.Errorf("log %q, want an error with the offset and the cause", logs.String())
 	}
 }
