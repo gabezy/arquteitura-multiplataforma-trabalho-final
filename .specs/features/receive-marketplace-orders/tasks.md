@@ -225,24 +225,26 @@ T7 → T8
 
 **Done when**:
 
-- [ ] A valid message calls `receive` with marketplace, externalOrderId, items, `orderedAt` as `Date` and the `ce_id`
-- [ ] A `ce_id` already in the inbox calls nothing and logs `info`
-- [ ] Each DLQ case goes to the DLQ with original key, value, headers and `dlq-original-topic/partition/offset/reason`, and `receive` is not called: empty value, invalid JSON, `marketplace: "EBAY"`, blank `externalOrderId`, `items: []`, blank SKU, `quantity` 0 and 1.5, `unitPrice` -1 and `1.234`, `orderedAt: "ontem"`, `total: "4500"`
-- [ ] A DLQ'd message with `ce_id` marks it in the inbox and logs `warn` with topic, partition, offset and reason
-- [ ] A repository error (plain `Error`) is rethrown and nothing goes to the DLQ
-- [ ] `total` 4000 for items summing 4500 logs one `warn` with both totals, marketplace and externalOrderId
-- [ ] With a `traceparent` header, the active span context inside `receive` has that trace id
-- [ ] A message with extra unknown fields is processed
-- [ ] `KnexInbox` (Testcontainers): `hasProcessed` is false then true after `markProcessed`; marking the same id twice does not fail
-- [ ] Gate check passes: `cd order-service && npm run typecheck && npm test`
-- [ ] Test count: at least 20 new tests pass
+- [x] A valid message calls `receive` with marketplace, externalOrderId, items, `orderedAt` as `Date` and the `ce_id`
+- [x] A `ce_id` already in the inbox calls nothing and logs `info`
+- [x] Each DLQ case goes to the DLQ with original key, value, headers and `dlq-original-topic/partition/offset/reason`, and `receive` is not called: empty value, invalid JSON, `marketplace: "EBAY"`, blank `externalOrderId`, `items: []`, blank SKU, `quantity` 0 and 1.5, `unitPrice` -1 and `1.234`, `orderedAt: "ontem"`, `total: "4500"`
+- [x] A DLQ'd message with `ce_id` marks it in the inbox and logs `warn` with topic, partition, offset and reason
+- [x] A repository error (plain `Error`) is rethrown and nothing goes to the DLQ
+- [x] `total` 4000 for items summing 4500 logs one `warn` with both totals, marketplace and externalOrderId
+- [x] With a `traceparent` header, the active span context inside `receive` has that trace id
+- [x] A message with extra unknown fields is processed
+- [x] `KnexInbox` (Testcontainers): `hasProcessed` is false then true after `markProcessed`; marking the same id twice does not fail
+- [x] Gate check passes: `cd order-service && npm run typecheck && npm test`
+- [x] Test count: 26 new tests pass (`marketplace-order.consumer.spec.ts` 24, `knex-inbox.spec.ts` 2); 148 in total
 
 **Tests**: integration
 **Gate**: full
 
 **Commit**: `feat(order): consome os pedidos recebidos dos marketplaces com DLQ`
 
-**Status**: Pending
+**Status**: ✅ Complete
+
+**Deviations**: `unitPrice` with more than two decimals passes the zod schema and is refused by `Money` in the domain (`InvalidMoneyError`, a `ValidationError`), which the consumer sends to the DLQ like any `DomainError`. `KnexInbox` is a copy of the marketplace-gateway one.
 
 ---
 
