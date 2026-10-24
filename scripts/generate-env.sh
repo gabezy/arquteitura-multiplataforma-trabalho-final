@@ -4,6 +4,8 @@
 set -eu
 
 cd "$(dirname "$0")/.."
+# .env holds the Vault root token and the generated passwords: readable by the owner only.
+umask 077
 touch .env
 # A hand-edited .env may lack the final newline; appending would glue two keys together.
 if [ -s .env ] && [ -n "$(tail -c1 .env)" ]; then
