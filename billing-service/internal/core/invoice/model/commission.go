@@ -1,6 +1,10 @@
 package model
 
-import "github.com/gabezy/arquteitura-multiplataforma-trabalho-final/billing-service/internal/core/shared/domain"
+import (
+	"fmt"
+
+	"github.com/gabezy/arquteitura-multiplataforma-trabalho-final/billing-service/internal/core/shared/domain"
+)
 
 const basisPointsInTotal = 10_000
 
@@ -40,4 +44,9 @@ func (p CommissionPolicies) For(marketplace Marketplace) (CommissionPolicy, erro
 		return nil, domain.NewValidationError("no commission policy for marketplace %q", marketplace)
 	}
 	return policy, nil
+}
+
+// PercentDecimal writes a rate in basis points as a percentage with two places: 1100 is "11.00".
+func PercentDecimal(rateBps int) string {
+	return fmt.Sprintf("%d.%02d", rateBps/100, rateBps%100)
 }

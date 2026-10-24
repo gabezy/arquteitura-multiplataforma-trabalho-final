@@ -71,3 +71,11 @@ func TestCommissionPoliciesPickTheRateOfTheMarketplace(t *testing.T) {
 		t.Fatalf("For(SHOPEE) without a policy: error = %v, want a ValidationError", err)
 	}
 }
+
+func TestPercentDecimalWritesTheRateWithTwoPlaces(t *testing.T) {
+	for bps, want := range map[int]string{1100: "11.00", 1400: "14.00", 1150: "11.50", 5: "0.05", 0: "0.00", 10000: "100.00"} {
+		if got := model.PercentDecimal(bps); got != want {
+			t.Errorf("PercentDecimal(%d) = %q, want %q", bps, got, want)
+		}
+	}
+}

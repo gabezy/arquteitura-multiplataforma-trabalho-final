@@ -469,11 +469,11 @@ T18 → T19 → T20 → T21 → T22 → T23
 
 **Done when**:
 
-- [ ] Valid confirmation reaches the facade once; a duplicate `ce_id` does not
-- [ ] Each contract violation of INV-06 goes to the DLQ with `dlq-*` headers and the offset is committed
-- [ ] A transient error is retried with the backoff sequence and the offset is committed only after success
-- [ ] `billing.invoice.issued.v1` payload matches the design, money with two decimals
-- [ ] Gate check passes: quick gate; test count ≥ 12
+- [x] Valid confirmation reaches the facade once; a duplicate `ce_id` does not
+- [x] Each contract violation of INV-06 goes to the DLQ with `dlq-*` headers and the offset is committed
+- [x] A transient error is retried with the backoff sequence and the offset is committed only after success
+- [x] `billing.invoice.issued.v1` payload matches the design, money with two decimals
+- [x] Gate check passes: quick gate; test count ≥ 12
 
 **Tests**: unit
 **Gate**: quick
