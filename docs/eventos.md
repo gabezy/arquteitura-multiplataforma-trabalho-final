@@ -616,7 +616,7 @@ GET /psp/v1/charges/ch_paid_a3c1d5e2-7b4f-4c8a-9e10-2d3f4a5b6c7d
 
 ## Tópicos no `create-topics.sh`
 
-Todos os tópicos deste catálogo, com as DLQs dos consumidores, são criados por [`docker/kafka/create-topics.sh`](../docker/kafka/create-topics.sh) (`make topics`). Um tópico novo entra no script seguindo [Como adicionar ou mudar um evento](#como-adicionar-ou-mudar-um-evento).
+Todos os tópicos deste catálogo, com as DLQs dos consumidores, são criados por [`docker/kafka/create-topics.sh`](../docker/kafka/create-topics.sh) (`make compose-topics`). Um tópico novo entra no script seguindo [Como adicionar ou mudar um evento](#como-adicionar-ou-mudar-um-evento).
 
 ## Como adicionar ou mudar um evento
 

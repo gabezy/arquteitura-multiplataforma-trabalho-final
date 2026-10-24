@@ -24,8 +24,8 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 
 | Code Layer | Required Test Type | Coverage Expectation | Location Pattern | Run Command |
 | --- | --- | --- | --- | --- |
-| Compose (databases, ports, volumes) | static check + smoke | Every port, volume, image and health status in PLAT-01..05, PLAT-15, PLAT-16 | `docker-compose.yaml` | `docker compose config` + `make up-infra` |
-| Kafka topics | smoke | Partitions and `retention.ms` of the 15 topics in PLAT-06, PLAT-07; second run exits 0 (PLAT-08) | `docker/kafka/create-topics.sh` | `make topics` + `kafka-topics.sh --describe` |
+| Compose (databases, ports, volumes) | static check + smoke | Every port, volume, image and health status in PLAT-01..05, PLAT-15, PLAT-16 | `docker-compose.yaml` | `docker compose config` + `make compose-up-infra` |
+| Kafka topics | smoke | Partitions and `retention.ms` of the 15 topics in PLAT-06, PLAT-07; second run exits 0 (PLAT-08) | `docker/kafka/create-topics.sh` | `make compose-topics` + `kafka-topics.sh --describe` |
 | Event catalog doc | none (static check) | No topic of the script listed as pending (PLAT-09) | `docs/eventos.md` | topics diff (Gate Check Commands) |
 | CI workflows | none (static check + GitHub Actions evidence) | Reusable workflow per stack and isolation per service (PLAT-10..14) | `.github/workflows/*.yml` | `gh run list --commit <sha>` |
 | README and spec copy | none (static check) | Tables match the compose (PLAT-17, PLAT-18) | `README.md` | `grep` against the compose ports |
@@ -40,7 +40,7 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 | Static | Tasks that read or change compose, docs or workflows | `docker compose config -q && echo OK` |
 | Topics diff | Tasks that touch `docs/eventos.md` or `create-topics.sh` | Script "eventos gate" below prints `OK` |
 | C4 labels | Tasks that touch the C4 `.drawio` | Script "C4 gate" below prints `OK` |
-| Smoke | Tasks that check runtime behaviour | `make up-infra`, then after 60 s `docker inspect -f '{{.Name}} {{.State.Health.Status}}' order-db billing-db marketplace-db` and `make topics` |
+| Smoke | Tasks that check runtime behaviour | `make compose-up-infra`, then after 60 s `docker inspect -f '{{.Name}} {{.State.Health.Status}}' order-db billing-db marketplace-db` and `make compose-topics` |
 | CI | Tasks that check the workflows | `gh run list --commit <sha> --json workflowName,event,status,conclusion` |
 
 
@@ -134,7 +134,7 @@ T7
 
 ### T2: Verify the databases and ports in the compose
 
-**What**: Check PLAT-01..05, PLAT-15 and PLAT-16 against `docker compose config` and a `make up-infra` run, and record each command with its output under this task; fix the compose only if a check fails.
+**What**: Check PLAT-01..05, PLAT-15 and PLAT-16 against `docker compose config` and a `make compose-up-infra` run, and record each command with its output under this task; fix the compose only if a check fails.
 **Where**: `docker-compose.yaml` (only if a gap is found)
 **Depends on**: None
 **Reuses**: `order-db` as the reference shape for the other two databases
@@ -148,8 +148,8 @@ T7
 **Done when**:
 
 - [x] `docker compose config --format json` shows ports 5434/5435/5436, image `postgres:18-alpine` and the three named volumes at `/var/lib/postgresql` (PLAT-01, PLAT-03)
-- [x] After `make up-infra` and 60 s, the three databases report `healthy` (PLAT-02)
-- [x] `make ps` after `make up-infra` lists none of `order-service`, `billing-service`, `marketplace-gateway` (PLAT-04)
+- [x] After `make compose-up-infra` and 60 s, the three databases report `healthy` (PLAT-02)
+- [x] `make compose-ps` after `make compose-up-infra` lists none of `order-service`, `billing-service`, `marketplace-gateway` (PLAT-04)
 - [x] `ORDER_DB_PASSWORD= docker compose config` fails with a message containing `run make env` (PLAT-05)
 - [x] Host ports 8084/8086/8087 belong to the three services and 8085 only to `keycloak` (PLAT-15, PLAT-16)
 - [x] Evidence recorded below and PLAT-01..05, PLAT-15, PLAT-16 marked `Implementing`
@@ -173,7 +173,7 @@ T7
 
 ### T3: Verify the Kafka topics
 
-**What**: Run `make topics` twice and describe the 15 topics of PLAT-06 and PLAT-07, recording partitions and `retention.ms`; fix `create-topics.sh` only if a topic is missing or wrong.
+**What**: Run `make compose-topics` twice and describe the 15 topics of PLAT-06 and PLAT-07, recording partitions and `retention.ms`; fix `create-topics.sh` only if a topic is missing or wrong.
 **Where**: `docker/kafka/create-topics.sh` (only if a gap is found)
 **Depends on**: T2
 **Reuses**: the `create` helper of the script
@@ -188,7 +188,7 @@ T7
 
 - [x] The 9 event topics have 3 partitions (PLAT-06)
 - [x] The 6 DLQs have 1 partition and `retention.ms=1209600000` (PLAT-07)
-- [x] The second `make topics` leaves `kafka-init` exited with code 0 and every partition count unchanged (PLAT-08)
+- [x] The second `make compose-topics` leaves `kafka-init` exited with code 0 and every partition count unchanged (PLAT-08)
 - [x] Evidence recorded below and PLAT-06..08 marked `Implementing`
 
 **Tests**: smoke
@@ -316,7 +316,7 @@ Source: the 110 `push` runs of `gh api repos/gabezy/arquteitura-multiplataforma-
 **Evidence (2026-10-24):**
 
 - README services table (PLAT-17): `README.md:24` `order-service` … `8084`; `README.md:25` `billing-service` … `8086`; `README.md:26` `marketplace-gateway` … `8087`. These match the compose ports from T2.
-- README components table (PLAT-18): `README.md:61` `order-db` `localhost:5434` `orders` / `ORDER_DB_PASSWORD` do `.env`; `README.md:62` `billing-db` `localhost:5435` `billing` / `billing`; `README.md:63` `marketplace-db` `localhost:5436` `marketplace` / `marketplace`. These match the compose defaults (`BILLING_DB_PASSWORD:-billing`, `MARKETPLACE_DB_PASSWORD:-marketplace`).
+- README components table (PLAT-18): `README.md:176` `order-db` `localhost:5434` `orders` / `ORDER_DB_PASSWORD` do `.env`; `README.md:177` `billing-db` `localhost:5435` `billing` / `billing`; `README.md:178` `marketplace-db` `localhost:5436` `marketplace` / `marketplace`. These match the compose defaults (`BILLING_DB_PASSWORD:-billing`, `MARKETPLACE_DB_PASSWORD:-marketplace`).
 - No gap found; `README.md` unchanged.
 - Spec copied to `docs/specs/plataforma/infra-servicos-novos/spec.md` after this task's traceability update; `diff` prints nothing.
 
