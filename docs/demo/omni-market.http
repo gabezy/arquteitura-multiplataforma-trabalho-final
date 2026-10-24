@@ -1,0 +1,128 @@
+# Coleção da demo ponta a ponta (roteiro em docs/demo/README.md).
+# Formato do VS Code REST Client: rode as requisições na ordem, de cima para baixo.
+# As requisições com "# @name" guardam a resposta para as seguintes (ex.: o token).
+
+@keycloak = http://localhost:8085/realms/omni-market/protocol/openid-connect/token
+@bff = http://localhost:8080
+@catalog = http://localhost:8082
+@kafkaUi = http://localhost:8090/api/clusters/omni-market
+@clientId = bff-gateway
+@clientSecret = bff-gateway-secret
+
+### Ato 1: token do admin (papéis admin e customer)
+# @name admin
+POST {{keycloak}}
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=password&client_id={{clientId}}&client_secret={{clientSecret}}&username=admin&password=admin
+
+### Ato 1: token do customer (só o papel customer)
+# @name customer
+POST {{keycloak}}
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=password&client_id={{clientId}}&client_secret={{clientSecret}}&username=customer&password=customer
+
+### Ato 1: sem token, o BFF responde 401
+POST {{bff}}/catalog/import/xlsx
+Content-Type: multipart/form-data; boundary=demo
+
+--demo
+Content-Disposition: form-data; name="file"; filename="catalog-demo.xlsx"
+Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+
+< ./catalog-demo.xlsx
+--demo--
+
+### Ato 1: com o customer, o BFF responde 403 (importar exige o papel admin)
+POST {{bff}}/catalog/import/xlsx
+Authorization: Bearer {{customer.response.body.access_token}}
+Content-Type: multipart/form-data; boundary=demo
+
+--demo
+Content-Disposition: form-data; name="file"; filename="catalog-demo.xlsx"
+Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+
+< ./catalog-demo.xlsx
+--demo--
+
+### Ato 2: importação da planilha pelo BFF com o admin: {"importedProducts":5}
+POST {{bff}}/catalog/import/xlsx
+Authorization: Bearer {{admin.response.body.access_token}}
+Content-Type: multipart/form-data; boundary=demo
+
+--demo
+Content-Disposition: form-data; name="file"; filename="catalog-demo.xlsx"
+Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+
+< ./catalog-demo.xlsx
+--demo--
+
+### Ato 3: aprovado pelo compliance
+GET {{catalog}}/products/sku/OXI-001
+
+### Ato 3: aprovado pelo compliance
+GET {{catalog}}/products/sku/MON-002
+
+### Ato 3: reprovado por termo proibido ("réplica")
+GET {{catalog}}/products/sku/EST-003
+
+### Ato 3: reprovado por preço acima do teto (100.000)
+GET {{catalog}}/products/sku/RES-004
+
+### Ato 3: reprovado por descrição curta (menos de 20 caracteres)
+GET {{catalog}}/products/sku/LUV-005
+
+### Ato 4 (plano B: pedido publicado à mão): venda de 1 OXI-001, estoque 2 → 1, catalog.stock.reserved.v1
+POST {{kafkaUi}}/topics/order.order.placed.v1/messages
+Content-Type: application/json
+
+{
+  "partition": 0,
+  "keySerde": "String",
+  "valueSerde": "String",
+  "key": "6f1c2b8e-0000-4000-8000-000000000001",
+  "value": "{\"orderId\":\"6f1c2b8e-0000-4000-8000-000000000001\",\"items\":[{\"sku\":\"OXI-001\",\"quantity\":1}]}"
+}
+
+### Ato 4: confere o estoque (1)
+GET {{catalog}}/products/sku/OXI-001
+
+### Ato 4: falta estoque, pede 2 com 1 disponível; nada muda, catalog.stock.insufficient.v1
+POST {{kafkaUi}}/topics/order.order.placed.v1/messages
+Content-Type: application/json
+
+{
+  "partition": 0,
+  "keySerde": "String",
+  "valueSerde": "String",
+  "key": "6f1c2b8e-0000-4000-8000-000000000002",
+  "value": "{\"orderId\":\"6f1c2b8e-0000-4000-8000-000000000002\",\"items\":[{\"sku\":\"OXI-001\",\"quantity\":2}]}"
+}
+
+### Ato 4: produto reprovado não pode ser vendido (available 0), catalog.stock.insufficient.v1
+POST {{kafkaUi}}/topics/order.order.placed.v1/messages
+Content-Type: application/json
+
+{
+  "partition": 0,
+  "keySerde": "String",
+  "valueSerde": "String",
+  "key": "6f1c2b8e-0000-4000-8000-000000000003",
+  "value": "{\"orderId\":\"6f1c2b8e-0000-4000-8000-000000000003\",\"items\":[{\"sku\":\"EST-003\",\"quantity\":1}]}"
+}
+
+### Ato 4: cancelamento do primeiro pedido devolve o estoque (1 → 2), catalog.product.stock-changed.v1
+POST {{kafkaUi}}/topics/order.order.cancelled.v1/messages
+Content-Type: application/json
+
+{
+  "partition": 0,
+  "keySerde": "String",
+  "valueSerde": "String",
+  "key": "6f1c2b8e-0000-4000-8000-000000000001",
+  "value": "{\"orderId\":\"6f1c2b8e-0000-4000-8000-000000000001\",\"reason\":\"PAYMENT_FAILED\"}"
+}
+
+### Ato 4: confere o estoque (2)
+GET {{catalog}}/products/sku/OXI-001
