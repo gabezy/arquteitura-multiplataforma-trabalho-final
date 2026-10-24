@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { AddProductPortInput } from '../../../core/product/port/in/create-product.port';
+import { ChangePricePortInput } from '../../../core/product/port/in/change-price.port';
 import { FindProductPortInput } from '../../../core/product/port/in/find-product.port';
 import { ImportProductsPortInput } from '../../../core/product/port/in/import-products.port';
 
@@ -22,3 +23,7 @@ export const importProductsSchema = z.object({
 export const productSkuParamsSchema = z.object({
   sku: z.string(),
 }) satisfies z.ZodType<FindProductPortInput>;
+
+export const changePriceBodySchema = z.object({
+  price: z.number(),
+}) satisfies z.ZodType<Omit<ChangePricePortInput, 'sku'>>;
