@@ -9,6 +9,20 @@ describe('loadConfig', () => {
       otelCollectorUrl: 'http://localhost:4318',
       databaseUrl: 'postgresql://marketplace:marketplace@localhost:5436/marketplace',
       kafkaBrokers: ['localhost:9092'],
+      marketplaces: {
+        amazon: { baseUrl: 'http://localhost:8089/amazon', marketplaceId: 'A2Q3Y263D00KWC' },
+        mercadoLivre: { baseUrl: 'http://localhost:8089/mercadolivre', sellerId: '2000' },
+        shopee: { baseUrl: 'http://localhost:8089/shopee', shopId: '1001' },
+        httpTimeoutMs: 3000,
+        maxAttempts: 3,
+        backoffBaseMs: 200,
+        backoffMaxMs: 2000,
+        breakerFailureThreshold: 5,
+        breakerCooldownMs: 30_000,
+      },
+      orderPolling: { intervalMs: 5000, overlapMs: 60_000, initialLookbackMs: 86_400_000 },
+      orderCancelledTopic: 'order.order.cancelled.v1',
+      orderCancelledDeadLetterTopic: 'marketplace.order-cancelled.dlq',
     });
   });
 
@@ -20,6 +34,23 @@ describe('loadConfig', () => {
       OTEL_COLLECTOR_URL: 'http://collector:4318',
       DATABASE_URL: 'postgresql://user:password@marketplace-db:5432/marketplace',
       KAFKA_BROKERS: 'kafka:19092',
+      AMAZON_BASE_URL: 'http://wiremock:8080/amazon',
+      AMAZON_MARKETPLACE_ID: 'ATVPDKIKX0DER',
+      MERCADO_LIVRE_BASE_URL: 'http://wiremock:8080/mercadolivre',
+      MERCADO_LIVRE_SELLER_ID: '3000',
+      SHOPEE_BASE_URL: 'http://wiremock:8080/shopee',
+      SHOPEE_SHOP_ID: '2002',
+      MARKETPLACE_TIMEOUT_MS: '1500',
+      MARKETPLACE_MAX_ATTEMPTS: '4',
+      MARKETPLACE_BACKOFF_BASE_MS: '100',
+      MARKETPLACE_BACKOFF_MAX_MS: '800',
+      MARKETPLACE_BREAKER_FAILURES: '2',
+      MARKETPLACE_BREAKER_COOLDOWN_MS: '10000',
+      ORDER_POLL_INTERVAL_MS: '1000',
+      ORDER_POLL_OVERLAP_MS: '5000',
+      ORDER_POLL_LOOKBACK_MS: '3600000',
+      ORDER_CANCELLED_TOPIC: 'cancelled',
+      ORDER_CANCELLED_DLQ_TOPIC: 'cancelled.dlq',
     });
 
     expect(config).toEqual({
@@ -29,6 +60,20 @@ describe('loadConfig', () => {
       otelCollectorUrl: 'http://collector:4318',
       databaseUrl: 'postgresql://user:password@marketplace-db:5432/marketplace',
       kafkaBrokers: ['kafka:19092'],
+      marketplaces: {
+        amazon: { baseUrl: 'http://wiremock:8080/amazon', marketplaceId: 'ATVPDKIKX0DER' },
+        mercadoLivre: { baseUrl: 'http://wiremock:8080/mercadolivre', sellerId: '3000' },
+        shopee: { baseUrl: 'http://wiremock:8080/shopee', shopId: '2002' },
+        httpTimeoutMs: 1500,
+        maxAttempts: 4,
+        backoffBaseMs: 100,
+        backoffMaxMs: 800,
+        breakerFailureThreshold: 2,
+        breakerCooldownMs: 10_000,
+      },
+      orderPolling: { intervalMs: 1000, overlapMs: 5000, initialLookbackMs: 3_600_000 },
+      orderCancelledTopic: 'cancelled',
+      orderCancelledDeadLetterTopic: 'cancelled.dlq',
     });
   });
 
@@ -45,5 +90,29 @@ describe('loadConfig', () => {
 
   it.each(['abc', '0', '65536', '80.5'])('rejects PORT %s', port => {
     expect(() => loadConfig({ PORT: port })).toThrow(`Invalid PORT: ${port}`);
+  });
+
+  describe.each([
+    'MARKETPLACE_TIMEOUT_MS',
+    'MARKETPLACE_MAX_ATTEMPTS',
+    'MARKETPLACE_BACKOFF_BASE_MS',
+    'MARKETPLACE_BACKOFF_MAX_MS',
+    'MARKETPLACE_BREAKER_FAILURES',
+    'MARKETPLACE_BREAKER_COOLDOWN_MS',
+    'ORDER_POLL_INTERVAL_MS',
+    'ORDER_POLL_OVERLAP_MS',
+    'ORDER_POLL_LOOKBACK_MS',
+  ])('%s', name => {
+    it.each(['abc', '0', '-5', '1.5', ''])('rejects %p', value => {
+      expect(() => loadConfig({ [name]: value })).toThrow(`Invalid ${name}: ${value}`);
+    });
+
+    it('accepts a positive integer', () => {
+      expect(() => loadConfig({ [name]: '1' })).not.toThrow();
+    });
+  });
+
+  it.each(['AMAZON_BASE_URL', 'MERCADO_LIVRE_BASE_URL', 'SHOPEE_BASE_URL'])('rejects a %s that is not a URL', name => {
+    expect(() => loadConfig({ [name]: 'wiremock/amazon' })).toThrow(`Invalid ${name}: wiremock/amazon`);
   });
 });

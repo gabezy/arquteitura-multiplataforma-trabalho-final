@@ -1,6 +1,6 @@
-import { Kafka, Producer } from "kafkajs";
+import { Consumer, Kafka, Producer } from "kafkajs";
 
-export const configureKafka = (brokers: string[]): { producer: Producer } => {
+export const configureKafka = (brokers: string[]): { producer: Producer, orderCancelledConsumer: Consumer } => {
     const kafka = new Kafka({
         clientId: "marketplace-gateway",
         brokers
@@ -10,6 +10,8 @@ export const configureKafka = (brokers: string[]): { producer: Producer } => {
     // reordered by the broker. Retries are finite so a send to a dead broker fails and
     // the relay keeps the events pending, instead of holding the outbox locks forever.
     const producer = kafka.producer({ idempotent: true, maxInFlightRequests: 1, retry: { retries: 5 } });
+    // One group per kind of input, so a stuck message of one does not hold back the others.
+    const orderCancelledConsumer = kafka.consumer({ groupId: "marketplace-gateway-order-cancelled" });
 
-    return { producer };
+    return { producer, orderCancelledConsumer };
 }

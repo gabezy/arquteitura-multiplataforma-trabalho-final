@@ -1,0 +1,229 @@
+import pino from 'pino';
+import {
+    MarketplaceRejectedError,
+    MarketplaceUnavailableError,
+} from '../../core/marketplace/model/marketplace.errors';
+import { MarketplacePort } from '../../core/marketplace/port/out/marketplace.port';
+import {
+    requestsTo,
+    resetWiremock,
+    simulateFailure,
+    simulateOrder,
+    simulatorBaseUrl,
+    SimulatedMarketplace,
+} from '../testing/wiremock';
+import { AmazonMarketplace, describeAmazonError } from './amazon.marketplace';
+import { MarketplaceHttpClient } from './marketplace-http.client';
+import { describeMercadoLivreError, MercadoLivreMarketplace } from './mercado-livre.marketplace';
+import { describeShopeeError, ShopeeMarketplace } from './shopee.marketplace';
+
+const SINCE = new Date('2026-10-28T12:00:00.000Z');
+const logger = pino({ level: 'silent' });
+
+interface Subject {
+  marketplace: SimulatedMarketplace;
+  adapter: (timeoutMs: number) => MarketplacePort;
+  ordersPath: string;
+  listingQuery: Record<string, string>;
+  ids: { order: string; shipped: string; unknown: string };
+  cancel: { method: string; path: (id: string) => string; body: (id: string) => unknown };
+  refusals: { shipped: string; unknown: string };
+}
+
+const subjects: Subject[] = [
+  {
+    marketplace: 'AMAZON',
+    adapter: timeoutMs =>
+      new AmazonMarketplace(
+        new MarketplaceHttpClient('AMAZON', { baseUrl: simulatorBaseUrl('AMAZON'), timeoutMs, describeError: describeAmazonError }),
+        { marketplaceId: 'A2Q3Y263D00KWC' },
+        logger,
+      ),
+    ordersPath: '/amazon/orders/v0/orders',
+    listingQuery: { MarketplaceIds: 'A2Q3Y263D00KWC', CreatedAfter: SINCE.toISOString(), OrderStatuses: 'Unshipped' },
+    ids: { order: '701-1111111-2222222', shipped: '701-SHIPPED-1', unknown: '701-UNKNOWN-1' },
+    cancel: {
+      method: 'POST',
+      path: id => `/amazon/orders/v0/orders/${id}/cancellation`,
+      body: () => ({ cancelReason: 'OUT_OF_STOCK' }),
+    },
+    refusals: { shipped: 'HTTP 409: InvalidInput: Order already shipped', unknown: 'HTTP 404: NotFound: Order not found' },
+  },
+  {
+    marketplace: 'MERCADO_LIVRE',
+    adapter: timeoutMs =>
+      new MercadoLivreMarketplace(
+        new MarketplaceHttpClient('MERCADO_LIVRE', { baseUrl: simulatorBaseUrl('MERCADO_LIVRE'), timeoutMs, describeError: describeMercadoLivreError }),
+        { sellerId: '2000' },
+        logger,
+      ),
+    ordersPath: '/mercadolivre/orders/search',
+    listingQuery: { seller: '2000', 'order.status': 'paid', 'order.date_created.from': SINCE.toISOString(), offset: '0', limit: '50' },
+    ids: { order: '2000001', shipped: '2000-SHIPPED', unknown: '2000-UNKNOWN' },
+    cancel: {
+      method: 'PUT',
+      path: id => `/mercadolivre/orders/${id}`,
+      body: () => ({ status: 'cancelled', reason: 'OUT_OF_STOCK' }),
+    },
+    refusals: { shipped: 'HTTP 409: Order cannot be cancelled', unknown: 'HTTP 404: Order not found' },
+  },
+  {
+    marketplace: 'SHOPEE',
+    adapter: timeoutMs =>
+      new ShopeeMarketplace(
+        new MarketplaceHttpClient('SHOPEE', { baseUrl: simulatorBaseUrl('SHOPEE'), timeoutMs, describeError: describeShopeeError }),
+        { shopId: '1001' },
+        logger,
+      ),
+    ordersPath: '/shopee/api/v2/order/get_order_list',
+    listingQuery: { shop_id: '1001', time_range_field: 'create_time', order_status: 'READY_TO_SHIP', page_size: '100' },
+    ids: { order: 'SHP261028A1B2C3', shipped: 'SHP-SHIPPED-1', unknown: 'SHP-UNKNOWN-1' },
+    cancel: {
+      method: 'POST',
+      path: () => '/shopee/api/v2/order/cancel_order',
+      body: id => ({ order_sn: id, cancel_reason: 'OUT_OF_STOCK' }),
+    },
+    refusals: { shipped: 'error_cannot_cancel: Order already shipped', unknown: 'error_not_found: Order not found' },
+  },
+];
+
+describe.each(subjects)('the $marketplace adapter against its simulator', subject => {
+  const { marketplace, ids } = subject;
+  const adapter = subject.adapter(2000);
+
+  beforeEach(resetWiremock);
+
+  describe('fetching new orders', () => {
+    it('finds none while nobody simulated an order', async () => {
+      await expect(adapter.fetchNewOrders(SINCE)).resolves.toEqual([]);
+    });
+
+    it('finds the order the script registered, translated to the canonical order', async () => {
+      await simulateOrder(marketplace, { id: ids.order, sku: 'NB-001', qty: 2, price: '4500.50' });
+
+      const orders = await adapter.fetchNewOrders(SINCE);
+
+      expect(orders).toEqual([
+        {
+          externalOrderId: ids.order,
+          items: [{ sku: 'NB-001', quantity: 2, unitPrice: 4500.5 }],
+          total: 9001,
+          orderedAt: expect.any(Date),
+        },
+      ]);
+      expect(Math.abs(orders[0].orderedAt.getTime() - Date.now())).toBeLessThan(60_000);
+    });
+
+    it('finds every order the script registered', async () => {
+      await simulateOrder(marketplace, { id: `${ids.order}-A` });
+      await simulateOrder(marketplace, { id: `${ids.order}-B`, sku: 'IPHONE-15', qty: 7, price: '15000' });
+
+      const orders = await adapter.fetchNewOrders(SINCE);
+
+      expect(orders.map(order => order.externalOrderId)).toEqual([`${ids.order}-A`, `${ids.order}-B`]);
+      expect(orders[1]).toMatchObject({ items: [{ sku: 'IPHONE-15', quantity: 7, unitPrice: 15000 }], total: 105000 });
+    });
+
+    it('asks for the paid orders not shipped yet, created since the instant, in the format of the marketplace', async () => {
+      await adapter.fetchNewOrders(SINCE);
+
+      const requests = await requestsTo(subject.ordersPath);
+      expect(requests).toHaveLength(1);
+      expect(requests[0].method).toBe('GET');
+      expect(requests[0].queryParams).toMatchObject(subject.listingQuery);
+    });
+  });
+
+  describe('cancelling an order', () => {
+    it('sends the cancellation in the format of the marketplace', async () => {
+      await adapter.cancelOrder({ externalOrderId: ids.order, reason: 'OUT_OF_STOCK' });
+
+      const [request, ...others] = await requestsTo(subject.cancel.path(ids.order));
+      expect(others).toEqual([]);
+      expect(request.method).toBe(subject.cancel.method);
+      expect(JSON.parse(request.body)).toEqual(subject.cancel.body(ids.order));
+    });
+
+    it('is refused when the order was already shipped, with the reason of the marketplace', async () => {
+      const failure = await adapter.cancelOrder({ externalOrderId: ids.shipped }).catch((err: MarketplaceRejectedError) => err);
+
+      expect(failure).toBeInstanceOf(MarketplaceRejectedError);
+      expect((failure as Error).message).toBe(subject.refusals.shipped);
+    });
+
+    it('is refused when the marketplace does not know the order', async () => {
+      const failure = await adapter.cancelOrder({ externalOrderId: ids.unknown }).catch((err: MarketplaceRejectedError) => err);
+
+      expect(failure).toBeInstanceOf(MarketplaceRejectedError);
+      expect((failure as Error).message).toBe(subject.refusals.unknown);
+    });
+  });
+
+  describe('a marketplace in trouble', () => {
+    it('is unavailable when it answers 503', async () => {
+      await simulateFailure(marketplace, 'unavailable');
+
+      const failure = await adapter.fetchNewOrders(SINCE).catch((err: MarketplaceUnavailableError) => err);
+
+      expect(failure).toBeInstanceOf(MarketplaceUnavailableError);
+      expect(failure).toMatchObject({ message: 'HTTP 503', retryAfterMs: undefined });
+    });
+
+    it('is unavailable, and says how long to wait, when it answers 429', async () => {
+      await simulateFailure(marketplace, 'throttled');
+
+      const failure = await adapter.cancelOrder({ externalOrderId: ids.order }).catch((err: MarketplaceUnavailableError) => err);
+
+      expect(failure).toBeInstanceOf(MarketplaceUnavailableError);
+      expect(failure).toMatchObject({ message: 'HTTP 429', retryAfterMs: 1000 });
+    });
+
+    it('is unavailable when it takes longer than the timeout', async () => {
+      await simulateFailure(marketplace, 'slow');
+
+      const failure = await subject.adapter(300).fetchNewOrders(SINCE).catch((err: MarketplaceUnavailableError) => err);
+
+      expect(failure).toBeInstanceOf(MarketplaceUnavailableError);
+      expect(failure).toMatchObject({ message: `${marketplace} did not answer within 300 ms` });
+    });
+
+    it('fails the first two calls and answers the third, in flaky mode', async () => {
+      await simulateFailure(marketplace, 'flaky');
+
+      await expect(adapter.fetchNewOrders(SINCE)).rejects.toThrow(MarketplaceUnavailableError);
+      await expect(adapter.fetchNewOrders(SINCE)).rejects.toThrow(MarketplaceUnavailableError);
+      await expect(adapter.fetchNewOrders(SINCE)).resolves.toEqual([]);
+      await expect(adapter.fetchNewOrders(SINCE)).resolves.toEqual([]);
+    });
+
+    it('answers again when the failure is turned off', async () => {
+      await simulateFailure(marketplace, 'unavailable');
+      await expect(adapter.fetchNewOrders(SINCE)).rejects.toThrow(MarketplaceUnavailableError);
+
+      await simulateFailure(marketplace, 'off');
+
+      await expect(adapter.fetchNewOrders(SINCE)).resolves.toEqual([]);
+    });
+  });
+});
+
+describe('the failure of one simulator', () => {
+  beforeEach(resetWiremock);
+
+  it('leaves the others answering', async () => {
+    const [amazon, , shopee] = subjects.map(subject => subject.adapter(2000));
+    await simulateFailure('SHOPEE', 'unavailable');
+
+    await expect(shopee.fetchNewOrders(SINCE)).rejects.toThrow(MarketplaceUnavailableError);
+    await expect(amazon.fetchNewOrders(SINCE)).resolves.toEqual([]);
+  });
+
+  it('is turned off for all of them at once', async () => {
+    await simulateFailure('all', 'unavailable');
+    await simulateFailure('all', 'off');
+
+    for (const subject of subjects) {
+      await expect(subject.adapter(2000).fetchNewOrders(SINCE)).resolves.toEqual([]);
+    }
+  });
+});

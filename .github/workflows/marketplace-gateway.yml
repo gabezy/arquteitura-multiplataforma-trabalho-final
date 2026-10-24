@@ -7,12 +7,30 @@ on:
   push:
     paths:
       - 'marketplace-gateway/**'
+      # The tests run against the simulators and the scripts of the demo.
+      - 'docker/wiremock/mappings/amazon.json'
+      - 'docker/wiremock/mappings/mercadolivre.json'
+      - 'docker/wiremock/mappings/shopee.json'
+      - 'docker/wiremock/__files/amazon/**'
+      - 'docker/wiremock/__files/mercadolivre/**'
+      - 'docker/wiremock/__files/shopee/**'
+      - 'scripts/simulate-order.sh'
+      - 'scripts/simulate-failure.sh'
       - '.github/workflows/marketplace-gateway.yml'
       - '.github/workflows/_node-service.yml'
   pull_request:
     branches: [main]
     paths:
       - 'marketplace-gateway/**'
+      # The tests run against the simulators and the scripts of the demo.
+      - 'docker/wiremock/mappings/amazon.json'
+      - 'docker/wiremock/mappings/mercadolivre.json'
+      - 'docker/wiremock/mappings/shopee.json'
+      - 'docker/wiremock/__files/amazon/**'
+      - 'docker/wiremock/__files/mercadolivre/**'
+      - 'docker/wiremock/__files/shopee/**'
+      - 'scripts/simulate-order.sh'
+      - 'scripts/simulate-failure.sh'
       - '.github/workflows/marketplace-gateway.yml'
       - '.github/workflows/_node-service.yml'
 
