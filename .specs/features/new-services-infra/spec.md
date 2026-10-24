@@ -167,11 +167,11 @@ The order-service, billing-service and marketplace-gateway need their own databa
 
 | Requirement ID | Story | Phase | Status |
 | --- | --- | --- | --- |
-| PLAT-01 | P1: Databases - three databases on 5434/5435/5436 | Tasks | Pending |
-| PLAT-02 | P1: Databases - healthy within 60 s | Tasks | Pending |
-| PLAT-03 | P1: Databases - named volumes | Tasks | Pending |
-| PLAT-04 | P1: Databases - `make up-infra` leaves the apps out | Tasks | Pending |
-| PLAT-05 | P1: Databases - missing password fails with `run make env` | Tasks | Pending |
+| PLAT-01 | P1: Databases - three databases on 5434/5435/5436 | T2 | Implementing |
+| PLAT-02 | P1: Databases - healthy within 60 s | T2 | Implementing |
+| PLAT-03 | P1: Databases - named volumes | T2 | Implementing |
+| PLAT-04 | P1: Databases - `make up-infra` leaves the apps out | T2 | Implementing |
+| PLAT-05 | P1: Databases - missing password fails with `run make env` | T2 | Implementing |
 | PLAT-06 | P1: Topics - 9 event topics, 3 partitions | Tasks | Pending |
 | PLAT-07 | P1: Topics - 6 DLQs, 1 partition, 14 days | Tasks | Pending |
 | PLAT-08 | P1: Topics - `make topics` is idempotent | Tasks | Pending |
@@ -181,8 +181,8 @@ The order-service, billing-service and marketplace-gateway need their own databa
 | PLAT-12 | P1: CI - push to `billing-service/` runs only its CI | Tasks | Pending |
 | PLAT-13 | P1: CI - push to `marketplace-gateway/` runs only its CI | Tasks | Pending |
 | PLAT-14 | P1: CI - change to `_node-service.yml` runs every caller | Tasks | Pending |
-| PLAT-15 | P2: Ports - 8084/8086/8087 published | Tasks | Pending |
-| PLAT-16 | P2: Ports - 8085 only for Keycloak | Tasks | Pending |
+| PLAT-15 | P2: Ports - 8084/8086/8087 published | T2 | Implementing |
+| PLAT-16 | P2: Ports - 8085 only for Keycloak | T2 | Implementing |
 | PLAT-17 | P2: Ports - README services table | Tasks | Pending |
 | PLAT-18 | P2: Ports - README components table | Tasks | Pending |
 | PLAT-19 | P2: C4 - `billing-service` technology | Tasks | Pending |

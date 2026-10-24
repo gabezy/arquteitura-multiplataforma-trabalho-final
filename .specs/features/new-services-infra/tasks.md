@@ -120,15 +120,27 @@ T7
 
 **Done when**:
 
-- [ ] `docker compose config --format json` shows ports 5434/5435/5436, image `postgres:18-alpine` and the three named volumes at `/var/lib/postgresql` (PLAT-01, PLAT-03)
-- [ ] After `make up-infra` and 60 s, the three databases report `healthy` (PLAT-02)
-- [ ] `make ps` after `make up-infra` lists none of `order-service`, `billing-service`, `marketplace-gateway` (PLAT-04)
-- [ ] `ORDER_DB_PASSWORD= docker compose config` fails with a message containing `run make env` (PLAT-05)
-- [ ] Host ports 8084/8086/8087 belong to the three services and 8085 only to `keycloak` (PLAT-15, PLAT-16)
-- [ ] Evidence recorded below and PLAT-01..05, PLAT-15, PLAT-16 marked `Implementing`
+- [x] `docker compose config --format json` shows ports 5434/5435/5436, image `postgres:18-alpine` and the three named volumes at `/var/lib/postgresql` (PLAT-01, PLAT-03)
+- [x] After `make up-infra` and 60 s, the three databases report `healthy` (PLAT-02)
+- [x] `make ps` after `make up-infra` lists none of `order-service`, `billing-service`, `marketplace-gateway` (PLAT-04)
+- [x] `ORDER_DB_PASSWORD= docker compose config` fails with a message containing `run make env` (PLAT-05)
+- [x] Host ports 8084/8086/8087 belong to the three services and 8085 only to `keycloak` (PLAT-15, PLAT-16)
+- [x] Evidence recorded below and PLAT-01..05, PLAT-15, PLAT-16 marked `Implementing`
 
 **Tests**: smoke
 **Gate**: Static + Smoke
+
+**Evidence (2026-10-24):**
+
+- `docker compose config -q` → exit 0.
+- `docker compose config --format json` (PLAT-01, PLAT-03): `order-db` `postgres:18-alpine` `5434:5432` volume `order-db-data:/var/lib/postgresql`; `billing-db` `postgres:18-alpine` `5435:5432` `billing-db-data:/var/lib/postgresql`; `marketplace-db` `postgres:18-alpine` `5436:5432` `marketplace-db-data:/var/lib/postgresql`; all three have a `healthcheck`.
+- Published host ports (PLAT-15, PLAT-16): `8084 → order-service`, `8086 → billing-service`, `8087 → marketplace-gateway`, `8085 → keycloak` only.
+- `make up-infra` at 17:11 UTC; at 17:12:08 UTC `docker inspect` printed `/order-db healthy`, `/billing-db healthy`, `/marketplace-db healthy` (started 17:11:10–17:11:15, under 60 s) (PLAT-02).
+- `docker compose ps -a` after `make up-infra` lists none of `order-service`, `billing-service`, `marketplace-gateway` (PLAT-04).
+- `ORDER_DB_PASSWORD= docker compose --env-file /dev/null config -q` → exit 1 with `required variable ORDER_DB_PASSWORD is missing a value: run make env` (PLAT-05).
+- No gap found; `docker-compose.yaml` unchanged.
+
+**Status**: ✅ Complete
 
 ---
 
