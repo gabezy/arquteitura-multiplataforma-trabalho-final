@@ -388,10 +388,10 @@ T18 → T19 → T20 → T21 → T22 → T23
 
 **Done when**:
 
-- [ ] Total, commission (half-up, including the R$ 0,25 at 14% edge case) and net match the spec
-- [ ] Bounds of items, marketplace and a declared total that differs from the sum of the items raise `ValidationError`
-- [ ] Cancel changes `ISSUED` and `PAYMENT_PENDING` only
-- [ ] Gate check passes: quick gate; test count ≥ 15
+- [x] Total, commission (half-up, including the R$ 0,25 at 14% edge case) and net match the spec
+- [x] Bounds of items, marketplace and a declared total that differs from the sum of the items raise `ValidationError`
+- [x] Cancel changes `ISSUED` and `PAYMENT_PENDING` only
+- [x] Gate check passes: quick gate; test count ≥ 15
 
 **Tests**: unit
 **Gate**: quick
