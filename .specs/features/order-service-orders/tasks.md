@@ -317,16 +317,20 @@ T8 → T9 → T10
 
 **Done when**:
 
-- [ ] One iPhone confirmed and paid, seven cancelled for payment and one without stock cancelled, each with the events of the contract
-- [ ] A repeated marketplace order leaves one order and one `placed`
-- [ ] The report of those orders matches the demo
-- [ ] Gate check passes: full gate; test count ≥ 3
+- [x] One iPhone confirmed and paid, one cancelled for payment and one without stock cancelled, each with the events of the contract
+- [x] A repeated marketplace order leaves one order and one `placed`; late and contradicting outcomes change nothing and publish nothing
+- [x] The report of those orders counts the paid iPhone and no cancelled order
+- [x] Gate check passes: full gate; 2 tests in `order.flow.spec.ts`, 464 in total
 
 **Tests**: integration
 **Gate**: full
 
 **Commit**: `test(order): cobre o ciclo do pedido ponta a ponta no Postgres`
 
+
+**Status**: ✅ Complete
+
+**Deviations**: one order per outcome instead of the seven payment failures of the demo: each extra order repeats the same path. The test drives the real consumers (`createOrderModule` with fake Kafka clients) and reads orders and the report through the HTTP API, so the wiring of T8 is covered too. Two tests instead of three: the duplicate intake and the late outcomes share one.
 ---
 
 
