@@ -22,7 +22,7 @@ Monorepo do sistema **omni-market**, trabalho final de Arquitetura Multiplatafor
 | [`catalog-service`](catalog-service/) | Node.js, TypeScript, Express | 8082 | Catálogo de produtos; publica `catalog.product.created.v1` |
 | [`compliance-service`](compliance-service/) | Python, FastAPI, uv | 8083 | Análise de conformidade dos produtos; publica `produto.analisado.v1` |
 | [`order-service`](order-service/) | Node.js, TypeScript, Express | 8084 | Pedidos dos marketplaces; publica eventos de pedido via outbox (em construção: #20, #29, #31) |
-| [`marketplace-gateway`](marketplace-gateway/) | Node.js, TypeScript, Express | 8087 | Integração com Amazon, Mercado Livre e Shopee (simulados no WireMock): publica anúncios (status em `GET /listings`), recebe pedidos e sincroniza estoque (a sincronização, #33, está em construção) |
+| [`marketplace-gateway`](marketplace-gateway/) | Node.js, TypeScript, Express | 8087 | Integração com Amazon, Mercado Livre e Shopee (simulados no WireMock): publica anúncios (status em `GET /listings`), recebe pedidos e sincroniza o estoque dos anúncios |
 
 Cada serviço tem build próprio e um `CLAUDE.md` com comandos e arquitetura. Todos seguem Clean Architecture (core sem framework, adapters em `infra`).
 

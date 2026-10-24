@@ -4,7 +4,7 @@ Este arquivo orienta o Claude Code (claude.ai/code) ao trabalhar neste serviço.
 
 ## Visão geral
 
-O `marketplace-gateway` é um serviço do monorepo "omni-market": isola o sistema das APIs de Amazon, Mercado Livre e Shopee (simuladas no WireMock). Ele recebe os pedidos dos marketplaces, cancela pedidos neles, publica os produtos aprovados como anúncios (e expõe o status deles numa API REST para o BFF) e, no próximo PR, sincroniza estoque. É um app Node.js 22 / TypeScript / Express 5 (saída CommonJS) com OpenTelemetry para traces, métricas e logs, e espelha a arquitetura do `order-service`.
+O `marketplace-gateway` é um serviço do monorepo "omni-market": isola o sistema das APIs de Amazon, Mercado Livre e Shopee (simuladas no WireMock). Ele recebe os pedidos dos marketplaces, cancela pedidos neles, publica os produtos aprovados como anúncios (e expõe o status deles numa API REST para o BFF) e mantém o estoque dos anúncios igual ao do catalog. É um app Node.js 22 / TypeScript / Express 5 (saída CommonJS) com OpenTelemetry para traces, métricas e logs, e espelha a arquitetura do `order-service`.
 
 O desenho da integração está nos ADRs `../docs/adr/0008` a `0011`: anti-corruption layer com um adapter por marketplace atrás da porta `MarketplacePort` (0008), resiliência com timeout, retry, circuit breaker e idempotência (0009), pedidos por polling (0010) e dados do produto por consulta ao catalog (0011). Os contratos de eventos estão em `../docs/eventos.md`, e os simuladores em `../docs/simuladores-marketplaces.md`.
 
@@ -12,8 +12,7 @@ O que já existe:
 - Bootstrap (#17, `../docs/specs/marketplace-gateway/bootstrap/spec.md`): configuração, app HTTP com health check, Postgres com migrations, observabilidade e publicação de eventos pelo outbox.
 - Pedidos (#22, `../docs/specs/marketplace-gateway/pedidos/spec.md`): polling dos três marketplaces, publicação de `marketplace.order.received.v1`, cancelamento de pedido por `order.order.cancelled.v1` e a resiliência das chamadas.
 - Anúncios (#21, `../docs/specs/marketplace-gateway/anuncios/spec.md`): `catalog.product.approved.v1` publica o anúncio nos três marketplaces, `marketplace.listing.published.v1` e `marketplace.listing.failed.v1` dizem o resultado, e `GET /listings` e `GET /listings/{id}` mostram o status (contrato da #35).
-
-A sincronização de estoque (#33) entra no PR seguinte, na mesma porta e nos mesmos adapters.
+- Estoque (#33, `../docs/specs/marketplace-gateway/estoque/spec.md`): `catalog.product.stock-changed.v1` grava o novo estoque nos anúncios `PUBLISHED`, e um laço por marketplace o envia, zerando a disponibilidade quando o estoque acaba. O preço não é sincronizado: o catálogo de eventos não tem evento de preço.
 
 A infraestrutura compartilhada e as convenções do monorepo estão em `../CLAUDE.md`.
 
@@ -45,7 +44,7 @@ npm run migrate:deploy                    # aplica a partir de dist/ (usado pela
 
 - `ExtensionlessMigrationSource` grava as migrations sem a extensão, então um banco migrado a partir de `src/` e de `dist/` continua consistente. Todo executor (`migrate.ts`, `knexfile.ts`, specs) deve usar `createMigrationSource()`.
 - A imagem Docker roda `migrate:deploy` antes de iniciar o app, e uma migration que falha sai com código 1, então o app nunca sobe. Escreva migrations compatíveis com a versão anterior (expandir e contrair).
-- Tabelas: `outbox` (ADR-0002, lida pelo relay), `processed_events` (inbox: um id de evento consumido por linha), `marketplace_orders` (todo pedido que o gateway tirou de um marketplace; a chave primária `(marketplace, external_order_id)` impede o evento duplicado), `order_cursors` (onde começou o último polling bem-sucedido de cada marketplace) e `listings` (o anúncio de um produto num marketplace; a restrição única `(sku, marketplace)` garante um anúncio por par, e o `id` do anúncio é a `Idempotency-Key` das chamadas).
+- Tabelas: `outbox` (ADR-0002, lida pelo relay), `processed_events` (inbox: um id de evento consumido por linha), `marketplace_orders` (todo pedido que o gateway tirou de um marketplace; a chave primária `(marketplace, external_order_id)` impede o evento duplicado), `order_cursors` (onde começou o último polling bem-sucedido de cada marketplace) e `listings` (o anúncio de um produto num marketplace; a restrição única `(sku, marketplace)` garante um anúncio por par, o `id` do anúncio é a `Idempotency-Key` das chamadas, e `stock_synced = false` diz que o marketplace ainda não tem o `stock` do anúncio).
 - A coluna `outbox.aggregate_id` é `text`, e não `uuid` como nos outros serviços: ela vira a chave da mensagem Kafka, que em `marketplace.order.received.v1` é `<marketplace>:<externalOrderId>`.
 
 Configuração por variáveis de ambiente (veja `.env.example`, que lista todas com os padrões; o `.env` é carregado se existir):
@@ -55,7 +54,8 @@ Configuração por variáveis de ambiente (veja `.env.example`, que lista todas 
 - Catalog: `CATALOG_SERVICE_URL` (`http://localhost:8082`; no compose, `http://catalog-service:8082`) e `CATALOG_TIMEOUT_MS` (3000).
 - Resiliência: `MARKETPLACE_TIMEOUT_MS` (3000), `MARKETPLACE_MAX_ATTEMPTS` (3), `MARKETPLACE_BACKOFF_BASE_MS` (200), `MARKETPLACE_BACKOFF_MAX_MS` (2000), `MARKETPLACE_BREAKER_FAILURES` (5) e `MARKETPLACE_BREAKER_COOLDOWN_MS` (30000).
 - Polling: `ORDER_POLL_INTERVAL_MS` (5000), `ORDER_POLL_OVERLAP_MS` (60000) e `ORDER_POLL_LOOKBACK_MS` (86400000).
-- Tópicos: `CATALOG_PRODUCT_APPROVED_TOPIC` (`catalog.product.approved.v1`), `CATALOG_PRODUCT_DLQ_TOPIC` (`marketplace.catalog-product.dlq`), `ORDER_CANCELLED_TOPIC` (`order.order.cancelled.v1`) e `ORDER_CANCELLED_DLQ_TOPIC` (`marketplace.order-cancelled.dlq`).
+- Estoque: `STOCK_SYNC_INTERVAL_MS` (2000) e `STOCK_SYNC_BATCH_SIZE` (50).
+- Tópicos: `CATALOG_PRODUCT_APPROVED_TOPIC` (`catalog.product.approved.v1`), `CATALOG_STOCK_CHANGED_TOPIC` (`catalog.product.stock-changed.v1`), `CATALOG_PRODUCT_DLQ_TOPIC` (`marketplace.catalog-product.dlq`, a DLQ dos dois), `ORDER_CANCELLED_TOPIC` (`order.order.cancelled.v1`) e `ORDER_CANCELLED_DLQ_TOPIC` (`marketplace.order-cancelled.dlq`).
 
 Uma variável numérica que não é um inteiro maior que zero, uma URL inválida ou um `PORT` inválido interrompe o serviço na partida (`Invalid <NOME>: <valor>`).
 
@@ -74,9 +74,10 @@ src/
       marketplace.registry.ts    o adapter de cada marketplace, escolhido pelo nome
     listing/                     os anúncios de um produto nos marketplaces
       model/                     Listing (agregado: PENDING, PUBLISHED ou FAILED), os eventos ListingPublished e ListingFailed, o SKU e os erros
-      port/in/                   PublishApprovedProductPort e FindListingsPort
-      port/out/                  repositórios de escrita e de leitura dos anúncios e ProductCatalogPort
-      listing.facade.ts          implementa as duas portas de entrada
+      port/in/                   PublishApprovedProductPort, FindListingsPort, RecordProductStockPort e SyncListingStockPort
+      port/out/                  repositórios de escrita, de leitura e de estoque dos anúncios, e ProductCatalogPort
+      listing.facade.ts          publica os anúncios e responde a API de consulta
+      stock.facade.ts            grava o estoque novo e o envia aos marketplaces
     order/                       os pedidos dos marketplaces
       model/                     MarketplaceOrder (agregado), sua chave e o evento OrderReceived
       port/in/                   ReceiveMarketplaceOrdersPort e CancelMarketplaceOrderPort
@@ -90,13 +91,13 @@ src/
     messaging/                   producer Kafka, relay do outbox, consumers (cancelamentos e produtos aprovados), DLQ, mappers de eventos
     catalog/                     o cliente HTTP do catalog-service (ProductCatalogPort)
     marketplace/                 um adapter por marketplace, o cliente HTTP, o circuit breaker e o decorator de resiliência
-    polling/                     laço periódico e os pollers de pedidos (um laço por marketplace)
+    polling/                     laço periódico, os pollers de pedidos e os sincronizadores de estoque (um laço por marketplace)
     config/                      leitura do ambiente (loadConfig)
     observability/               bootstrap do SDK OpenTelemetry, logger, contexto de trace, spans
     testing/                     apoio aos testes: Postgres e WireMock compartilhados, banco por spec (fora do build)
     order.factory.ts             liga a facade de pedidos aos seus adapters
-    listing.factory.ts           liga a facade de anúncios aos seus adapters (repositórios, catalog, consumer e controller)
-  main.ts                        raiz de composição: abre recursos, inicia o relay, os consumers, os pollers e o servidor
+    listing.factory.ts           liga as facades de anúncios e de estoque aos seus adapters (repositórios, catalog, consumer, controller e laços)
+  main.ts                        raiz de composição: abre recursos, inicia o relay, os consumers, os pollers, os sincronizadores e o servidor
 ```
 
 - As dependências apontam só para dentro. O `core` nunca importa Express, Knex, pg, pino, kafkajs, OpenTelemetry nem nada de `infra`; o `src/core/architecture.spec.ts` garante.
@@ -118,6 +119,8 @@ src/
 - **Anúncios** (ADR-0011): `CatalogProductConsumer` (grupo `marketplace-gateway-catalog-product`) lê `catalog.product.approved.v1`, que traz só `productId` e `sku`. `ListingFacade.publish` lê o produto em `GET /products/sku/:sku` do catalog (`HttpProductCatalog`) **antes de gravar qualquer coisa**, e então publica nos marketplaces que ainda não têm o anúncio `PUBLISHED`, os três ao mesmo tempo. Cada anúncio é gravado `PENDING` antes da chamada (a API já o mostra a caminho) e termina `PUBLISHED`, com o id que o marketplace deu, ou `FAILED`, com o motivo e as tentativas; o evento `marketplace.listing.published.v1` ou `marketplace.listing.failed.v1` entra no outbox na mesma transação do `save`. A falha de um marketplace nunca impede os outros, e a mensagem é consumida. O id do anúncio vai no header `Idempotency-Key` de toda chamada, a mesma em cada nova tentativa.
 - **Falha do catalog**: produto que não existe (`404`) ou que não está `APPROVED` vai para `marketplace.catalog-product.dlq`; o catalog fora do ar (timeout, conexão, `408`, `429`, `5xx`) é relançado, nenhum anúncio é criado e o Kafka reentrega. Um anúncio `FAILED` ou `PENDING` (queda do processo) só é tentado de novo quando o `approved` é reentregue: não há endpoint de retry.
 - **API de anúncios** (contrato da #35, `application/problem+json` nos erros): `GET /listings?sku=&marketplace=&status=&limit=20&offset=0` responde `{"listings":[Listing],"limit":20,"offset":0}` (`limit` de 1 a 100, ordem por `sku` e `marketplace`, filtro vazio vale como ausente, `sku` em maiúsculas) e `GET /listings/{id}` responde um `Listing`: `id`, `sku`, `marketplace`, `externalListingId`, `status` (`PUBLISHED`, `FAILED` ou `PENDING`), `price`, `stock`, `failureReason` e `updatedAt`. Valor inválido responde `422`, anúncio inexistente `404` e requisição malformada `400`. Os schemas zod ficam em `infra/http/listing/listing.schemas.ts` e `infra/http/validate.ts` transforma a falha em `RequestValidationError`.
+- **Estoque** (ADR-0009): o mesmo `CatalogProductConsumer` (grupo `marketplace-gateway-catalog-product`) lê `catalog.product.stock-changed.v1`, que traz `productId`, `sku` e o `stock` **absoluto** depois da mudança. `StockFacade.record` só grava: `UPDATE` atômico que dá o estoque novo aos anúncios `PUBLISHED` do SKU que anunciam outro valor e os marca `stock_synced = false`. O consumer **nunca chama um marketplace**, então um marketplace fora do ar não atrasa o Kafka. `StockSynchronizers` roda um laço por marketplace (`STOCK_SYNC_INTERVAL_MS`), e `StockFacade.sync` lê até `STOCK_SYNC_BATCH_SIZE` anúncios `PUBLISHED` pendentes, envia o estoque de cada um por `MarketplacePort.updateStock` (pela resiliência da ADR-0009) e só então marca `stock_synced = true`, e só se o estoque gravado ainda é o enviado (se um evento mais novo chegou no meio, o anúncio segue pendente e a rodada seguinte envia o novo). Um anúncio que falha, por indisponibilidade ou recusa, fica pendente e não impede os outros. Estoque `0` é enviado como `0`.
+- **Evento de estoque descartado**: o do SKU sem anúncio `PUBLISHED` (não existe, ou está `PENDING` ou `FAILED`) não muda nada, porque publicar ou tentar de novo lê o estoque atual do catalog (ADR-0011). Um evento que chega com o anúncio `PENDING` se perde e o próximo do SKU corrige. A mensagem fora do contrato (inclusive `stock` negativo ou fracionado) vai para a DLQ.
 - Cada ciclo de polling roda dentro de um span (`withSpan`), então as chamadas HTTP e o evento gravado no outbox aparecem num trace só.
 - Simuladores e demo: `../docs/simuladores-marketplaces.md`. `../scripts/simulate-order.sh all` registra um pedido de cada marketplace, e `../scripts/simulate-failure.sh <marketplace> unavailable|throttled|slow|flaky|off` liga e desliga as falhas.
 
