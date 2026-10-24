@@ -2,6 +2,7 @@ import { Knex } from 'knex';
 import { Consumer, Producer } from 'kafkajs';
 import { Logger } from 'pino';
 import { ListingFacade } from '../core/listing/listing.facade';
+import { StockFacade } from '../core/listing/stock.facade';
 import { MarketplaceRegistry } from '../core/marketplace/marketplace.registry';
 import { HttpProductCatalog, HttpProductCatalogOptions } from './catalog/http-product-catalog';
 import { ListingController } from './http/listing/listing.controller';
@@ -9,8 +10,10 @@ import { CatalogProductConsumer, CatalogProductTopics } from './messaging/catalo
 import { toListingIntegrationEvent } from './messaging/listing.integration-events';
 import { KnexInboxRepository } from './persistence/knex-inbox.repository';
 import { KnexListingReadRepository } from './persistence/knex-listing-read.repository';
+import { KnexListingStockRepository } from './persistence/knex-listing-stock.repository';
 import { KnexListingRepository } from './persistence/knex-listing.repository';
 import { KnexOutboxRepository } from './persistence/knex-outbox.repository';
+import { StockSynchronizers } from './polling/stock-synchronizers';
 
 interface ListingModuleProps {
   db: Knex;
@@ -19,12 +22,14 @@ interface ListingModuleProps {
   producer: Producer;
   catalogProductKafkaConsumer: Consumer;
   catalogProductTopics: CatalogProductTopics;
+  stockSync: { intervalMs: number; batchSize: number };
   logger: Logger;
 }
 
 export interface ListingModule {
   listingController: ListingController;
   catalogProductConsumer: CatalogProductConsumer;
+  stockSynchronizers: StockSynchronizers;
 }
 
 export function createListingModule(props: ListingModuleProps): ListingModule {
@@ -34,16 +39,19 @@ export function createListingModule(props: ListingModuleProps): ListingModule {
     new KnexListingReadRepository(props.db),
     new HttpProductCatalog(props.catalog),
   );
+  const stockFacade = new StockFacade(props.marketplaces, new KnexListingStockRepository(props.db), props.stockSync.batchSize);
 
   return {
     listingController: new ListingController(listingFacade),
     catalogProductConsumer: new CatalogProductConsumer(
       listingFacade,
+      stockFacade,
       props.catalogProductKafkaConsumer,
       props.producer,
       new KnexInboxRepository(props.db),
       props.catalogProductTopics,
       props.logger,
     ),
+    stockSynchronizers: new StockSynchronizers(stockFacade, props.marketplaces.marketplaces(), props.stockSync.intervalMs, props.logger),
   };
 }

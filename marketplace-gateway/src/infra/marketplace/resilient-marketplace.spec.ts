@@ -35,6 +35,7 @@ describe('ResilientMarketplace', () => {
   const portOf = (marketplace: Marketplace): jest.Mocked<MarketplacePort> => ({
     marketplace,
     publishListing: jest.fn(),
+    updateStock: jest.fn(),
     fetchNewOrders: jest.fn(),
     cancelOrder: jest.fn(),
   });
@@ -78,6 +79,15 @@ describe('ResilientMarketplace', () => {
   });
 
   describe('retry', () => {
+    it('passes the stock update on, and tries it again after a transient failure', async () => {
+      const update = { externalListingId: '412525791', sku: 'NB-001', stock: 0 };
+      inner.updateStock.mockRejectedValueOnce(unavailable()).mockResolvedValueOnce();
+
+      await expect(decorate().updateStock(update)).resolves.toBeUndefined();
+
+      expect(inner.updateStock.mock.calls).toEqual([[update], [update]]);
+    });
+
     it('tries a listing again with the very same draft, so its idempotency key does not change', async () => {
       inner.publishListing.mockRejectedValueOnce(unavailable()).mockResolvedValueOnce({ externalListingId: '1' });
 

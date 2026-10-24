@@ -38,6 +38,7 @@ interface Subject {
   cancel: { method: string; path: (id: string) => string; body: (id: string) => unknown };
   refusals: { shipped: string; unknown: string };
   publish: { method: string; path: string; externalListingId: RegExp; body: (draft: typeof DRAFT) => unknown; priceRefusal: string };
+  updateStock: { method: string; path: (externalListingId: string) => string; body: (externalListingId: string, stock: number) => unknown };
 }
 
 const subjects: Subject[] = [
@@ -72,6 +73,14 @@ const subjects: Subject[] = [
         },
       }),
       priceRefusal: 'HTTP 400: InvalidInput: list_price must be greater than zero',
+    },
+    updateStock: {
+      method: 'PATCH',
+      path: () => '/amazon/listings/2021-08-01/items/A1B2C3D4E5/NB-001',
+      body: (_id, stock) => ({
+        productType: 'PRODUCT',
+        patches: [{ op: 'replace', path: '/attributes/fulfillment_availability', value: [{ fulfillment_channel_code: 'DEFAULT', quantity: stock }] }],
+      }),
     },
   },
   {
@@ -109,6 +118,11 @@ const subjects: Subject[] = [
       }),
       priceRefusal: 'HTTP 400: Validation error: Item price invalid',
     },
+    updateStock: {
+      method: 'PUT',
+      path: id => `/mercadolivre/items/${id}`,
+      body: (_id, stock) => ({ available_quantity: stock }),
+    },
   },
   {
     marketplace: 'SHOPEE',
@@ -140,6 +154,11 @@ const subjects: Subject[] = [
         category_id: 100001,
       }),
       priceRefusal: 'error_param: original_price must be greater than 0',
+    },
+    updateStock: {
+      method: 'POST',
+      path: () => '/shopee/api/v2/product/update_stock',
+      body: (id, stock) => ({ item_id: Number(id), stock_list: [{ model_id: 0, normal_stock: stock }] }),
     },
   },
 ];
@@ -178,6 +197,41 @@ describe.each(subjects)('the $marketplace adapter against its simulator', subjec
       await simulateFailure(marketplace, 'unavailable');
 
       await expect(adapter.publishListing(DRAFT)).rejects.toThrow(MarketplaceUnavailableError);
+    });
+  });
+
+  describe('updating the stock of a listing', () => {
+    const listingAt = async () => {
+      const { externalListingId } = await adapter.publishListing(DRAFT);
+      await resetWiremock();
+      return { externalListingId, sku: DRAFT.sku };
+    };
+
+    it('sends the stock in the format of the marketplace', async () => {
+      const listing = await listingAt();
+
+      await adapter.updateStock({ ...listing, stock: 1 });
+
+      const [request, ...others] = await requestsTo(subject.updateStock.path(listing.externalListingId));
+      expect(others).toEqual([]);
+      expect(request.method).toBe(subject.updateStock.method);
+      expect(JSON.parse(request.body)).toEqual(subject.updateStock.body(listing.externalListingId, 1));
+    });
+
+    it('sends a stock of zero as it is, to make the listing unavailable', async () => {
+      const listing = await listingAt();
+
+      await adapter.updateStock({ ...listing, stock: 0 });
+
+      const [request] = await requestsTo(subject.updateStock.path(listing.externalListingId));
+      expect(JSON.parse(request.body)).toEqual(subject.updateStock.body(listing.externalListingId, 0));
+    });
+
+    it('is unavailable when the marketplace answers 503', async () => {
+      const listing = await listingAt();
+      await simulateFailure(marketplace, 'unavailable');
+
+      await expect(adapter.updateStock({ ...listing, stock: 1 })).rejects.toThrow(MarketplaceUnavailableError);
     });
   });
 

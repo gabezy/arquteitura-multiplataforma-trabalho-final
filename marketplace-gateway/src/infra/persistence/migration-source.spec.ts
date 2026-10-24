@@ -40,6 +40,7 @@ describe('ExtensionlessMigrationSource', () => {
       '20261024130000_create_marketplace_orders_table.ts',
       '20261024130100_create_order_cursors_table.ts',
       '20261024140000_create_listings_table.ts',
+      '20261024150000_add_stock_synced_to_listings.ts',
     ]);
   });
 });

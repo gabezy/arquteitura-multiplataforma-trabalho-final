@@ -11,9 +11,10 @@ import { createMarketplaceRegistry } from './marketplace/marketplaces.factory';
 import { OutboxRelay } from './messaging/outbox-relay';
 import { createMigrationSource } from './persistence/migration-source';
 import { createTestDatabase, TestDatabase } from './testing/test-database';
-import { requestsTo, resetWiremock, simulateFailure, simulatorBaseUrl } from './testing/wiremock';
+import { requestsTo, resetWiremock, simulateFailure, simulatorBaseUrl, SimulatedMarketplace } from './testing/wiremock';
 
 const APPROVED_TOPIC = 'catalog.product.approved.v1';
+const STOCK_CHANGED_TOPIC = 'catalog.product.stock-changed.v1';
 const DEAD_LETTER_TOPIC = 'marketplace.catalog-product.dlq';
 const PRODUCT_ID = '0b8f2c1e-6a4d-4d1e-9a51-3f0f1b2c7d10';
 const logger = pino({ level: 'silent' });
@@ -46,10 +47,18 @@ interface ListingJson {
   failureReason: string | null;
 }
 
+const until = async (condition: () => Promise<boolean>, what: string, timeoutMs = 5000) => {
+  const deadline = Date.now() + timeoutMs;
+  while (!(await condition())) {
+    if (Date.now() > deadline) throw new Error(`Gave up waiting for ${what}`);
+    await new Promise(resolve => setTimeout(resolve, 25));
+  }
+};
+
 // The listing flow of the service with everything real but Kafka and the catalog: the simulators in WireMock, the
-// adapters with their resilience, the database, the outbox and the API. The producer and the consumer are fakes,
-// and the catalog is a small HTTP server that answers what the test says.
-describe('publishing the listings of an approved product, end to end', () => {
+// adapters with their resilience, the database, the outbox, the sync loops and the API. The producer and the consumer
+// are fakes, and the catalog is a small HTTP server that answers what the test says.
+describe('the listings of a product, end to end', () => {
   let testDatabase: TestDatabase;
   let db: Knex;
   let catalogServer: Server;
@@ -67,14 +76,20 @@ describe('publishing the listings of an approved product, end to end', () => {
     res.end(JSON.stringify(body));
   };
 
-  const deliver = async (body: unknown = { productId: PRODUCT_ID, sku: 'NB-001' }, headers: Record<string, string> = {}) => {
+  const deliverTo = async (topic: string, body: unknown, headers: Record<string, string>) => {
     const { eachMessage } = consumer.run.mock.calls.at(-1)[0];
     await eachMessage({
-      topic: APPROVED_TOPIC,
+      topic,
       partition: 0,
       message: { key: Buffer.from(PRODUCT_ID), value: Buffer.from(JSON.stringify(body)), offset: '1', headers },
     } as unknown as EachMessagePayload);
   };
+
+  const deliver = (body: unknown = { productId: PRODUCT_ID, sku: 'NB-001' }, headers: Record<string, string> = {}) =>
+    deliverTo(APPROVED_TOPIC, body, headers);
+
+  const deliverStock = (stock: number, headers: Record<string, string> = {}) =>
+    deliverTo(STOCK_CHANGED_TOPIC, { productId: PRODUCT_ID, sku: 'NB-001', stock }, headers);
 
   const listings = async (query = '?sku=NB-001'): Promise<ListingJson[]> => (await request(app).get(`/listings${query}`)).body.listings;
 
@@ -110,7 +125,8 @@ describe('publishing the listings of an approved product, end to end', () => {
       catalog: { baseUrl: config.catalog.serviceUrl, timeoutMs: config.catalog.timeoutMs },
       producer,
       catalogProductKafkaConsumer: consumer as unknown as Consumer,
-      catalogProductTopics: { approvedTopic: APPROVED_TOPIC, deadLetterTopic: DEAD_LETTER_TOPIC },
+      catalogProductTopics: { approvedTopic: APPROVED_TOPIC, stockChangedTopic: STOCK_CHANGED_TOPIC, deadLetterTopic: DEAD_LETTER_TOPIC },
+      stockSync: { intervalMs: 25, batchSize: 50 },
       logger,
     });
     app = createApp({ logger, checkDatabase: async () => undefined, listingController: listingModule.listingController });
@@ -134,6 +150,10 @@ describe('publishing the listings of an approved product, end to end', () => {
     catalogAnswer = answerWith(200, catalogProduct());
     buildModule();
     await listingModule.catalogProductConsumer.start();
+  });
+
+  afterEach(async () => {
+    await listingModule.stockSynchronizers.stop();
   });
 
   afterAll(async () => {
@@ -316,12 +336,7 @@ describe('publishing the listings of an approved product, end to end', () => {
       await simulateFailure('SHOPEE', 'slow');
 
       const delivery = deliver();
-      const sawPending = async () => (await listings('?marketplace=SHOPEE&status=PENDING')).length === 1;
-      const deadline = Date.now() + 5000;
-      while (!(await sawPending())) {
-        if (Date.now() > deadline) throw new Error('the listing never showed as PENDING');
-        await new Promise(resolve => setTimeout(resolve, 25));
-      }
+      await until(async () => (await listings('?marketplace=SHOPEE&status=PENDING')).length === 1, 'the listing to show as PENDING');
       await delivery;
 
       const result = byMarketplace(await listings());
@@ -371,6 +386,172 @@ describe('publishing the listings of an approved product, end to end', () => {
       await deliver(undefined, { ce_id: 'evt-1' });
 
       expect((await listings()).map(listing => listing.status)).toEqual(['PUBLISHED', 'PUBLISHED', 'PUBLISHED']);
+    });
+  });
+
+  describe('the stock of the published listings', () => {
+    const MARKETPLACES = ['AMAZON', 'MERCADO_LIVRE', 'SHOPEE'] as const;
+    const UPDATE_METHOD: Record<SimulatedMarketplace, string> = { AMAZON: 'PATCH', MERCADO_LIVRE: 'PUT', SHOPEE: 'POST' };
+
+    const unsyncedListings = async () => Number((await db('listings').where({ stock_synced: false }).count({ total: '*' }).first())?.total);
+
+    const quantityOf = (marketplace: SimulatedMarketplace, body: string): number => {
+      const json = JSON.parse(body);
+      return { AMAZON: () => json.patches[0].value[0].quantity, MERCADO_LIVRE: () => json.available_quantity, SHOPEE: () => json.stock_list[0].normal_stock }[marketplace]();
+    };
+
+    // The stocks that reached the marketplace, oldest first, answered or not.
+    const stocksSentTo = async (marketplace: SimulatedMarketplace): Promise<number[]> => {
+      const externalId = byMarketplace(await listings()).MERCADO_LIVRE?.externalListingId;
+      const path = {
+        AMAZON: PUBLISH_PATHS.AMAZON,
+        MERCADO_LIVRE: `/mercadolivre/items/${externalId}`,
+        SHOPEE: '/shopee/api/v2/product/update_stock',
+      }[marketplace];
+
+      return (await requestsTo(path)).filter(call => call.method === UPDATE_METHOD[marketplace]).map(call => quantityOf(marketplace, call.body));
+    };
+
+    const waitForTheLoops = () => until(async () => (await unsyncedListings()) === 0, 'the stock to reach the marketplaces');
+
+    const settle = () => new Promise(resolve => setTimeout(resolve, 150));
+
+    it('reduces the stock advertised at the three simulators after a sale', async () => {
+      await deliver();
+      await deliverStock(1);
+
+      listingModule.stockSynchronizers.start();
+      await waitForTheLoops();
+
+      for (const marketplace of MARKETPLACES) expect(await stocksSentTo(marketplace)).toEqual([1]);
+      expect((await listings()).map(listing => listing.stock)).toEqual([1, 1, 1]);
+      expect(send).not.toHaveBeenCalled();
+    });
+
+    it('sends a stock of zero, which makes the listings unavailable', async () => {
+      await deliver();
+      await deliverStock(0);
+
+      listingModule.stockSynchronizers.start();
+      await waitForTheLoops();
+
+      for (const marketplace of MARKETPLACES) expect(await stocksSentTo(marketplace)).toEqual([0]);
+      expect((await listings()).map(listing => listing.stock)).toEqual([0, 0, 0]);
+    });
+
+    it('sends nothing for a publication, which already went with the stock of the catalog', async () => {
+      await deliver();
+
+      listingModule.stockSynchronizers.start();
+      await settle();
+
+      for (const marketplace of MARKETPLACES) expect(await stocksSentTo(marketplace)).toEqual([]);
+    });
+
+    it('sends only the last stock when two sales come before the loops run', async () => {
+      await deliver();
+      await deliverStock(1);
+      await deliverStock(0);
+
+      listingModule.stockSynchronizers.start();
+      await waitForTheLoops();
+
+      for (const marketplace of MARKETPLACES) expect(await stocksSentTo(marketplace)).toEqual([0]);
+    });
+
+    it('sends nothing more when the stock that comes is the one the marketplaces already have', async () => {
+      await deliver();
+      await deliverStock(1, { ce_id: 'evt-1' });
+      listingModule.stockSynchronizers.start();
+      await waitForTheLoops();
+
+      await deliverStock(1, { ce_id: 'evt-2' });
+      await settle();
+
+      for (const marketplace of MARKETPLACES) expect(await stocksSentTo(marketplace)).toEqual([1]);
+    });
+
+    it('does not apply a message that is delivered again after a newer one, which would bring the old stock back', async () => {
+      await deliver();
+      await deliverStock(1, { ce_id: 'evt-1' });
+      await deliverStock(0, { ce_id: 'evt-2' });
+
+      await deliverStock(1, { ce_id: 'evt-1' });
+
+      listingModule.stockSynchronizers.start();
+      await waitForTheLoops();
+      for (const marketplace of MARKETPLACES) expect(await stocksSentTo(marketplace)).toEqual([0]);
+    });
+
+    it('is not held back by a marketplace that is down, which gets the stock when it is back', async () => {
+      buildModule({ MARKETPLACE_BREAKER_FAILURES: '100000' });
+      await listingModule.catalogProductConsumer.start();
+      await deliver();
+      await simulateFailure('SHOPEE', 'unavailable');
+
+      await expect(deliverStock(1)).resolves.toBeUndefined();
+      listingModule.stockSynchronizers.start();
+      await until(async () => (await db('listings').where({ stock_synced: true, marketplace: 'AMAZON' }).first()) !== undefined
+        && (await db('listings').where({ stock_synced: true, marketplace: 'MERCADO_LIVRE' }).first()) !== undefined, 'Amazon and Mercado Livre to get the stock');
+
+      await until(async () => (await stocksSentTo('SHOPEE')).length >= 4, 'the loop to try Shopee again');
+      expect(byMarketplace(await listings()).SHOPEE.stock).toBe(1);
+      expect(await db('listings').where({ marketplace: 'SHOPEE' }).first('stock_synced')).toEqual({ stock_synced: false });
+
+      await simulateFailure('SHOPEE', 'off');
+      await waitForTheLoops();
+
+      expect(await stocksSentTo('AMAZON')).toEqual([1]);
+      expect(await stocksSentTo('MERCADO_LIVRE')).toEqual([1]);
+      expect(new Set(await stocksSentTo('SHOPEE'))).toEqual(new Set([1]));
+      expect(send).not.toHaveBeenCalled();
+    });
+
+    it('is discarded when the product has no listing yet, and the listings are then published with the stock of the catalog', async () => {
+      await deliverStock(7);
+      expect(await listings()).toEqual([]);
+      expect(send).not.toHaveBeenCalled();
+
+      catalogAnswer = answerWith(200, catalogProduct({ stock: 7 }));
+      await deliver();
+      listingModule.stockSynchronizers.start();
+      await settle();
+
+      expect((await listings()).map(listing => listing.stock)).toEqual([7, 7, 7]);
+      for (const marketplace of MARKETPLACES) expect(await stocksSentTo(marketplace)).toEqual([]);
+    });
+
+    it('leaves alone a listing that did not make it to the marketplace', async () => {
+      catalogAnswer = answerWith(200, catalogProduct({ price: 0 }));
+      await deliver();
+
+      await deliverStock(1);
+      listingModule.stockSynchronizers.start();
+      await settle();
+
+      expect((await listings()).map(listing => [listing.status, listing.stock])).toEqual([['FAILED', 2], ['FAILED', 2], ['FAILED', 2]]);
+      expect(await unsyncedListings()).toBe(0);
+      for (const marketplace of MARKETPLACES) expect(await stocksSentTo(marketplace)).toEqual([]);
+    });
+
+    it.each([
+      ['malformed', '{not json'],
+      ['without a stock', JSON.stringify({ productId: PRODUCT_ID, sku: 'NB-001' })],
+      ['with a negative stock', JSON.stringify({ productId: PRODUCT_ID, sku: 'NB-001', stock: -1 })],
+    ])('goes to the dead letter topic when the message is %s, and changes nothing', async (_case, value) => {
+      await deliver();
+      const { eachMessage } = consumer.run.mock.calls.at(-1)[0];
+
+      await eachMessage({
+        topic: STOCK_CHANGED_TOPIC,
+        partition: 0,
+        message: { key: Buffer.from(PRODUCT_ID), value: Buffer.from(value), offset: '1', headers: {} },
+      } as unknown as EachMessagePayload);
+
+      expect(send).toHaveBeenCalledTimes(1);
+      expect(send.mock.calls[0][0].topic).toBe(DEAD_LETTER_TOPIC);
+      expect((await listings()).map(listing => listing.stock)).toEqual([2, 2, 2]);
+      expect(await unsyncedListings()).toBe(0);
     });
   });
 });

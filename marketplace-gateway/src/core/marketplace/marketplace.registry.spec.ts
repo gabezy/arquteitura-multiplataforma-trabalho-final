@@ -5,6 +5,7 @@ import { MarketplacePort } from './port/out/marketplace.port';
 const portOf = (marketplace: Marketplace): MarketplacePort => ({
   marketplace,
   publishListing: jest.fn(),
+  updateStock: jest.fn(),
   fetchNewOrders: jest.fn(),
   cancelOrder: jest.fn(),
 });

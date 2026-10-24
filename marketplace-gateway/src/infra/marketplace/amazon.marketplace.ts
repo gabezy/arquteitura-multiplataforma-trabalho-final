@@ -8,6 +8,7 @@ import {
     ListingDraft,
     MarketplacePort,
     PublishedListing,
+    StockUpdate,
 } from '../../core/marketplace/port/out/marketplace.port';
 import { MarketplaceHttp } from './marketplace-http.client';
 import {
@@ -43,11 +44,9 @@ const pageSchema = z.object({
     }),
 });
 
-// What the marketplace answers to a listing it accepted: the ASIN is the id of the listing.
-const listingAcceptedSchema = z.object({
-    status: z.literal('ACCEPTED'),
-    asin: z.string().min(1),
-});
+// What the marketplace answers to a change it accepted. For a new listing the ASIN is the id of the listing.
+const changeAcceptedSchema = z.object({ status: z.literal('ACCEPTED') });
+const listingAcceptedSchema = changeAcceptedSchema.extend({ asin: z.string().min(1) });
 
 type AmazonOrder = z.infer<typeof orderSchema>;
 
@@ -97,6 +96,28 @@ export class AmazonMarketplace implements MarketplacePort {
         }
 
         return { externalListingId: accepted.data.asin };
+    }
+
+    // A JSON Patch by SKU: it replaces the availability and leaves the rest of the listing as it is.
+    async updateStock({ sku, stock }: StockUpdate): Promise<void> {
+        const { body } = await this.http.send({
+            method: 'PATCH',
+            path: `/listings/2021-08-01/items/${encodeURIComponent(this.options.sellerId)}/${encodeURIComponent(sku)}`,
+            query: { marketplaceIds: this.options.marketplaceId },
+            body: {
+                productType: 'PRODUCT',
+                patches: [{
+                    op: 'replace',
+                    path: '/attributes/fulfillment_availability',
+                    value: [{ fulfillment_channel_code: 'DEFAULT', quantity: stock }],
+                }],
+            },
+        });
+
+        const accepted = changeAcceptedSchema.safeParse(body);
+        if (!accepted.success) {
+            throw new MarketplaceRejectedError(`The stock was not accepted: ${z.prettifyError(accepted.error)}`, this.marketplace);
+        }
     }
 
     async fetchNewOrders(since: Date): Promise<CanonicalOrder[]> {

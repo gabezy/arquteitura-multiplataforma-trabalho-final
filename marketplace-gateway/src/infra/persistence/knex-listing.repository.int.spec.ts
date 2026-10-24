@@ -61,6 +61,7 @@ describe('the listing repositories', () => {
           attempts: 0,
           created_at: expect.any(Date),
           updated_at: CREATED_AT,
+          stock_synced: true,
         },
       ]);
       expect(await db('outbox').count({ total: '*' }).first()).toEqual({ total: '0' });
