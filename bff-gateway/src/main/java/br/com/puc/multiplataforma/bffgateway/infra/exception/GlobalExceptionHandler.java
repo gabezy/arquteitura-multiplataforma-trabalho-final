@@ -1,6 +1,10 @@
 package br.com.puc.multiplataforma.bffgateway.infra.exception;
 
 import br.com.puc.multiplataforma.bffgateway.core.catalog.exception.InvalidCatalogException;
+import br.com.puc.multiplataforma.bffgateway.core.shared.exception.DownstreamFailureException;
+import br.com.puc.multiplataforma.bffgateway.core.shared.exception.DownstreamUnavailableException;
+import br.com.puc.multiplataforma.bffgateway.core.shared.exception.InvalidRequestException;
+import br.com.puc.multiplataforma.bffgateway.core.shared.exception.ResourceNotFoundException;
 import io.micrometer.tracing.Span;
 import io.micrometer.tracing.Tracer;
 import org.jspecify.annotations.NonNull;
@@ -40,6 +44,32 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     public ResponseEntity<Object> handleAuthorizationDenied(AuthorizationDeniedException exception, WebRequest request) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, "Access denied");
         return this.handleExceptionInternal(exception, problem, new HttpHeaders(), HttpStatus.FORBIDDEN, request);
+    }
+
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<Object> handleResourceNotFound(ResourceNotFoundException exception, WebRequest request) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, exception.getMessage());
+        return this.handleExceptionInternal(exception, problem, new HttpHeaders(), HttpStatus.NOT_FOUND, request);
+    }
+
+    @ExceptionHandler(InvalidRequestException.class)
+    public ResponseEntity<Object> handleInvalidRequest(InvalidRequestException exception, WebRequest request) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, exception.getMessage());
+        return this.handleExceptionInternal(exception, problem, new HttpHeaders(), HttpStatus.BAD_REQUEST, request);
+    }
+
+    @ExceptionHandler(DownstreamUnavailableException.class)
+    public ResponseEntity<Object> handleDownstreamUnavailable(DownstreamUnavailableException exception, WebRequest request) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE, exception.getMessage());
+        problem.setProperty("service", exception.getService());
+        return this.handleExceptionInternal(exception, problem, new HttpHeaders(), HttpStatus.SERVICE_UNAVAILABLE, request);
+    }
+
+    @ExceptionHandler(DownstreamFailureException.class)
+    public ResponseEntity<Object> handleDownstreamFailure(DownstreamFailureException exception, WebRequest request) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_GATEWAY, exception.getMessage());
+        problem.setProperty("service", exception.getService());
+        return this.handleExceptionInternal(exception, problem, new HttpHeaders(), HttpStatus.BAD_GATEWAY, request);
     }
 
     @Override

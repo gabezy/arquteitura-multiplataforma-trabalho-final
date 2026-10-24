@@ -1,0 +1,7 @@
+{
+  "sku": "{{request.pathSegments.[5]}}",
+  "status": "ACCEPTED",
+  "submissionId": "{{randomValue type='UUID'}}",
+  "asin": "B0{{randomValue length=8 type='ALPHANUMERIC' uppercase=true}}",
+  "issues": []
+}

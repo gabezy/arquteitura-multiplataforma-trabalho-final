@@ -1,0 +1,6 @@
+{
+  "payload": {
+    "AmazonOrderId": "{{request.pathSegments.[4]}}",
+    "OrderStatus": "Canceled"
+  }
+}

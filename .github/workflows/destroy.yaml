@@ -1,0 +1,45 @@
+name: destroy
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  KIND_CLUSTER: omni-market
+  REGISTRY_NAME: omni-market-registry
+
+jobs:
+  destroy-local:
+    name: Destroy local cluster and registry
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install kind
+        run: |
+          if ! command -v kind >/dev/null 2>&1; then
+            sh scripts/install-kind.sh
+            echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+            export PATH="$HOME/.local/bin:$PATH"
+          fi
+          kind version
+
+      - name: Delete kind cluster
+        run: |
+          if kind get clusters | grep -Fxq "$KIND_CLUSTER"; then
+            kind delete cluster --name "$KIND_CLUSTER"
+          else
+            echo "Cluster $KIND_CLUSTER does not exist; skipping."
+          fi
+
+      - name: Delete local image registry
+        run: |
+          if docker container inspect "$REGISTRY_NAME" >/dev/null 2>&1; then
+            docker rm -f "$REGISTRY_NAME"
+          fi
+          if docker volume inspect omni-market-registry >/dev/null 2>&1; then
+            docker volume rm omni-market-registry
+          fi

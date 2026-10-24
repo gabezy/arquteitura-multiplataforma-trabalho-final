@@ -1,0 +1,11 @@
+{
+  "error": "",
+  "message": "",
+  "request_id": "{{randomValue type='UUID'}}",
+  "response": {
+    "success_list": [
+      { "model_id": 0, "normal_stock": {{jsonPath request.body '$.stock_list[0].normal_stock'}} }
+    ],
+    "failure_list": []
+  }
+}

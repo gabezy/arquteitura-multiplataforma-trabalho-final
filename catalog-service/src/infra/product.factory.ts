@@ -37,7 +37,7 @@ export function createProductModule(props: ProductModuleProps): ProductModule {
   );
 
   return {
-    productController: new ProductController(productFacade, productFacade, productFacade),
+    productController: new ProductController(productFacade, productFacade, productFacade, productFacade),
     productAnalysisConsumer: new ProductAnalysisConsumer(
       productFacade,
       props.consumer,

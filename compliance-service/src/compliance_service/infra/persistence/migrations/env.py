@@ -5,7 +5,7 @@ from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import create_async_engine
 
-from compliance_service.infra.config.settings import Settings
+from compliance_service.infra.config.vault import load_settings
 from compliance_service.infra.persistence.tables import metadata
 
 config = context.config
@@ -13,7 +13,7 @@ target_metadata = metadata
 
 
 def _database_url() -> str:
-    return config.get_main_option("sqlalchemy.url") or Settings().database_url
+    return config.get_main_option("sqlalchemy.url") or load_settings().database_url
 
 
 def run_migrations_offline() -> None:

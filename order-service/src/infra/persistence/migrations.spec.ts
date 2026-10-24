@@ -41,10 +41,10 @@ describe('migrations', () => {
     await container?.stop();
   });
 
-  it('creates the outbox and processed_events tables, then applies nothing on a second run', async () => {
+  it('creates the outbox, processed_events and orders tables, then applies nothing on a second run', async () => {
     const first = capturingLogger();
     expect(await runMigrations(db, first.logger)).toBe(true);
-    expect(first.lines.map(line => line.msg)).toEqual(['Applied 2 migration(s)']);
+    expect(first.lines.map(line => line.msg)).toEqual(['Applied 3 migration(s)']);
 
     expect(await columnsOf(db, 'outbox')).toEqual([
       { column_name: 'sequence', data_type: 'bigint', is_nullable: 'NO', column_default: expect.stringContaining('nextval') },
@@ -62,6 +62,19 @@ describe('migrations', () => {
       { column_name: 'event_type', data_type: 'text', is_nullable: 'NO', column_default: null },
       { column_name: 'processed_at', data_type: 'timestamp with time zone', is_nullable: 'NO', column_default: 'now()' },
     ]);
+    expect(await columnsOf(db, 'orders')).toEqual([
+      { column_name: 'id', data_type: 'uuid', is_nullable: 'NO', column_default: null },
+      { column_name: 'marketplace', data_type: 'character varying', is_nullable: 'NO', column_default: null },
+      { column_name: 'external_order_id', data_type: 'character varying', is_nullable: 'NO', column_default: null },
+      { column_name: 'status', data_type: 'character varying', is_nullable: 'NO', column_default: null },
+      { column_name: 'total_cents', data_type: 'bigint', is_nullable: 'NO', column_default: null },
+      { column_name: 'cancellation_reason', data_type: 'character varying', is_nullable: 'YES', column_default: null },
+      { column_name: 'items', data_type: 'jsonb', is_nullable: 'NO', column_default: null },
+      { column_name: 'ordered_at', data_type: 'timestamp with time zone', is_nullable: 'NO', column_default: null },
+      { column_name: 'created_at', data_type: 'timestamp with time zone', is_nullable: 'NO', column_default: 'now()' },
+      { column_name: 'updated_at', data_type: 'timestamp with time zone', is_nullable: 'NO', column_default: null },
+      { column_name: 'version', data_type: 'integer', is_nullable: 'NO', column_default: '0' },
+    ]);
     const primaryKey = await db.raw(
       `select a.attname from pg_index i
          join pg_attribute a on a.attrelid = i.indrelid and a.attnum = any(i.indkey)
@@ -75,16 +88,17 @@ describe('migrations', () => {
     expect(await db('knex_migrations').pluck('name')).toEqual([
       '20261023120000_create_outbox_table',
       '20261023120100_create_processed_events_table',
+      '20261024120000_create_orders_table',
     ]);
   });
 
-  it('exits with code 1 and logs the failure when the database is unreachable', () => {
+  it('exits with code 1 and logs the failure when Vault is unreachable', () => {
     const result = spawnSync(
       path.join(SERVICE_DIR, 'node_modules', '.bin', 'tsx'),
       ['src/infra/persistence/migrate.ts'],
       {
         cwd: SERVICE_DIR,
-        env: { ...process.env, DATABASE_URL: 'postgresql://orders:orders@127.0.0.1:1/orders' },
+        env: { ...process.env, VAULT_ADDR: 'http://127.0.0.1:1', VAULT_ROLE_ID: 'role', VAULT_SECRET_ID: 'secret' },
         encoding: 'utf8',
         timeout: 30_000,
       },

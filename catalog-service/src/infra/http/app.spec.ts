@@ -5,6 +5,8 @@ import { ProductController } from './product/product.controller';
 import { AddProductPort } from '../../core/product/port/in/create-product.port';
 import { FindProductPort, ProductOutput } from '../../core/product/port/in/find-product.port';
 import { ImportProductsPort } from '../../core/product/port/in/import-products.port';
+import { ChangePricePort } from '../../core/product/port/in/change-price.port';
+import { ValidationError } from '../../core/shared/domain/domain.error';
 import { DuplicateSkuError, ProductNotFoundError } from '../../core/product/model/product.errors';
 
 const PRODUCT_ID = '0b9f4c2e-6a1d-4f3b-9c8e-2d7a5e1f4b6c';
@@ -25,10 +27,11 @@ describe('app', () => {
   const addProductPort: jest.Mocked<AddProductPort> = { add: jest.fn() };
   const findProductPort: jest.Mocked<FindProductPort> = { find: jest.fn() };
   const importProductsPort: jest.Mocked<ImportProductsPort> = { import: jest.fn() };
+  const changePricePort: jest.Mocked<ChangePricePort> = { changePrice: jest.fn() };
 
   const app = createApp({
     logger: pino({ level: 'silent' }),
-    productController: new ProductController(addProductPort, findProductPort, importProductsPort),
+    productController: new ProductController(addProductPort, findProductPort, importProductsPort, changePricePort),
   });
 
   beforeEach(() => jest.resetAllMocks());
@@ -72,6 +75,63 @@ describe('app', () => {
     expect(response.status).toBe(200);
     expect(response.body).toEqual(product);
     expect(findProductPort.find).toHaveBeenCalledWith({ sku: 'NB-001' });
+  });
+
+  it('PATCH /products/sku/:sku/price returns 204', async () => {
+    changePricePort.changePrice.mockResolvedValue();
+
+    const response = await request(app)
+      .patch('/products/sku/NB-001/price')
+      .send({ price: 4999.9 });
+
+    expect(response.status).toBe(204);
+    expect(changePricePort.changePrice).toHaveBeenCalledWith({ sku: 'NB-001', price: 4999.9 });
+  });
+
+  it('PATCH /products/sku/:sku/price drops fields that are not part of the input', async () => {
+    changePricePort.changePrice.mockResolvedValue();
+
+    await request(app)
+      .patch('/products/sku/NB-001/price')
+      .send({ price: 4999.9, sku: 'forged', id: 'forged' });
+
+    expect(changePricePort.changePrice).toHaveBeenCalledWith({ sku: 'NB-001', price: 4999.9 });
+  });
+
+  it.each([
+    ['a missing price', {}],
+    ['a price that is not a number', { price: '4999.9' }],
+  ])('PATCH /products/sku/:sku/price returns 400 for %s', async (_case, body) => {
+    const response = await request(app).patch('/products/sku/NB-001/price').send(body);
+
+    expect(response.status).toBe(400);
+    expect(response.body.errors).toEqual([expect.objectContaining({ path: 'price' })]);
+    expect(changePricePort.changePrice).not.toHaveBeenCalled();
+  });
+
+  it('PATCH /products/sku/:sku/price returns 404 when the product does not exist', async () => {
+    changePricePort.changePrice.mockRejectedValue(new ProductNotFoundError('NB-001'));
+
+    const response = await request(app)
+      .patch('/products/sku/NB-001/price')
+      .send({ price: 4999.9 });
+
+    expect(response.status).toBe(404);
+    expect(response.body).toMatchObject({ status: 404, detail: 'Product with SKU NB-001 not found.' });
+  });
+
+  it('PATCH /products/sku/:sku/price returns 422 when the domain rejects the price', async () => {
+    changePricePort.changePrice.mockRejectedValue(new ValidationError('Price must be a non-negative number.'));
+
+    const response = await request(app)
+      .patch('/products/sku/NB-001/price')
+      .send({ price: -1 });
+
+    expect(response.status).toBe(422);
+    expect(response.body).toMatchObject({
+      status: 422,
+      detail: 'Price must be a non-negative number.',
+    });
   });
 
   it('GET /products/sku/:sku returns 404 when the product does not exist', async () => {

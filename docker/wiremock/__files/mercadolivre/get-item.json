@@ -1,0 +1,7 @@
+{
+  "id": "{{request.pathSegments.[2]}}",
+  "title": "Anúncio simulado",
+  "status": "active",
+  "currency_id": "BRL",
+  "permalink": "https://produto.mercadolivre.com.br/MLB-simulado"
+}

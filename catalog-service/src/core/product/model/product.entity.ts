@@ -8,6 +8,7 @@ import { AggregateRoot } from "../../shared/domain/aggregate.root";
 import { ProductCreated } from "./product-created.event";
 import { ProductAnalysisApproved, ProductAnalysisRejected } from "./product-analysis.events";
 import { ProductStockChanged } from "./product-stock-changed.event";
+import { ProductPriceChanged } from "./product-price-changed.event";
 
 export interface NewProductProps {
     sku: Sku;
@@ -157,6 +158,14 @@ export class ProductEntity extends AggregateRoot<Id> {
 
     private recordStockChanged(): void {
         this.record(new ProductStockChanged(this.id.value, this._sku.value, this._stock.value));
+    }
+
+    changePrice(price: Price): void {
+        if (this._price.equals(price)) {
+            return;
+        }
+        this._price = price;
+        this.record(new ProductPriceChanged(this.id.value, this._sku.value, price.value));
     }
 
     approveAnalysis(): void {

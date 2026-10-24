@@ -1,0 +1,23 @@
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+containerdConfigPatches:
+  - |-
+    [plugins."io.containerd.grpc.v1.cri".registry]
+      config_path = "/etc/containerd/certs.d"
+nodes:
+  - role: control-plane
+    image: kindest/node:v1.34.0
+    extraPortMappings:
+      - { containerPort: 30080, hostPort: 8080, listenAddress: "127.0.0.1", protocol: TCP }
+      - { containerPort: 30082, hostPort: 8082, listenAddress: "127.0.0.1", protocol: TCP }
+      - { containerPort: 30083, hostPort: 8083, listenAddress: "127.0.0.1", protocol: TCP }
+      - { containerPort: 30084, hostPort: 8084, listenAddress: "127.0.0.1", protocol: TCP }
+      - { containerPort: 30085, hostPort: 8085, listenAddress: "127.0.0.1", protocol: TCP }
+      - { containerPort: 30086, hostPort: 8086, listenAddress: "127.0.0.1", protocol: TCP }
+      - { containerPort: 30087, hostPort: 8087, listenAddress: "127.0.0.1", protocol: TCP }
+      - { containerPort: 30089, hostPort: 8089, listenAddress: "127.0.0.1", protocol: TCP }
+      - { containerPort: 30090, hostPort: 8090, listenAddress: "127.0.0.1", protocol: TCP }
+      - { containerPort: 30092, hostPort: 9092, listenAddress: "127.0.0.1", protocol: TCP }
+      - { containerPort: 30417, hostPort: 4317, listenAddress: "127.0.0.1", protocol: TCP }
+      - { containerPort: 30418, hostPort: 4318, listenAddress: "127.0.0.1", protocol: TCP }
+      - { containerPort: 30300, hostPort: 3000, listenAddress: "127.0.0.1", protocol: TCP }

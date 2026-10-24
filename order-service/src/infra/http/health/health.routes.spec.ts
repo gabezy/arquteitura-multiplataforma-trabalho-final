@@ -1,6 +1,8 @@
 import pino from 'pino';
 import request from 'supertest';
 import { createApp } from '../app';
+import { OrderController } from '../order/order.controller';
+import { SalesReportController } from '../report/sales-report.controller';
 
 interface LogLine {
   level: number;
@@ -12,7 +14,13 @@ describe('GET /health', () => {
   const lines: LogLine[] = [];
   const logger = pino({ level: 'info' }, { write: (line: string) => lines.push(JSON.parse(line)) });
   const checkDatabase = jest.fn<Promise<void>, []>();
-  const app = createApp({ logger, checkDatabase });
+  const unused = () => Promise.reject(new Error('the health check does not use the order ports'));
+  const app = createApp({
+    logger,
+    checkDatabase,
+    orderController: new OrderController({ find: unused, list: unused }),
+    salesReportController: new SalesReportController({ salesByMarketplace: unused }),
+  });
 
   beforeEach(() => {
     lines.length = 0;

@@ -9,7 +9,7 @@ The order-service is in the C4 but has no code, database or pipeline. Issues #20
 
 ## Goals
 
-- [ ] `make up` starts `order-db` and `order-service`, and the container reaches `healthy` with migrations applied.
+- [ ] `make compose-up` starts `order-db` and `order-service`, and the container reaches `healthy` with migrations applied.
 - [ ] A push that touches `order-service/` runs typecheck, tests, build and the Docker build in CI, and they pass.
 - [ ] A row written to `outbox` reaches Kafka on the topic named after its type, in CloudEvents binary mode, with no code beyond the bootstrap.
 - [ ] #20 can add the `Order` aggregate without touching config, observability, persistence wiring, event publishing or the pipeline.
@@ -35,7 +35,7 @@ The order-service is in the C4 but has no code, database or pipeline. Issues #20
 | Assumption / decision | Chosen default | Rationale | Confirmed? |
 | --- | --- | --- | --- |
 | Stack | Node.js 22, TypeScript 6, Express 5, Knex + `pg`, pino, OpenTelemetry, Jest, same versions as `catalog-service` | Reuses `_node-service.yml` and the team's known patterns; no new ADR needed (#15) | y |
-| Who adds order-service infra | This feature adds `order-db`, the compose service, `APPS` in the Makefile and `.github/workflows/order-service.yml`; #14 is told to skip them | #15 acceptance needs `make up` and green CI | y |
+| Who adds order-service infra | This feature adds `order-db`, the compose service, `APPS` in the Makefile and `.github/workflows/order-service.yml`; #14 is told to skip them | #15 acceptance needs `make compose-up` and green CI | y |
 | Tables in the bootstrap | `outbox` (same shape as `catalog-service`, ADR-0002) and `processed_events` (same shape as `compliance-service`) | The relay reads `outbox`; #20 needs `processed_events`; neither depends on the order model | y |
 | Kafka in the bootstrap | Publishing side only: producer, `OutboxRelay`, outbox repository, integration-event mapper type, trace context | Contract-independent and copied from `catalog-service`; consumers wait for the #8 contract | y |
 | Health check depth | `GET /health` runs `select 1` on Postgres and does not check Kafka | A container whose database is gone must show as unhealthy; a Kafka outage only delays publishing (events stay pending), same as `catalog-service` | y |
@@ -56,19 +56,19 @@ The order-service is in the C4 but has no code, database or pipeline. Issues #20
 
 ### P1: Service runs in the local environment ⭐ MVP
 
-**User Story**: As a team member, I want `make up` to start the order-service with its own database so that I can build and demo order features on the shared environment.
+**User Story**: As a team member, I want `make compose-up` to start the order-service with its own database so that I can build and demo order features on the shared environment.
 
 **Why P1**: #15 acceptance criterion and the base for #20, #29 and #31.
 
 **Acceptance Criteria**:
 
-1. WHEN `make up` runs THEN the compose SHALL start `order-db` (Postgres 18, host port 5434) and `order-service` (host port 8084), with `order-service` starting only after `order-db` is healthy and `kafka-init` has completed.  <!-- event-driven -->
+1. WHEN `make compose-up` runs THEN the compose SHALL start `order-db` (Postgres 18, host port 5434) and `order-service` (host port 8084), with `order-service` starting only after `order-db` is healthy and `kafka-init` has completed.  <!-- event-driven -->
 2. WHEN the `order-service` container starts THEN the service SHALL apply every pending Knex migration before it listens on its port.  <!-- event-driven -->
 3. IF a migration fails THEN the service SHALL exit with code 1 without listening on its port.  <!-- unwanted -->
-4. WHEN `make up-infra` runs THEN the compose SHALL start `order-db` and SHALL NOT start `order-service`.  <!-- event-driven -->
+4. WHEN `make compose-up-infra` runs THEN the compose SHALL start `order-db` and SHALL NOT start `order-service`.  <!-- event-driven -->
 5. WHEN the service starts a second time on a migrated database THEN the service SHALL apply no migration and SHALL log `Database already up to date`.  <!-- event-driven -->
 
-**Independent Test**: `make up`, then `make ps` shows `order-service` as `healthy` and `docker exec order-db psql -U orders -d orders -c '\dt'` lists `knex_migrations`, `outbox` and `processed_events`.
+**Independent Test**: `make compose-up`, then `make compose-ps` shows `order-service` as `healthy` and `docker exec order-db psql -U orders -d orders -c '\dt'` lists `knex_migrations`, `outbox` and `processed_events`.
 
 ---
 
@@ -240,7 +240,7 @@ The order-service is in the C4 but has no code, database or pipeline. Issues #20
 | BOOT-01 | P1: Service runs - compose starts `order-db` and `order-service` | T6 | Verified |
 | BOOT-02 | P1: Service runs - migrations before listening | T6 | Verified |
 | BOOT-03 | P1: Service runs - failed migration exits 1 | T3 | Verified |
-| BOOT-04 | P1: Service runs - `make up-infra` leaves the service out | T6 | Verified |
+| BOOT-04 | P1: Service runs - `make compose-up-infra` leaves the service out | T6 | Verified |
 | BOOT-05 | P1: Service runs - second start applies nothing | T3 | Verified |
 | BOOT-06 | P1: Health - `UP` with the database | T4 | Verified |
 | BOOT-07 | P1: Health - `DOWN` within 2 s without the database | T4 | Verified |
@@ -282,7 +282,7 @@ The order-service is in the C4 but has no code, database or pipeline. Issues #20
 
 ## Success Criteria
 
-- [ ] `make up` from a clean state (`make clean`) brings `order-service` to `healthy` with no manual step.
+- [ ] `make compose-up` from a clean state (`make compose-clean`) brings `order-service` to `healthy` with no manual step.
 - [ ] The first CI run of `order-service` on this branch is green.
 - [ ] A row inserted by hand into `outbox` shows up in Kafka UI within 2 s.
 - [ ] #20 starts by adding `src/core/order/` with no change to `main.ts` other than registering its factory.

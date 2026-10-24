@@ -1,12 +1,23 @@
-import { loadConfig } from '../config/env';
+import type { Logger } from 'pino';
+import { loadAppConfig } from '../config/load-app-config';
 import { createLogger } from '../observability/logger';
 import { createDatabaseConnection } from './database';
 import { createMigrationSource } from './migration-source';
 
 async function migrate(): Promise<void> {
-  const config = loadConfig();
-  const logger = createLogger(config.logLevel);
-  const db = createDatabaseConnection(config.databaseUrl);
+  const logger = createLogger(process.env.LOG_LEVEL ?? 'info');
+
+  try {
+    const config = await loadAppConfig();
+    await applyMigrations(config.databaseUrl, logger);
+  } catch (err) {
+    logger.error({ err }, 'Migration failed');
+    process.exitCode = 1;
+  }
+}
+
+async function applyMigrations(databaseUrl: string, logger: Logger): Promise<void> {
+  const db = createDatabaseConnection(databaseUrl);
 
   try {
     const [batch, migrations] = await db.migrate.latest({ migrationSource: createMigrationSource() });
@@ -15,9 +26,6 @@ async function migrate(): Promise<void> {
     } else {
       logger.info({ batch, migrations }, `Applied ${migrations.length} migration(s)`);
     }
-  } catch (err) {
-    logger.error({ err }, 'Migration failed');
-    process.exitCode = 1;
   } finally {
     await db.destroy();
   }

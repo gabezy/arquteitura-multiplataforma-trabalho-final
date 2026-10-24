@@ -2,7 +2,9 @@ name: catalog-service
 
 # main only receives changes through merged pull requests (branch protection),
 # so a push to main is always a merge: it runs CI and then CD.
-# Any other branch runs CI only, on push and on pull request.
+# Any other branch runs CI only, on push and on pull request. The pull request
+# trigger covers dev too, and its path filter looks at the whole diff of the pull
+# request, so a docs-only last commit does not leave the pull request without checks.
 on:
   push:
     paths:
@@ -10,7 +12,7 @@ on:
       - '.github/workflows/catalog-service.yml'
       - '.github/workflows/_node-service.yml'
   pull_request:
-    branches: [main]
+    branches: [main, dev]
     paths:
       - 'catalog-service/**'
       - '.github/workflows/catalog-service.yml'
