@@ -10,7 +10,7 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 
 **Spec**: `.specs/features/order-service-orders/spec.md`
 **Design**: `.specs/features/order-service-orders/design.md`
-**Status**: Approved (2026-10-24)
+**Status**: Done (independent Verifier PASS in round 2: 488 tests, 12/14 mutants killed; the 2 survivors are the `main.ts` wiring of the shutdown steps and an equivalent `clearTimeout`)
 
 **Granularity:** cohesive tasks, one commit each, as in `.specs/features/billing-service/tasks.md`. Each task is one deliverable that builds, passes its gate and can be reverted alone.
 

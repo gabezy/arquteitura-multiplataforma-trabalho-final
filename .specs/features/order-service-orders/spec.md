@@ -161,22 +161,22 @@ Every ambiguity is resolved or recorded here - nothing is left silently unclear.
 
 | Requirement ID | Story | Phase | Status |
 | --- | --- | --- | --- |
-| ORD-01 | P1: Receive the marketplace order | Tasks T2, T3, T4, T5, T7 | Implementing |
-| ORD-02 | P1: Receive the marketplace order | Tasks T3, T4 | Implementing |
-| ORD-03 | P1: Receive the marketplace order | Tasks T4 | Implementing |
-| ORD-04 | P1: Receive the marketplace order | Tasks T2, T7 | Implementing |
-| ORD-05 | P1: Receive the marketplace order | Tasks T7 | In Tasks |
-| ORD-06 | P1: Receive the marketplace order | Task T7 | Implementing |
-| STK-01 | P1: Follow the stock answer | Tasks T2, T3, T5, T7 | Implementing |
-| STK-02 | P1: Follow the stock answer | Tasks T2, T3, T5, T7 | Implementing |
-| STK-03 | P1: Follow the stock answer | Tasks T2, T3 | Implementing |
-| STK-04 | P1: Follow the stock answer | Tasks T3, T7 | Implementing |
-| STK-05 | P1: Follow the stock answer | Task T7 | Implementing |
-| PAY-01 | P1: Follow the payment result | Tasks T2, T3, T7 | Implementing |
-| PAY-02 | P1: Follow the payment result | Tasks T2, T3, T5, T7 | Implementing |
-| PAY-03 | P1: Follow the payment result | Tasks T2, T3 | Implementing |
-| PAY-04 | P1: Follow the payment result | Tasks T3, T7 | Implementing |
-| PAY-05 | P1: Follow the payment result | Task T7 | Implementing |
+| ORD-01 | P1: Receive the marketplace order | Tasks T2, T3, T4, T5, T7 | Verified |
+| ORD-02 | P1: Receive the marketplace order | Tasks T3, T4 | Verified |
+| ORD-03 | P1: Receive the marketplace order | Tasks T4 | Verified |
+| ORD-04 | P1: Receive the marketplace order | Tasks T2, T7 | Verified |
+| ORD-05 | P1: Receive the marketplace order | Tasks T7 | Verified |
+| ORD-06 | P1: Receive the marketplace order | Task T7 | Verified |
+| STK-01 | P1: Follow the stock answer | Tasks T2, T3, T5, T7 | Verified |
+| STK-02 | P1: Follow the stock answer | Tasks T2, T3, T5, T7 | Verified |
+| STK-03 | P1: Follow the stock answer | Tasks T2, T3 | Verified |
+| STK-04 | P1: Follow the stock answer | Tasks T3, T7 | Verified |
+| STK-05 | P1: Follow the stock answer | Task T7 | Verified |
+| PAY-01 | P1: Follow the payment result | Tasks T2, T3, T7 | Verified |
+| PAY-02 | P1: Follow the payment result | Tasks T2, T3, T5, T7 | Verified |
+| PAY-03 | P1: Follow the payment result | Tasks T2, T3 | Verified |
+| PAY-04 | P1: Follow the payment result | Tasks T3, T7 | Verified |
+| PAY-05 | P1: Follow the payment result | Task T7 | Verified |
 | API-01 | P1: Query the orders | Tasks T3, T6 | Implementing |
 | API-02 | P1: Query the orders | Tasks T6 | In Tasks |
 | API-03 | P1: Query the orders | Tasks T4, T6 | Implementing |
@@ -185,10 +185,10 @@ Every ambiguity is resolved or recorded here - nothing is left silently unclear.
 | RPT-02 | P2: Sales report by marketplace | Tasks T4 | Implementing |
 | RPT-03 | P2: Sales report by marketplace | Tasks T6 | In Tasks |
 | RPT-04 | P2: Sales report by marketplace | Tasks T9 | In Tasks |
-| INF-01 | P2: Infrastructure and documentation | Tasks T8 | In Tasks |
-| INF-02 | P2: Infrastructure and documentation | Tasks T8 | In Tasks |
-| INF-03 | P2: Infrastructure and documentation | Tasks T7, T8 | In Tasks |
-| INF-04 | P2: Infrastructure and documentation | Tasks T10 | In Tasks |
+| INF-01 | P2: Infrastructure and documentation | Tasks T8 | Verified |
+| INF-02 | P2: Infrastructure and documentation | Tasks T8 | Verified |
+| INF-03 | P2: Infrastructure and documentation | Tasks T7, T8 | Verified |
+| INF-04 | P2: Infrastructure and documentation | Tasks T10 | Verified |
 
 **ID format:** `[CATEGORY]-[NUMBER]`.
 
