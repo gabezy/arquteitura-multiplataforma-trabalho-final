@@ -20,6 +20,7 @@ create catalog.product.rejected.v1 3
 create catalog.stock.reserved.v1 3
 create catalog.stock.insufficient.v1 3
 create catalog.product.stock-changed.v1 3
+create catalog.product.price-changed.v1 3
 create produto.analisado.v1 3
 create catalog.product-analysis.dlq 1 retention.ms=1209600000 # 14 days to inspect and replay
 create catalog.order-stock.dlq 1 retention.ms=1209600000 # 14 days to inspect and replay
@@ -32,7 +33,7 @@ create order.marketplace-order.dlq 1 retention.ms=1209600000 # 14 days to inspec
 create order.stock-response.dlq 1 retention.ms=1209600000 # catalog.stock.* that order-service can never process
 create order.billing-payment.dlq 1 retention.ms=1209600000 # billing.payment.* that order-service can never process
 
-# marketplace-gateway (consumes catalog.product.approved.v1, catalog.product.stock-changed.v1 and order.order.cancelled.v1)
+# marketplace-gateway (consumes catalog.product.approved.v1, catalog.product.stock-changed.v1, catalog.product.price-changed.v1 and order.order.cancelled.v1)
 create marketplace.order.received.v1 3
 create marketplace.listing.published.v1 3
 create marketplace.listing.failed.v1 3
