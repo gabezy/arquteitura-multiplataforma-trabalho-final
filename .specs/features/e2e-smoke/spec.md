@@ -158,32 +158,32 @@ The demo script (#27) proves the flow by hand, and nothing re-checks it when a s
 
 | Requirement ID | Story | Phase | Status |
 | --- | --- | --- | --- |
-| E2E-01 | P1 Run: `make e2e` runs the script | Execute | Implementing |
-| E2E-02 | P1 Run: `docker compose up -d --build` | Execute | Implementing |
-| E2E-03 | P1 Run: `E2E_SKIP_UP=1` skips the up | Execute | Implementing |
-| E2E-04 | P1 Run: waits for the five apps healthy | Execute | Implementing |
-| E2E-05 | P1 Run: admin token | Execute | Implementing |
-| E2E-06 | P1 Run: 401 without token | Execute | Implementing |
-| E2E-07 | P1 Run: import with `importedProducts` 3 | Execute | Implementing |
-| E2E-08 | P1 Run: compliance statuses | Execute | Implementing |
-| E2E-09 | P1 Run: reservation (stock 1 and `reserved`) | Execute | Implementing |
-| E2E-10 | P1 Run: cancellation (stock 2) | Execute | Implementing |
-| E2E-11 | P1 Run: `[OK]` lines and exit 0 | Execute | Implementing |
-| E2E-12 | P1 Fail: `[FALHA]` and exit 1, stop | Execute | Implementing |
-| E2E-13 | P1 Fail: stack timeout lists unhealthy services | Execute | Implementing |
-| E2E-14 | P1 Fail: async timeout prints last value | Execute | Implementing |
-| E2E-15 | P1 Repeat: run-unique SKUs | Execute | Implementing |
-| E2E-16 | P1 Repeat: two runs pass | Execute | Implementing |
-| E2E-17 | P1 Repeat: no deletion | Execute | Implementing |
-| E2E-18 | P1 Pending: four `[PENDENTE]` lines | Execute | Implementing |
-| E2E-19 | P1 Pending: exit 0 without strict | Execute | Implementing |
-| E2E-20 | P1 Pending: exit 1 with `E2E_STRICT=1` | Execute | Implementing |
-| E2E-21 | P1 Pending: summary line | Execute | Implementing |
-| E2E-22 | P2 Docs: README section | Execute | Implementing |
-| E2E-23 | P2 Docs: `e2e` in `make help` | Execute | Implementing |
-| E2E-24 | P1 Run: `E2E_ORDER_ID` sets the order id | Execute | Implementing |
+| E2E-01 | P1 Run: `make e2e` runs the script | Execute | Verified |
+| E2E-02 | P1 Run: `docker compose up -d --build` | Execute | Verified |
+| E2E-03 | P1 Run: `E2E_SKIP_UP=1` skips the up | Execute | Verified |
+| E2E-04 | P1 Run: waits for the five apps healthy | Execute | Verified |
+| E2E-05 | P1 Run: admin token | Execute | Verified |
+| E2E-06 | P1 Run: 401 without token | Execute | Verified |
+| E2E-07 | P1 Run: import with `importedProducts` 3 | Execute | Verified |
+| E2E-08 | P1 Run: compliance statuses | Execute | Verified |
+| E2E-09 | P1 Run: reservation (stock 1 and `reserved`) | Execute | Verified |
+| E2E-10 | P1 Run: cancellation (stock 2) | Execute | Verified |
+| E2E-11 | P1 Run: `[OK]` lines and exit 0 | Execute | Verified |
+| E2E-12 | P1 Fail: `[FALHA]` and exit 1, stop | Execute | Verified |
+| E2E-13 | P1 Fail: stack timeout lists unhealthy services | Execute | Verified |
+| E2E-14 | P1 Fail: async timeout prints last value | Execute | Verified |
+| E2E-15 | P1 Repeat: run-unique SKUs | Execute | Verified |
+| E2E-16 | P1 Repeat: two runs pass | Execute | Verified |
+| E2E-17 | P1 Repeat: no deletion | Execute | Verified |
+| E2E-18 | P1 Pending: four `[PENDENTE]` lines | Execute | Verified |
+| E2E-19 | P1 Pending: exit 0 without strict | Execute | Verified |
+| E2E-20 | P1 Pending: exit 1 with `E2E_STRICT=1` | Execute | Verified |
+| E2E-21 | P1 Pending: summary line | Execute | Verified |
+| E2E-22 | P2 Docs: README section | Execute | Verified |
+| E2E-23 | P2 Docs: `e2e` in `make help` | Execute | Verified |
+| E2E-24 | P1 Run: `E2E_ORDER_ID` sets the order id | Execute | Verified |
 
-**Coverage:** 24 total, 24 mapped to Execute, 0 unmapped
+**Coverage:** 24 total, 24 mapped to Execute, 0 unmapped; 24 verified (`validation.md`, iteration 3)
 
 ---
 
