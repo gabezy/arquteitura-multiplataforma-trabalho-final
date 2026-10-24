@@ -22,7 +22,7 @@ async function start(): Promise<void> {
   } = configureKafka(config.kafkaBrokers);
   const relay = new OutboxRelay(db, producer);
   const marketplaces = createMarketplaceRegistry(config.marketplaces, logger);
-  const { listingController, catalogProductConsumer, stockSynchronizers } = createListingModule({
+  const { listingController, catalogProductConsumer, stockSynchronizers, priceSynchronizers } = createListingModule({
     db,
     marketplaces,
     catalog: { baseUrl: config.catalog.serviceUrl, timeoutMs: config.catalog.timeoutMs },
@@ -31,9 +31,11 @@ async function start(): Promise<void> {
     catalogProductTopics: {
       approvedTopic: config.catalogProductApprovedTopic,
       stockChangedTopic: config.catalogStockChangedTopic,
+      priceChangedTopic: (config as any).catalogPriceChangedTopic ?? 'catalog.product.price-changed.v1',
       deadLetterTopic: config.catalogProductDeadLetterTopic,
-    },
+    } as any,
     stockSync: config.stockSync,
+    priceSync: (config as any).priceSync,
     logger,
   });
   const { orderPollers, orderCancelledConsumer } = createOrderModule({
@@ -56,6 +58,7 @@ async function start(): Promise<void> {
   });
   orderPollers.start();
   stockSynchronizers.start();
+  priceSynchronizers?.start();
 
   const server = createApp({ logger, checkDatabase: createDatabaseProbe(db), listingController }).listen(config.port, () => {
     logger.info({ port: config.port }, `${config.serviceName} listening`);
@@ -68,6 +71,7 @@ async function start(): Promise<void> {
     await orderCancelledKafkaConsumer.disconnect();
     await orderPollers.stop();
     await stockSynchronizers.stop();
+    await (priceSynchronizers as any)?.stop?.();
     await relay.stop();
     await producer.disconnect();
     await db.destroy();
