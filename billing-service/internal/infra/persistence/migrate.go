@@ -27,7 +27,7 @@ func Migrate(ctx context.Context, databaseURL string) error {
 		return fmt.Errorf("parse database url: %w", err)
 	}
 	db := stdlib.OpenDB(*connConfig)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	migrations, err := fs.Sub(migrationFiles, "migrations")
 	if err != nil {

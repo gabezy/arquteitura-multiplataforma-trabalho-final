@@ -41,7 +41,7 @@ func NewDatabase(tb testing.TB) string {
 	if err != nil {
 		tb.Fatalf("connect to postgres: %v", err)
 	}
-	defer admin.Close(ctx)
+	defer func() { _ = admin.Close(ctx) }()
 	if _, err := admin.Exec(ctx, "CREATE DATABASE "+name); err != nil {
 		tb.Fatalf("create database %s: %v", name, err)
 	}

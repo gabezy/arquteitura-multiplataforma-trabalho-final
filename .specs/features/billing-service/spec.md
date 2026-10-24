@@ -210,7 +210,7 @@ Every ambiguity is resolved or recorded here - nothing is left silently unclear.
 | BOOT-05 | P1: Service bootstrap | Tasks T4 | Implementing |
 | BOOT-06 | P1: Service bootstrap | Tasks T8 | Implementing |
 | BOOT-07 | P1: Service bootstrap | Tasks T9 | Implementing |
-| BOOT-08 | P1: Service bootstrap | Tasks T10 | In Tasks |
+| BOOT-08 | P1: Service bootstrap | Tasks T10 | Implementing |
 | BOOT-09 | P1: Service bootstrap | Tasks T4 | Implementing |
 | BOOT-10 | P1: Service bootstrap | Tasks T7 | Implementing |
 | INV-01 | P1: Invoice from the confirmed order | Tasks T12, T13 | In Tasks |

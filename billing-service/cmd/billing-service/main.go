@@ -16,7 +16,10 @@ import (
 	"github.com/gabezy/arquteitura-multiplataforma-trabalho-final/billing-service/internal/infra/observability"
 )
 
-const telemetryFlushTimeout = 2 * time.Second
+const (
+	telemetryFlushTimeout = 2 * time.Second
+	healthcheckTimeout    = 3 * time.Second
+)
 
 func main() {
 	os.Exit(run(os.Args[1:]))
@@ -71,12 +74,17 @@ func healthcheck() int {
 		port = parsed
 	}
 
-	client := http.Client{Timeout: 3 * time.Second}
-	response, err := client.Get(fmt.Sprintf("http://127.0.0.1:%d/health", port))
+	ctx, cancel := context.WithTimeout(context.Background(), healthcheckTimeout)
+	defer cancel()
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("http://127.0.0.1:%d/health", port), nil)
 	if err != nil {
 		return 1
 	}
-	defer response.Body.Close()
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		return 1
+	}
+	defer func() { _ = response.Body.Close() }()
 	if response.StatusCode != http.StatusOK {
 		return 1
 	}

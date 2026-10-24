@@ -334,9 +334,9 @@ T18 → T19 → T20 → T21 → T22 → T23
 
 **Done when**:
 
-- [ ] Workflows parse as YAML and `golangci-lint run` passes locally
-- [ ] After the push, the billing workflow runs green on the branch and the other services' workflows do not run
-- [ ] Gate check passes: build gate
+- [x] Workflows parse as YAML and `golangci-lint run` passes locally
+- [x] After the push, the billing workflow runs green on the branch and the other services' workflows do not run
+- [x] Gate check passes: build gate
 
 **Tests**: none
 **Gate**: build
