@@ -5,6 +5,7 @@ import { createDatabaseConnection } from './infra/persistence/database';
 import { createDatabaseProbe } from './infra/persistence/database-probe';
 import { configureKafka } from './infra/messaging/kafka.config';
 import { OutboxRelay } from './infra/messaging/outbox-relay';
+import { createOrderModule } from './infra/order.factory';
 
 const RELAY_INTERVAL_MS = 1000;
 
@@ -14,6 +15,7 @@ async function start(): Promise<void> {
   const db = createDatabaseConnection(config.databaseUrl, logger);
   const { producer } = configureKafka(config.kafkaBrokers);
   const relay = new OutboxRelay(db, producer);
+  const { orderController, salesReportController } = createOrderModule({ db });
 
   await producer.connect();
 
@@ -22,7 +24,12 @@ async function start(): Promise<void> {
     onError: err => logger.error({ err }, 'Failed to relay outbox messages'),
   });
 
-  const server = createApp({ logger, checkDatabase: createDatabaseProbe(db) }).listen(config.port, () => {
+  const server = createApp({
+    logger,
+    checkDatabase: createDatabaseProbe(db),
+    orderController,
+    salesReportController,
+  }).listen(config.port, () => {
     logger.info({ port: config.port }, `${config.serviceName} listening`);
   });
 

@@ -37,6 +37,7 @@ describe('ExtensionlessMigrationSource', () => {
     expect(migrations).toEqual([
       '20261023120000_create_outbox_table.ts',
       '20261023120100_create_processed_events_table.ts',
+      '20261024120000_create_orders_table.ts',
     ]);
   });
 });

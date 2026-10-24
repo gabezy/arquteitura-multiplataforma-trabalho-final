@@ -2,7 +2,9 @@ import express, { Express } from 'express';
 import pino from 'pino';
 import request from 'supertest';
 import { errorHandler } from './error-handler';
+import { z } from 'zod';
 import { ConflictError, NotFoundError, ValidationError } from '../../core/shared/domain/domain.error';
+import { RequestValidationError } from './validate';
 
 const appThrowing = (error: unknown): Express => {
   const app = express();
@@ -31,6 +33,33 @@ describe('errorHandler', () => {
       detail: error.message,
       instance: '/boom',
     });
+  });
+
+  it('maps a request that breaks its schema to 400 and names each parameter, with no value', async () => {
+    const parsed = z.object({ limit: z.number(), name: z.string() }).safeParse({ limit: 'secret-value', name: 1 });
+    const lines: string[] = [];
+    const logger = pino({ level: 'info' }, { write: (line: string) => lines.push(line) });
+    const app = express();
+    app.get('/boom', () => {
+      throw new RequestValidationError(parsed.error!);
+    });
+    app.use(errorHandler(logger));
+
+    const response = await request(app).get('/boom');
+
+    expect(response.status).toBe(400);
+    expect(response.headers['content-type']).toContain('application/problem+json');
+    expect(response.body).toMatchObject({
+      type: 'about:blank',
+      title: 'Bad Request',
+      status: 400,
+      detail: 'Request validation failed.',
+      instance: '/boom',
+    });
+    expect(response.body.errors.map((error: { path: string }) => error.path)).toEqual(['limit', 'name']);
+    expect(JSON.stringify(response.body)).not.toContain('secret-value');
+    expect(lines).toHaveLength(1);
+    expect(JSON.parse(lines[0])).toMatchObject({ level: 40, method: 'GET', path: '/boom' });
   });
 
   it('keeps the status of a 4xx Express error, such as a malformed JSON body', async () => {
