@@ -614,30 +614,9 @@ GET /psp/v1/charges/ch_paid_a3c1d5e2-7b4f-4c8a-9e10-2d3f4a5b6c7d
 | 3 | `produto.analisado.v1` foge do padrão de nome (português, sem o serviço) | Só de convenção | Manter até a entrega. Se mudar, publicar `compliance.product.analyzed.v1` em paralelo e migrar o catalog |
 | 4 | `catalog.product.rejected.v1` não tem consumidor | Nenhum | Manter para auditoria (Fiscal) e relatórios |
 
-## Tópicos novos para o `create-topics.sh` (#14)
+## Tópicos no `create-topics.sh`
 
-Já estão no script todos os tópicos **implementados**, inclusive `order.order.placed.v1` e `order.order.cancelled.v1`. Os tópicos abaixo entram quando os contratos forem aprovados, pela #14 (@zeciola) ou no PR do serviço que os usar:
-
-```sh
-# order-service
-create order.order.confirmed.v1 3
-create order.marketplace-order.dlq 1 retention.ms=1209600000 # 14 days to inspect and replay
-create order.stock-response.dlq 1 retention.ms=1209600000 # 14 days to inspect and replay
-create order.billing-payment.dlq 1 retention.ms=1209600000 # 14 days to inspect and replay
-
-# marketplace-gateway
-create marketplace.order.received.v1 3
-create marketplace.listing.published.v1 3
-create marketplace.listing.failed.v1 3
-create marketplace.catalog-product.dlq 1 retention.ms=1209600000 # 14 days to inspect and replay
-create marketplace.order-cancelled.dlq 1 retention.ms=1209600000 # 14 days to inspect and replay
-
-# billing-service
-create billing.invoice.issued.v1 3
-create billing.payment.confirmed.v1 3
-create billing.payment.failed.v1 3
-create billing.order-events.dlq 1 retention.ms=1209600000 # 14 days to inspect and replay
-```
+Todos os tópicos deste catálogo, com as DLQs dos consumidores, são criados por [`docker/kafka/create-topics.sh`](../docker/kafka/create-topics.sh) (`make topics`). Um tópico novo entra no script seguindo [Como adicionar ou mudar um evento](#como-adicionar-ou-mudar-um-evento).
 
 ## Como adicionar ou mudar um evento
 
