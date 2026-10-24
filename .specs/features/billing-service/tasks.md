@@ -28,7 +28,7 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 | Config and observability | unit | Defaults, every invalid value named without its value, telemetry received by a fake collector | `billing-service/internal/infra/{config,observability}/*_test.go` | `go test ./internal/infra/config/... ./internal/infra/observability/...` |
 | Persistence and outbox | integration (Testcontainers Postgres) | Key query paths, locking, idempotency and error paths | `billing-service/internal/infra/{persistence,outbox}/*_test.go` | `go test ./internal/infra/persistence/... ./internal/infra/outbox/...` |
 | Messaging (consumer, mapping, CloudEvents) | unit (fake facade, fake inbox, fake producer) | Every consumer AC: happy, duplicate, DLQ, transient retry | `billing-service/internal/infra/messaging/*_test.go` | `go test ./internal/infra/messaging/...` |
-| HTTP handlers | unit (`httptest`, fake ports) | All routes: happy + edge + error | `billing-service/internal/infra/http/*_test.go` | `go test ./internal/infra/http/...` |
+| HTTP handlers | unit (`httptest`, fake ports) | All routes: happy + edge + error | `billing-service/internal/infra/httpapi/*_test.go` | `go test ./internal/infra/httpapi/...` |
 | PSP adapter | integration (WireMock container with the real mappings) + unit (`httptest` faults) | Approved, refused, status query, timeout, 5xx, circuit open | `billing-service/internal/infra/psp/*_test.go` | `go test ./internal/infra/psp/...` |
 | Workers | unit (fake facade, short intervals) | Drains due work, stops when the PSP is unavailable, stops on cancel | `billing-service/internal/infra/worker/*_test.go` | `go test ./internal/infra/worker/...` |
 | Composition root | integration (Testcontainers Postgres and Kafka) | Starts, answers health, issues an invoice from a Kafka event, stops within 10 s | `billing-service/internal/app/*_test.go` | `go test ./internal/app/...` |
@@ -40,7 +40,7 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 
 | Gate Level | When to Use | Command |
 | --- | --- | --- |
-| Quick | Tasks with unit tests only | `go vet ./... && go test ./internal/core/... ./internal/infra/config/... ./internal/infra/http/... ./internal/infra/messaging/... ./internal/infra/worker/...` |
+| Quick | Tasks with unit tests only | `go vet ./... && go test ./internal/core/... ./internal/infra/config/... ./internal/infra/httpapi/... ./internal/infra/messaging/... ./internal/infra/worker/...` |
 | Full | Tasks with integration tests | `go vet ./... && go test ./...` (Docker running) |
 | Build | Phase completion and Docker, compose or CI tasks | `test -z "$(gofmt -l .)" && go vet ./... && golangci-lint run && go test -race ./... && docker build .` |
 | Docs | Documentation-only tasks (from the repository root) | `git diff --check && python3 <skill-dir>/scripts/validate_spec.py .specs/features/billing-service/spec.md` |
@@ -218,7 +218,7 @@ T18 → T19 → T20 → T21 → T22 → T23
 #### T6: HTTP server, health check and problem details
 
 **What**: `net/http` server with `otelhttp`, `GET /health` with a 2 s database probe, and the problem details writer that maps domain error categories to status codes.
-**Where**: `billing-service/internal/infra/http/`
+**Where**: `billing-service/internal/infra/httpapi/`
 **Depends on**: T5
 **Reuses**: `order-service/src/infra/http/health/health.routes.ts`, `catalog-service/src/infra/http/error-handler.ts`
 **Requirement**: BOOT-01, BOOT-02
@@ -230,9 +230,9 @@ T18 → T19 → T20 → T21 → T22 → T23
 
 **Done when**:
 
-- [ ] 200 `{"status":"UP"}` with a healthy probe, 503 `{"status":"DOWN"}` with a failing or slow probe
-- [ ] Validation, not found, conflict and unknown errors become 422, 404, 409 and 500 problems; 500 hides the message
-- [ ] Gate check passes: quick gate; test count ≥ 6
+- [x] 200 `{"status":"UP"}` with a healthy probe, 503 `{"status":"DOWN"}` with a failing or slow probe
+- [x] Validation, not found, conflict and unknown errors become 422, 404, 409 and 500 problems; 500 hides the message
+- [x] Gate check passes: quick gate; test count ≥ 6
 
 **Tests**: unit
 **Gate**: quick
@@ -485,7 +485,7 @@ T18 → T19 → T20 → T21 → T22 → T23
 #### T16: Invoice query API
 
 **What**: `GET /invoices/{id}` and `GET /invoices` with filters and pagination, JSON in the design format.
-**Where**: `billing-service/internal/infra/http/`
+**Where**: `billing-service/internal/infra/httpapi/`
 **Depends on**: T15
 **Reuses**: problem details from T6
 **Requirement**: API-01, API-02, API-03, API-04
@@ -643,7 +643,7 @@ T18 → T19 → T20 → T21 → T22 → T23
 #### T22: PSP webhook
 
 **What**: `POST /webhooks/psp` with token check, body validation and translation to `ApplyPaymentResult`.
-**Where**: `billing-service/internal/infra/http/`
+**Where**: `billing-service/internal/infra/httpapi/`
 **Depends on**: T21
 **Reuses**: problem details from T6
 **Requirement**: PAY-03, PAY-04, PAY-06, PAY-07, PAY-08
