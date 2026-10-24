@@ -274,6 +274,10 @@ services:
       DATABASE_URL: postgresql://${MARKETPLACE_DB_USER:-marketplace}:${MARKETPLACE_DB_PASSWORD:-marketplace}@marketplace-db:5432/${MARKETPLACE_DB_NAME:-marketplace}
       KAFKA_BROKERS: kafka:19092
       OTEL_COLLECTOR_URL: http://otel-collector:4318
+      # The marketplaces are the simulators of docker/wiremock.
+      AMAZON_BASE_URL: http://wiremock:8080/amazon
+      MERCADO_LIVRE_BASE_URL: http://wiremock:8080/mercadolivre
+      SHOPEE_BASE_URL: http://wiremock:8080/shopee
     ports:
       - "8087:8087"
     depends_on:
@@ -281,6 +285,8 @@ services:
         condition: service_healthy
       kafka-init:
         condition: service_completed_successfully
+      wiremock:
+        condition: service_started
 
   bff-gateway:
     build: ./bff-gateway
