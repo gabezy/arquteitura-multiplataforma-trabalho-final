@@ -249,8 +249,8 @@ Publicado quando o order-service persiste um pedido novo. Pede a reserva do esto
 |---|---|---|---|
 | `orderId` | string (UUID) | obrigatório | Provisório |
 | `reason` | string | `OUT_OF_STOCK` \| `PAYMENT_FAILED` \| `MARKETPLACE_CANCELLED` | Provisório (opcional; valores propostos) |
-| `marketplace` | string | como no `placed` | Proposto (opcional) |
-| `externalOrderId` | string | como no `placed` | Proposto (opcional) |
+| `marketplace` | string | como no `placed` | Proposto (obrigatório para o cancelamento chegar ao marketplace) |
+| `externalOrderId` | string | como no `placed` | Proposto (obrigatório para o cancelamento chegar ao marketplace) |
 
 ```json
 {
@@ -262,7 +262,7 @@ Publicado quando o order-service persiste um pedido novo. Pede a reserva do esto
 ```
 
 - `OUT_OF_STOCK` vem da resposta `insufficient` (ADR-0004). `PAYMENT_FAILED` vem do billing. `MARKETPLACE_CANCELLED` é o cancelamento feito pelo comprador no marketplace, que depende da #22.
-- O marketplace-gateway precisa de `marketplace` e `externalOrderId` para cancelar no marketplace certo; por isso a proposta de incluí-los.
+- O marketplace-gateway precisa de `marketplace` e `externalOrderId` para cancelar no marketplace certo; por isso o order-service deve incluí-los sempre, e o gateway manda o cancelamento que chegar sem eles para a DLQ `marketplace.order-cancelled.dlq` (como o PR #63 implementa). O catalog e o billing não usam esses dois campos.
 - No catalog:
   - só uma reserva ainda `RESERVED` devolve estoque, e repetir o cancelamento não muda nada;
   - um cancelamento que chega antes do `placed` grava um tombstone, e o `placed` que chegar depois é ignorado.
@@ -383,11 +383,11 @@ Resultado da publicação de um produto aprovado em **um** marketplace. Um produ
 | `marketplace` | string | ambos |
 | `externalListingId` | string | `published` |
 | `publishedAt` | string (ISO-8601) | `published` |
-| `reason` | string | `failed`: motivo da última tentativa |
-| `attempts` | integer | `failed`: tentativas feitas antes de desistir |
+| `reason` | string | `failed`: mensagem da última tentativa (ex.: `HTTP 503`) |
+| `attempts` | integer | `failed`: chamadas feitas ao marketplace antes de desistir; uma recusa conta 1 e o circuito aberto conta 0 |
 
 ```json
-{ "productId": "0b8f2c1e-6a4d-4d1e-9a51-3f0f1b2c7d10", "sku": "NB-001", "marketplace": "SHOPEE", "reason": "HTTP 503 after retries", "attempts": 3 }
+{ "productId": "0b8f2c1e-6a4d-4d1e-9a51-3f0f1b2c7d10", "sku": "NB-001", "marketplace": "SHOPEE", "reason": "HTTP 503", "attempts": 3 }
 ```
 
 Ainda não há consumidor: o status dos anúncios é consultado pela API do marketplace-gateway (#35). Os eventos ficam para auditoria e para o dashboard (#36).
