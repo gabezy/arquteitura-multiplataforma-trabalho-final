@@ -28,6 +28,29 @@ Cada contrato tem um estado:
 - **Payload:** campos em camelCase. Ids são UUID em texto. Valores em dinheiro são `number` em reais, com até 2 casas decimais. Datas em ISO-8601 UTC.
 - **Evolução:** adicionar campo opcional é compatível (os consumidores ignoram campos desconhecidos). Remover ou renomear campo, ou mudar o tipo, exige um tópico `vN+1`, e os dois convivem até nenhum consumidor usar o antigo.
 
+## Visão geral dos tópicos
+
+| Tópico | Produtor | Consumidores | Chave | Estado |
+|---|---|---|---|---|
+| [`catalog.product.created.v1`](#catalogproductcreatedv1) | catalog-service | compliance-service | `productId` | Implementado |
+| [`produto.analisado.v1`](#produtoanalisadov1) | compliance-service | catalog-service | `productId` | Implementado |
+| [`catalog.product.approved.v1`](#catalogproductapprovedv1) | catalog-service | marketplace-gateway (#21) | `productId` | Provisório |
+| [`catalog.product.rejected.v1`](#catalogproductrejectedv1) | catalog-service | nenhum | `productId` | Implementado |
+| [`catalog.product.stock-changed.v1`](#catalogproductstock-changedv1) | catalog-service | marketplace-gateway (#33) | `productId` | Provisório |
+| [`catalog.stock.reserved.v1`](#catalogstockreservedv1) | catalog-service | order-service (#20, #29) | `orderId` | Provisório |
+| [`catalog.stock.insufficient.v1`](#catalogstockinsufficientv1) | catalog-service | order-service (#20, #29) | `orderId` | Provisório |
+| [`order.order.placed.v1`](#orderorderplacedv1) | order-service (#20) | catalog-service | `orderId` | Provisório |
+| [`order.order.confirmed.v1`](#orderorderconfirmedv1) | order-service (#20) | billing-service (#23) | `orderId` | Proposto |
+| [`order.order.cancelled.v1`](#orderordercancelledv1) | order-service (#20) | catalog-service, marketplace-gateway | `orderId` | Provisório |
+| [`marketplace.order.received.v1`](#marketplaceorderreceivedv1) | marketplace-gateway (#22) | order-service (#20) | `<marketplace>:<externalOrderId>` | Proposto |
+| [`marketplace.listing.published.v1`](#marketplacelistingpublishedv1-e-marketplacelistingfailedv1) | marketplace-gateway (#21) | nenhum (consulta pela API, #35) | `productId` | Proposto |
+| [`marketplace.listing.failed.v1`](#marketplacelistingpublishedv1-e-marketplacelistingfailedv1) | marketplace-gateway (#21) | nenhum (consulta pela API, #35) | `productId` | Proposto |
+| [`billing.invoice.issued.v1`](#billinginvoiceissuedv1) | billing-service (#23) | nenhum | `invoiceId` | Proposto |
+| [`billing.payment.confirmed.v1`](#billingpaymentconfirmedv1-e-billingpaymentfailedv1) | billing-service (#32) | order-service | `invoiceId` | Proposto |
+| [`billing.payment.failed.v1`](#billingpaymentconfirmedv1-e-billingpaymentfailedv1) | billing-service (#32) | order-service | `invoiceId` | Proposto |
+
+DLQs: ver [Dead letter topics](#dead-letter-topics).
+
 ---
 
 ## Contratos implementados e provisórios
