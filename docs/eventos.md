@@ -39,10 +39,10 @@ Cada contrato tem um estado:
 | [`catalog.product.stock-changed.v1`](#catalogproductstock-changedv1) | catalog-service | marketplace-gateway (#33) | `productId` | Provisório |
 | [`catalog.stock.reserved.v1`](#catalogstockreservedv1) | catalog-service | order-service (#20, #29) | `orderId` | Provisório |
 | [`catalog.stock.insufficient.v1`](#catalogstockinsufficientv1) | catalog-service | order-service (#20, #29) | `orderId` | Provisório |
-| [`order.order.placed.v1`](#orderorderplacedv1) | order-service (#20) | catalog-service | `orderId` | Provisório |
+| [`order.order.placed.v1`](#orderorderplacedv1) | order-service (#20) | catalog-service | `orderId` | Implementado |
 | [`order.order.confirmed.v1`](#orderorderconfirmedv1) | order-service (#20) | billing-service (#23) | `orderId` | Proposto |
 | [`order.order.cancelled.v1`](#orderordercancelledv1) | order-service (#20) | catalog-service, marketplace-gateway, billing-service (#23) | `orderId` | Provisório |
-| [`marketplace.order.received.v1`](#marketplaceorderreceivedv1) | marketplace-gateway (#22) | order-service (#20) | `<marketplace>:<externalOrderId>` | Proposto |
+| [`marketplace.order.received.v1`](#marketplaceorderreceivedv1) | marketplace-gateway (#22) | order-service (#20) | `<marketplace>:<externalOrderId>` | Implementado |
 | [`marketplace.listing.published.v1`](#marketplacelistingpublishedv1-e-marketplacelistingfailedv1) | marketplace-gateway (#21) | nenhum (consulta pela API, #35) | `productId` | Proposto |
 | [`marketplace.listing.failed.v1`](#marketplacelistingpublishedv1-e-marketplacelistingfailedv1) | marketplace-gateway (#21) | nenhum (consulta pela API, #35) | `productId` | Proposto |
 | [`billing.invoice.issued.v1`](#billinginvoiceissuedv1) | billing-service (#23) | nenhum | `invoiceId` | Proposto |
@@ -210,19 +210,19 @@ Como o valor é absoluto, um consumidor que receba eventos repetidos converge pa
 
 ### `order.order.placed.v1`
 
-**Estado:** Provisório (o consumidor existe, o produtor vem na #20) · **Produtor:** order-service · **Consumidor:** catalog-service (group `catalog-service-order-stock`, DLQ `catalog.order-stock.dlq`)
+**Estado:** Implementado · **Produtor:** order-service (#20) · **Consumidor:** catalog-service (group `catalog-service-order-stock`, DLQ `catalog.order-stock.dlq`)
 
 Publicado quando o order-service persiste um pedido novo. Pede a reserva do estoque.
 
 | Campo | Tipo | Regra | Estado |
 |---|---|---|---|
-| `orderId` | string (UUID) | obrigatório | Provisório |
-| `items` | array, mín. 1 | obrigatório | Provisório |
-| `items[].sku` | string | não vazio | Provisório |
-| `items[].quantity` | integer | > 0 | Provisório |
-| `items[].unitPrice` | number | preço unitário de venda | Proposto (opcional) |
-| `marketplace` | `"AMAZON"` \| `"MERCADO_LIVRE"` \| `"SHOPEE"` | origem do pedido | Proposto (opcional) |
-| `externalOrderId` | string | id do pedido no marketplace | Proposto (opcional) |
+| `orderId` | string (UUID) | obrigatório | Implementado |
+| `items` | array, mín. 1 | obrigatório | Implementado |
+| `items[].sku` | string | não vazio | Implementado |
+| `items[].quantity` | integer | > 0 | Implementado |
+| `items[].unitPrice` | number | preço unitário de venda, em reais | Implementado (opcional para o catalog) |
+| `marketplace` | `"AMAZON"` \| `"MERCADO_LIVRE"` \| `"SHOPEE"` | origem do pedido | Implementado (opcional para o catalog) |
+| `externalOrderId` | string | id do pedido no marketplace | Implementado (opcional para o catalog) |
 
 ```json
 {
@@ -311,7 +311,7 @@ Precisam da aprovação do dono indicado. Os nomes de campo seguem as convençõ
 
 ### `marketplace.order.received.v1`
 
-**Estado:** Proposto · **A aprovar:** @diegodiogenes (produtor, #22) e @RodrigoPretes-257199 (consumidor, #20) · **Depende de:** ADR #12 (webhook ou polling)
+**Estado:** Implementado · **Produtor:** marketplace-gateway (#22, polling pela ADR-0010) · **Consumidor:** order-service (#20, group `order-service-marketplace-orders`)
 
 Pedido recebido de um marketplace, já traduzido para o formato canônico pela anti-corruption layer do marketplace-gateway.
 
@@ -338,6 +338,11 @@ Pedido recebido de um marketplace, já traduzido para o formato canônico pela a
   - o marketplace-gateway não publica o mesmo pedido duas vezes (#22);
   - o order-service ignora um `marketplace + externalOrderId` que já existe, mesmo vindo com outro `ce_id`.
 - **DLQ do consumidor:** `order.marketplace-order.dlq`.
+- **No order-service:**
+  - o total do pedido é sempre `Σ quantity × unitPrice`, calculado em centavos. O `total` da mensagem só é comparado, e uma diferença gera um log `warn`;
+  - vai para a DLQ a mensagem fora do contrato: JSON inválido, `marketplace` desconhecido, `externalOrderId` ou `sku` em branco, `items` vazio, `quantity` que não é inteiro > 0, `unitPrice` negativo ou com mais de 2 casas, `orderedAt` que não é ISO-8601;
+  - também vai para a DLQ o que o banco nunca guardaria: `quantity` acima de 2 147 483 647, `unitPrice` acima de 999 999 999 999.99, texto com mais de 200 caracteres ou com NUL, mais de 1000 itens, `ce_id` que não é ASCII imprimível ou um erro SQLSTATE classe 22;
+  - um item com `unitPrice` 0 (bonificação) é aceito. **Limitação conhecida:** o billing exige `unitPrice` ≥ 0.01 no `order.order.confirmed.v1` (#23) e mandaria esse pedido para a DLQ dele. A proposta é o billing aceitar 0 quando o total do pedido for > 0.
 - **Em aberto:** dados do comprador e do frete ficam fora até algum serviço precisar deles.
 
 ### `order.order.confirmed.v1`
@@ -475,7 +480,7 @@ Ainda não há consumidor: a fatura é consultada pela API do billing (#34).
 | `compliance.product-created.dlq` | `compliance-service` | `catalog.product.created.v1` | Implementado |
 | `catalog.product-analysis.dlq` | `catalog-service-group` | `produto.analisado.v1` | Implementado |
 | `catalog.order-stock.dlq` | `catalog-service-order-stock` | `order.order.placed.v1`, `order.order.cancelled.v1` | Implementado |
-| `order.marketplace-order.dlq` | order-service | `marketplace.order.received.v1` | Proposto |
+| `order.marketplace-order.dlq` | `order-service-marketplace-orders` | `marketplace.order.received.v1` | Implementado |
 | `order.stock-response.dlq` | order-service | `catalog.stock.reserved.v1`, `catalog.stock.insufficient.v1` | Proposto |
 | `order.billing-payment.dlq` | order-service | `billing.payment.*` | Proposto |
 | `marketplace.catalog-product.dlq` | marketplace-gateway | `catalog.product.approved.v1`, `catalog.product.stock-changed.v1` | Proposto |
@@ -492,7 +497,8 @@ Os serviços internos não validam token: a autenticação e a autorização por
 |---|---|---|---|---|
 | bff-gateway | catalog-service | `POST /products/import` com `{ items: [{ sku, name, description, price, stock }] }` (1 a 1000 itens) | importação da planilha (`POST /catalog/import/xlsx` no BFF) | Implementado |
 | bff-gateway, marketplace-gateway | catalog-service | `GET /products/sku/:sku` → `{ id, sku, name, description, price, stock, analysisStatus }` | consulta do produto e dos dados para o anúncio | Implementado (o uso pelo marketplace depende da ADR #12) |
-| bff-gateway | order-service | listar e detalhar pedidos, relatórios por marketplace | #24, #31 | Proposto |
+| bff-gateway | order-service | `GET /orders` (filtros `marketplace`, `status`, `limit` de 1 a 100, `offset`) → `{ orders, limit, offset }` e `GET /orders/{id}`; parâmetro inválido → 422, pedido inexistente → 404 | listar e detalhar pedidos (#24) | Implementado |
+| bff-gateway | order-service | `GET /reports/sales-by-marketplace` | relatórios por marketplace (#31) | Proposto |
 | bff-gateway | billing-service | `GET /invoices` (filtros `orderId`, `status`, `marketplace`, `limit`, `offset`) e `GET /invoices/{id}` | #34 | Proposto |
 | bff-gateway | marketplace-gateway | status dos anúncios por marketplace | #35 | Proposto |
 | marketplace-gateway | marketplaces (WireMock) | publicar anúncio, atualizar estoque, receber e cancelar pedidos | #18, #21, #22, #33 | Proposto (ADR #12) |
@@ -584,12 +590,10 @@ GET /psp/v1/charges/ch_paid_a3c1d5e2-7b4f-4c8a-9e10-2d3f4a5b6c7d
 
 ## Tópicos novos para o `create-topics.sh` (#14)
 
-Já estão no script todos os tópicos **implementados**, inclusive `order.order.placed.v1` e `order.order.cancelled.v1`. Os tópicos abaixo entram quando os contratos forem aprovados, pela #14 (@zeciola) ou no PR do serviço que os usar:
+Já estão no script todos os tópicos **implementados**, inclusive `order.order.placed.v1`, `order.order.cancelled.v1`, `order.order.confirmed.v1` e `order.marketplace-order.dlq`. Os tópicos abaixo entram quando os contratos forem aprovados, pela #14 (@zeciola) ou no PR do serviço que os usar:
 
 ```sh
 # order-service
-create order.order.confirmed.v1 3
-create order.marketplace-order.dlq 1 retention.ms=1209600000 # 14 days to inspect and replay
 create order.stock-response.dlq 1 retention.ms=1209600000 # 14 days to inspect and replay
 create order.billing-payment.dlq 1 retention.ms=1209600000 # 14 days to inspect and replay
 

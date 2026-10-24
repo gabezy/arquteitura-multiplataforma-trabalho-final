@@ -336,17 +336,17 @@ T7 → T8
 
 **Done when**:
 
-- [ ] The overview table and the fichas show the new states; no other service's ficha changed
-- [ ] `order-service/CLAUDE.md` no longer says "There is no domain yet"
-- [ ] `diff .specs/features/receive-marketplace-orders/spec.md docs/specs/order-service/pedidos/spec.md` is empty
-- [ ] Gate check passes: build gate from T7
+- [x] The overview table and the fichas show the new states; no other service's ficha changed
+- [x] `order-service/CLAUDE.md` no longer says "There is no domain yet"
+- [x] `diff .specs/features/receive-marketplace-orders/spec.md docs/specs/order-service/pedidos/spec.md` is empty
+- [x] Gate check passes: build gate from T7
 
 **Tests**: none
 **Gate**: build
 
 **Commit**: `docs(order): documenta os pedidos e marca os contratos como implementados`
 
-**Status**: Pending
+**Status**: ✅ Complete
 
 ---
 

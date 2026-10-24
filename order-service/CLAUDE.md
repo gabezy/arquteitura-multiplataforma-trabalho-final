@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `order-service` is one service in the "omni-market" monorepo: sales orders from the marketplaces, with stock reservation (ADR-0004) and sales reports. It is a Node.js 22 / TypeScript / Express 5 app (CommonJS output) with OpenTelemetry for traces, metrics and logs. It mirrors the architecture of `catalog-service`.
 
-The bootstrap (#15, spec in `../.specs/features/order-service-bootstrap/`) delivers the skeleton: config, HTTP app with health check, Postgres with migrations, observability and event publishing through the outbox. There is no domain yet: the `Order` aggregate, its API and the Kafka consumers come with #20.
+The bootstrap (#15, spec in `../.specs/features/order-service-bootstrap/`) delivers the skeleton: config, HTTP app with health check, Postgres with migrations, observability and event publishing through the outbox. #20 (spec in `../.specs/features/receive-marketplace-orders/`) adds the `Order` aggregate: orders received from the marketplace-gateway, `order.order.placed.v1` for the stock reservation, and `GET /orders` / `GET /orders/{id}` for the BFF. Stock and payment responses come with #29, sales reports with #31.
 
 Shared infrastructure and monorepo-wide conventions are described in `../CLAUDE.md`.
 
@@ -36,7 +36,7 @@ npm run migrate:deploy                    # apply from dist/ (used by the Docker
 
 - `ExtensionlessMigrationSource` records migrations without the extension, so a database migrated from `src/` and from `dist/` stays consistent. Every runner (`migrate.ts`, `knexfile.ts`, specs) must use `createMigrationSource()`.
 - The Docker image runs `migrate:deploy` before starting the app, and a failed migration exits with code 1 so the app never starts. Write backward-compatible migrations (expand/contract).
-- Existing tables: `outbox` (ADR-0002, read by the relay) and `processed_events` (inbox: one row per consumed event id, for the consumers of #20).
+- Existing tables: `outbox` (ADR-0002, read by the relay), `processed_events` (inbox: one row per consumed event id), `orders` (unique `(marketplace, external_order_id)`) and `order_items` (one row per line).
 
 Config comes from env vars (see `.env.example`; `.env` is loaded if present): `PORT` (8084), `LOG_LEVEL` (`info`), `OTEL_SERVICE_NAME` (`order-service`), `OTEL_COLLECTOR_URL` (`http://localhost:4318`), `DB_HOST` / `DB_PORT` / `DB_NAME` (`order-db` on `localhost:5434/orders`) and `KAFKA_BROKERS` (comma-separated, `localhost:9092`; inside a compose container `kafka:19092`). An invalid `PORT` stops the service at startup.
 
@@ -51,7 +51,7 @@ TypeScript is pinned to 6.x because `ts-jest` does not support TypeScript 7.
 ```
 src/
   core/                          the hexagon, framework-free
-    <aggregate>/                 e.g. order/ (#20)
+    <aggregate>/                 e.g. order/
       model/                     entities, value objects, domain events and errors (validate themselves)
       port/in/                   driving ports: interfaces called by the outside world
       port/out/                  driven ports: what the core needs (repositories, publishers)
@@ -95,5 +95,14 @@ Domain events reach Kafka through a transactional outbox (`../docs/adr/0002-outb
 - `OutboxRelay` runs every 1000 ms (one round at a time), takes up to 100 pending rows in `sequence` order with `FOR UPDATE SKIP LOCKED`, publishes each to the topic named after its type with `aggregate_id` as the key and CloudEvents `ce_*` headers (`ce_source=/order-service`), then sets `published_at`. A failed send leaves the rows pending for the next round. Delivery is at-least-once: consumers deduplicate by `ce_id`.
 - The relay sends each event inside the trace that recorded it (the outbox `headers` column keeps the W3C trace context).
 - The producer is idempotent with one request in flight and 5 retries. The service does not start without Kafka (`producer.connect()` runs before `listen`).
-- A new published or consumed topic goes in `../docker/kafka/create-topics.sh`. `order.order.placed.v1` and `order.order.cancelled.v1` are already there (the catalog consumes them).
-- Consumers (from #20) are driving adapters: they validate the message, use `processed_events` to skip redeliveries, send messages that can never succeed to a dead letter topic and rethrow anything else so Kafka redelivers it.
+- A new published or consumed topic goes in `../docker/kafka/create-topics.sh`. The topics of this service are already there: `order.order.placed.v1`, `order.order.cancelled.v1` and `order.order.confirmed.v1` (published), `marketplace.order.received.v1` (consumed) and `order.marketplace-order.dlq`.
+- Consumers are driving adapters: they validate the message with zod, use `processed_events` to skip redeliveries, send messages that can never succeed to a dead letter topic (`dead-letter.ts`, with the `dlq-*` headers) and rethrow anything else so Kafka redelivers it. A value the database can never store (past a column limit, or an SQLSTATE class 22 error) counts as one that can never succeed: rethrowing it would stall the partition.
+- Each consumer has its own consumer group (`kafka.config.ts`) and runs inside the trace of the message (`withTraceHeaders`), so the events it records join that trace.
+- `MarketplaceOrderConsumer` (group `order-service-marketplace-orders`) reads `marketplace.order.received.v1` and parks bad messages in `order.marketplace-order.dlq`. `KnexOrderRepository.saveReceived` writes the order, its items, the `ce_id` and the outbox row in one transaction; a marketplace order that already exists records only the `ce_id`.
+
+## Orders
+
+- `Order.receive` creates a `RECEIVED` order with its own UUID. Statuses are `RECEIVED`, `CONFIRMED`, `PAID` and `CANCELLED` (the BFF enum); #20 only creates `RECEIVED`.
+- Money: `Money` (`core/shared/domain/money.vo.ts`) holds integer cents and reads reais from the decimal text of the number, so `3 × 0.1` is exactly `0.3`. Columns are `decimal(14,2)`, and JSON carries numbers in reais with at most two decimals. The total is always the sum of the items; the total the marketplace declares is only compared and logged when it differs, because the billing recomputes it from the items (#23).
+- An item priced 0 (bonus) is accepted. Known limitation: the billing requires `unitPrice` ≥ 0.01 in `order.order.confirmed.v1`.
+- `GET /orders` takes `marketplace`, `status`, `limit` (1 to 100, default 20) and `offset` (default 0), newest first; `GET /orders/{id}` answers 404 for an unknown id. Invalid parameters answer 422 (`InvalidRequestError`).
