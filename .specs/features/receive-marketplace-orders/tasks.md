@@ -263,20 +263,22 @@ T7 → T8
 
 **Done when**:
 
-- [ ] `GET /orders` → 200 `{ orders, limit: 20, offset: 0 }` with each order as `{ id, marketplace, externalOrderId, status, total, items, cancellationReason, orderedAt, createdAt, updatedAt }`, money as numbers (`18689.9`), instants ISO-8601 UTC
-- [ ] Filters and paging reach the port untouched and are echoed
-- [ ] 422 `application/problem+json` for `limit` 0, 101, `abc`; `offset` -1; `marketplace=EBAY`; `status=SHIPPED`; `limit` 1 and 100 are accepted
-- [ ] `GET /orders/{uuid}` → 200 with the order; unknown UUID → 404 problem+json; `/orders/abc` → 422 problem+json
-- [ ] Empty page → 200 with `orders: []`
-- [ ] Gate check passes: `cd order-service && npx jest src/infra/http && npm run typecheck`
-- [ ] Test count: at least 13 new tests pass
+- [x] `GET /orders` → 200 `{ orders, limit: 20, offset: 0 }` with each order as `{ id, marketplace, externalOrderId, status, total, items, cancellationReason, orderedAt, createdAt, updatedAt }`, money as numbers (`18689.9`), instants ISO-8601 UTC
+- [x] Filters and paging reach the port untouched and are echoed
+- [x] 422 `application/problem+json` for `limit` 0, 101, `abc`; `offset` -1; `marketplace=EBAY`; `status=SHIPPED`; `limit` 1 and 100 are accepted
+- [x] `GET /orders/{uuid}` → 200 with the order; unknown UUID → 404 problem+json; `/orders/abc` → 422 problem+json
+- [x] Empty page → 200 with `orders: []`
+- [x] Gate check passes: `cd order-service && npx jest src/infra/http && npm run typecheck`
+- [x] Test count: 24 new tests pass (`order.routes.spec.ts`); 33 in `src/infra/http`
 
 **Tests**: route
 **Gate**: quick
 
 **Commit**: `feat(order): adiciona as rotas de consulta de pedidos para o BFF`
 
-**Status**: Pending
+**Status**: ✅ Complete
+
+**Deviations**: the routes are tested on their own Express app with the real `errorHandler`; `createApp` takes them in T7. Invalid parameters throw `InvalidRequestError`, a `ValidationError`, which the existing error handler already answers with 422.
 
 ---
 
