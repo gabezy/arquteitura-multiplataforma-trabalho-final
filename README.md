@@ -38,15 +38,15 @@ Cada serviço tem build próprio e um `CLAUDE.md` com comandos e arquitetura. To
 
 ## Ambiente local com kind
 
-O caminho padrão para desenvolvimento e demonstração é `make act-kind-deploy`. Ele usa [act](https://nektosact.com/installation/) para simular localmente o workflow do GitHub Actions: o pipeline constrói as imagens, publica-as no registry local e instala a aplicação num cluster Kubernetes criado com kind, usando Helm. Assim, a execução local percorre o mesmo workflow de provisionamento definido no repositório.
+O caminho padrão para desenvolvimento e demonstração é `make act-kind-deploy`. Esse comando chama [act](https://nektosact.com/installation/) para executar explicitamente o workflow [`kind-deploy`](.github/workflows/kind-deploy.yml), acionado pelo evento `workflow_dispatch`. Também é possível iniciá-lo no GitHub em **Actions → kind-deploy → Run workflow**. O arquivo mostra em etapas a preparação do ambiente, criação do cluster kind e registry, build e publicação das imagens, instalação com Helm e verificação dos recursos.
 
 ```bash
 make act-install       # opcional: instala/atualiza act em ~/.local/bin
-make act-kind-deploy   # caminho padrão: simula o workflow e implanta no kind
+make act-kind-deploy   # executa localmente o workflow e implanta no kind
 make act-list          # lista os workflows disponíveis
 ```
 
-`make act-install` instala apenas o `act` em `~/.local/bin`; Docker e o Docker Engine ativo são os pré-requisitos de sistema para executar o fluxo pelo `act`. O próprio workflow instala `kubectl` e Helm, e `make k8s-up` instala `kind` no runner quando necessário. O wrapper funciona em Linux e WSL2. No WSL2 com Docker Desktop, habilite a integração para a distribuição Linux e o host networking do Docker Desktop (versão 4.34 ou superior), usado pelo runner do `act` ([configuração do host networking](https://docs.docker.com/engine/network/drivers/host/#docker-desktop), [integração WSL](https://docs.docker.com/desktop/features/wsl/)).
+`make act-install` instala apenas o `act` em `~/.local/bin`; Docker CLI e um Docker Engine ativo são necessários no host. O workflow instala `kubectl`, Helm e kind no runner e descreve diretamente cada operação, sem delegar o deploy a um alvo do Makefile. `act` executa o workflow localmente dentro de um container Docker; esse runner não é idêntico à VM hospedada pelo GitHub. O wrapper funciona em Linux e WSL2. No WSL2 com Docker Desktop, habilite a integração para a distribuição Linux e o host networking do Docker Desktop (versão 4.34 ou superior), usado pelo runner do `act` ([configuração do host networking](https://docs.docker.com/engine/network/drivers/host/#docker-desktop), [integração WSL](https://docs.docker.com/desktop/features/wsl/)).
 
 Para implantar diretamente no kind, sem executar o workflow pelo `act`, instale `kubectl` e Helm no host e use:
 
