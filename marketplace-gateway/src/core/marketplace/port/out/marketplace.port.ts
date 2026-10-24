@@ -15,6 +15,22 @@ export interface CanonicalOrder {
     orderedAt: Date;
 }
 
+// The data a marketplace needs to list a product.
+export interface ListingDraft {
+    // The id of the listing at the gateway: it goes to the marketplace as the idempotency key of the call.
+    listingId: string;
+    sku: string;
+    name: string;
+    description: string;
+    price: number;
+    stock: number;
+}
+
+export interface PublishedListing {
+    // The id the marketplace gave the listing.
+    externalListingId: string;
+}
+
 export interface CancelOrderRequest {
     externalOrderId: string;
     reason?: string;
@@ -24,6 +40,9 @@ export interface CancelOrderRequest {
 // MarketplaceRejectedError (never will succeed).
 export interface MarketplacePort {
     readonly marketplace: Marketplace;
+
+    // Lists the product. Asking again with the same draft must not list it twice.
+    publishListing(draft: ListingDraft): Promise<PublishedListing>;
 
     // Paid orders not shipped yet, created since the given instant.
     fetchNewOrders(since: Date): Promise<CanonicalOrder[]>;

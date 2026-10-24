@@ -6,7 +6,13 @@ import {
     MarketplaceRejectedError,
     MarketplaceUnavailableError,
 } from '../../core/marketplace/model/marketplace.errors';
-import { CancelOrderRequest, CanonicalOrder, MarketplacePort } from '../../core/marketplace/port/out/marketplace.port';
+import {
+    CancelOrderRequest,
+    CanonicalOrder,
+    ListingDraft,
+    MarketplacePort,
+    PublishedListing,
+} from '../../core/marketplace/port/out/marketplace.port';
 import { CircuitBreaker, CircuitBreakerOptions } from './circuit-breaker';
 
 export interface ResilienceOptions {
@@ -49,6 +55,10 @@ export class ResilientMarketplace implements MarketplacePort {
 
     get marketplace(): Marketplace {
         return this.inner.marketplace;
+    }
+
+    publishListing(draft: ListingDraft): Promise<PublishedListing> {
+        return this.execute('publishListing', () => this.inner.publishListing(draft));
     }
 
     fetchNewOrders(since: Date): Promise<CanonicalOrder[]> {

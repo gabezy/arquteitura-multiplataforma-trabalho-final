@@ -17,6 +17,7 @@ const OPTIONS: ResilienceOptions = {
 };
 const SINCE = new Date('2026-10-28T13:00:00Z');
 const REQUEST = { externalOrderId: 'SHP1', reason: 'OUT_OF_STOCK' };
+const DRAFT = { listingId: 'a3c1d5e2-7b4f-4c8a-9e10-2d3f4a5b6c7d', sku: 'NB-001', name: 'Notebook', description: 'Notebook 16GB RAM', price: 4500, stock: 2 };
 
 const unavailable = (retryAfterMs?: number, marketplace: Marketplace = 'SHOPEE') =>
   new MarketplaceUnavailableError('HTTP 503', marketplace, 1, retryAfterMs);
@@ -33,6 +34,7 @@ describe('ResilientMarketplace', () => {
 
   const portOf = (marketplace: Marketplace): jest.Mocked<MarketplacePort> => ({
     marketplace,
+    publishListing: jest.fn(),
     fetchNewOrders: jest.fn(),
     cancelOrder: jest.fn(),
   });
@@ -65,9 +67,25 @@ describe('ResilientMarketplace', () => {
 
       expect(inner.cancelOrder).toHaveBeenCalledWith(REQUEST);
     });
+
+    it('passes the listing on and answers the id the marketplace gave', async () => {
+      inner.publishListing.mockResolvedValue({ externalListingId: '412525791' });
+
+      await expect(decorate().publishListing(DRAFT)).resolves.toEqual({ externalListingId: '412525791' });
+
+      expect(inner.publishListing).toHaveBeenCalledWith(DRAFT);
+    });
   });
 
   describe('retry', () => {
+    it('tries a listing again with the very same draft, so its idempotency key does not change', async () => {
+      inner.publishListing.mockRejectedValueOnce(unavailable()).mockResolvedValueOnce({ externalListingId: '1' });
+
+      await decorate().publishListing(DRAFT);
+
+      expect(inner.publishListing.mock.calls).toEqual([[DRAFT], [DRAFT]]);
+    });
+
     it('tries again after a transient failure and answers when a later attempt works', async () => {
       inner.cancelOrder.mockRejectedValueOnce(unavailable()).mockRejectedValueOnce(unavailable()).mockResolvedValueOnce();
 

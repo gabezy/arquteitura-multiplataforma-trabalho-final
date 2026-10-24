@@ -64,6 +64,7 @@ export async function requestsTo(urlPath: string): Promise<RecordedRequest[]> {
     return journal.requests
         .map(({ request }) => ({
             ...request,
+            headers: Object.fromEntries(Object.entries(request.headers ?? {}).map(([name, value]) => [name.toLowerCase(), value])),
             path: new URL(request.url, 'http://wiremock').pathname,
             queryParams: Object.fromEntries(Object.entries(request.queryParams ?? {}).map(([name, value]) => [name, value.values[0]])),
         }))

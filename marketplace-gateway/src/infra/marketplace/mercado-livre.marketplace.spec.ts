@@ -16,6 +16,15 @@ const mlOrder = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
+const DRAFT = {
+  listingId: 'a3c1d5e2-7b4f-4c8a-9e10-2d3f4a5b6c7d',
+  sku: 'NB-001',
+  name: 'Notebook',
+  description: 'Notebook 16GB RAM',
+  price: 4500.5,
+  stock: 2,
+};
+
 const page = (results: unknown[], total = results.length) => ({ results, paging: { total, offset: 0, limit: 50 } });
 
 describe('MercadoLivreMarketplace', () => {
@@ -163,6 +172,69 @@ describe('MercadoLivreMarketplace', () => {
 
       expect(failure).toBeInstanceOf(MarketplaceRejectedError);
       expect((failure as Error).message).toContain('Unexpected order search');
+    });
+  });
+
+  describe('publishListing', () => {
+    const created = { status: 201, body: { id: 'MLB8685273650', status: 'active' } };
+
+    it('posts the item, with the SKU as the seller custom field and the id of the listing as the idempotency key', async () => {
+      send.mockResolvedValue(created);
+
+      await mercadoLivre.publishListing(DRAFT);
+
+      expect(send).toHaveBeenCalledTimes(1);
+      expect(send).toHaveBeenCalledWith({
+        method: 'POST',
+        path: '/items',
+        headers: { 'idempotency-key': 'a3c1d5e2-7b4f-4c8a-9e10-2d3f4a5b6c7d' },
+        body: {
+          title: 'Notebook',
+          category_id: 'MLB1648',
+          price: 4500.5,
+          currency_id: 'BRL',
+          available_quantity: 2,
+          buying_mode: 'buy_it_now',
+          listing_type_id: 'gold_special',
+          condition: 'new',
+          description: { plain_text: 'Notebook 16GB RAM' },
+          seller_custom_field: 'NB-001',
+        },
+      });
+    });
+
+    it('gives the id of the item as the id of the listing', async () => {
+      send.mockResolvedValue(created);
+
+      await expect(mercadoLivre.publishListing(DRAFT)).resolves.toEqual({ externalListingId: 'MLB8685273650' });
+    });
+
+    it('cuts the title at the 60 characters the marketplace accepts', async () => {
+      send.mockResolvedValue(created);
+
+      await mercadoLivre.publishListing({ ...DRAFT, name: 'N'.repeat(100) });
+
+      expect(send.mock.calls[0][0].body.title).toBe('N'.repeat(60));
+    });
+
+    it.each([
+      ['an answer without the id', { status: 'active' }],
+      ['an id that is not text', { id: 42 }],
+      ['an empty answer', undefined],
+    ])('refuses %s', async (_case, body) => {
+      send.mockResolvedValue({ status: 201, body });
+
+      const failure = await mercadoLivre.publishListing(DRAFT).catch((err: MarketplaceRejectedError) => err);
+
+      expect(failure).toBeInstanceOf(MarketplaceRejectedError);
+      expect((failure as Error).message).toContain('The listing was not created');
+    });
+
+    it('lets the failure of the call through', async () => {
+      const refusal = new MarketplaceRejectedError('HTTP 400: Validation error: Item price invalid', 'MERCADO_LIVRE');
+      send.mockRejectedValue(refusal);
+
+      await expect(mercadoLivre.publishListing(DRAFT)).rejects.toBe(refusal);
     });
   });
 
