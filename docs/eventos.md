@@ -36,8 +36,8 @@ Cada contrato tem um estado:
 | [`produto.analisado.v1`](#produtoanalisadov1) | compliance-service | catalog-service | `productId` | Implementado |
 | [`catalog.product.approved.v1`](#catalogproductapprovedv1) | catalog-service | marketplace-gateway (#21) | `productId` | Provisório |
 | [`catalog.product.rejected.v1`](#catalogproductrejectedv1) | catalog-service | nenhum | `productId` | Implementado |
-| [`catalog.product.stock-changed.v1`](#catalogproductstock-changedv1) | catalog-service | marketplace-gateway (#33) | `productId` | Provisório |
-| [`catalog.product.price-changed.v1`](#catalogproductprice-changedv1) | catalog-service | marketplace-gateway (#33) | `productId` | Provisório |
+| [`catalog.product.stock-changed.v1`](#catalogproductstock-changedv1) | catalog-service | marketplace-gateway (#33) | `productId` | Implementado |
+| [`catalog.product.price-changed.v1`](#catalogproductprice-changedv1) | catalog-service | marketplace-gateway (#33) | `productId` | Implementado |
 | [`catalog.stock.reserved.v1`](#catalogstockreservedv1) | catalog-service | order-service (#20, #29) | `orderId` | Implementado |
 | [`catalog.stock.insufficient.v1`](#catalogstockinsufficientv1) | catalog-service | order-service (#20, #29) | `orderId` | Implementado |
 | [`order.order.placed.v1`](#orderorderplacedv1) | order-service (#20) | catalog-service | `orderId` | Implementado |
@@ -193,7 +193,7 @@ Publicado uma vez, quando a análise passa de `PENDING` para `REJECTED`. Tem o m
 
 ### `catalog.product.stock-changed.v1`
 
-**Estado:** Provisório (publicado, sem consumidor) · **Produtor:** catalog-service · **Consumidor previsto:** marketplace-gateway (#33)
+**Estado:** Implementado · **Produtor:** catalog-service · **Consumidor:** marketplace-gateway (#33)
 
 Publicado sempre que o estoque de um produto muda por reserva ou devolução, na mesma transação da reserva.
 
@@ -211,7 +211,7 @@ Como o valor é absoluto, um consumidor que receba eventos repetidos converge pa
 
 ### `catalog.product.price-changed.v1`
 
-**Estado:** Provisório (publicado, sem consumidor) · **Produtor:** catalog-service · **Consumidor previsto:** marketplace-gateway (#33)
+**Estado:** Implementado · **Produtor:** catalog-service · **Consumidor:** marketplace-gateway (#33)
 
 Publicado quando `PATCH /products/sku/:sku/price` altera o preço de um produto existente, na mesma transação que grava o novo valor.
 
@@ -508,7 +508,7 @@ Ainda não há consumidor: a fatura é consultada pela API do billing (#34).
 | `order.marketplace-order.dlq` | `order-service-marketplace-orders` | `marketplace.order.received.v1` | Implementado |
 | `order.stock-response.dlq` | `order-service-stock-response` | `catalog.stock.reserved.v1`, `catalog.stock.insufficient.v1` | Implementado |
 | `order.billing-payment.dlq` | `order-service-billing-payment` | `billing.payment.confirmed.v1`, `billing.payment.failed.v1` | Implementado |
-| `marketplace.catalog-product.dlq` | marketplace-gateway | `catalog.product.approved.v1`, `catalog.product.stock-changed.v1`, `catalog.product.price-changed.v1` | Proposto |
+| `marketplace.catalog-product.dlq` | marketplace-gateway | `catalog.product.approved.v1`, `catalog.product.stock-changed.v1`, `catalog.product.price-changed.v1` | Implementado |
 | `marketplace.order-cancelled.dlq` | marketplace-gateway | `order.order.cancelled.v1` | Proposto |
 | `billing.order-events.dlq` | `billing-service` | `order.order.confirmed.v1`, `order.order.cancelled.v1` | Proposto |
 
