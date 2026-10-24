@@ -184,37 +184,37 @@ The marketplace-gateway (#22) already polls the marketplaces and publishes `mark
 
 | Requirement ID | Story | Tasks | Status |
 | --- | --- | --- | --- |
-| ORDER-01 | P1: received order becomes an order (AC 1) | T1, T2 | Implementing |
-| ORDER-02 | P1: received order becomes an order (AC 2) | T1 | Implementing |
-| ORDER-03 | P1: received order becomes an order (AC 3) | T3 | Implementing |
-| ORDER-04 | P1: received order becomes an order (AC 4) | T3 | Implementing |
-| ORDER-05 | P1: received order becomes an order (AC 5) | T5 | Implementing |
-| ORDER-06 | P1: received order becomes an order (AC 6) | T1 | Implementing |
-| ORDER-07 | P1: received order becomes an order (AC 7) | T5, T7 | Implementing |
-| ORDER-08 | P1: redelivery (AC 1) | T3, T5 | Implementing |
-| ORDER-09 | P1: redelivery (AC 2) | T2, T3 | Implementing |
-| ORDER-10 | P1: redelivery (AC 3) | T3 | Implementing |
-| ORDER-11 | P1: redelivery (AC 4) | T3 | Implementing |
-| ORDER-12 | P1: DLQ (AC 1) | T5 | Implementing |
-| ORDER-13 | P1: DLQ (AC 2) | T5 | Implementing |
-| ORDER-14 | P1: DLQ (AC 3) | T5 | Implementing |
-| ORDER-15 | P1: DLQ (AC 4) | T5 | Implementing |
-| ORDER-16 | P1: DLQ (AC 5) | T5 | Implementing |
-| ORDER-17 | P1: DLQ (AC 6) | T5 | Implementing |
-| ORDER-18 | P1: API (AC 1) | T4, T6 | Implementing |
-| ORDER-19 | P1: API (AC 2) | T6 | Implementing |
-| ORDER-20 | P1: API (AC 3) | T4, T6 | Implementing |
-| ORDER-21 | P1: API (AC 4) | T4, T6 | Implementing |
-| ORDER-22 | P1: API (AC 5) | T6 | Implementing |
-| ORDER-23 | P1: API (AC 6) | T2, T4, T6 | Implementing |
-| ORDER-24 | P1: API (AC 7) | T6 | Implementing |
-| ORDER-25 | P1: API (AC 8) | T2, T4, T6 | Implementing |
-| ORDER-26 | P2: lifecycle (AC 1) | T7 | Implementing |
-| ORDER-27 | P2: lifecycle (AC 2) | T7 | Implementing |
-| ORDER-28 | P2: lifecycle (AC 3) | T7 | Implementing |
-| ORDER-29 | P2: lifecycle (AC 4) | T7 | Implementing |
-| ORDER-30 | P1: DLQ (AC 7) | T5 | Implementing |
-| ORDER-31 | P1: DLQ (AC 8) | T5 | Implementing |
+| ORDER-01 | P1: received order becomes an order (AC 1) | T1, T2 | Verified |
+| ORDER-02 | P1: received order becomes an order (AC 2) | T1 | Verified |
+| ORDER-03 | P1: received order becomes an order (AC 3) | T3 | Verified |
+| ORDER-04 | P1: received order becomes an order (AC 4) | T3 | Verified |
+| ORDER-05 | P1: received order becomes an order (AC 5) | T5 | Verified |
+| ORDER-06 | P1: received order becomes an order (AC 6) | T1 | Verified |
+| ORDER-07 | P1: received order becomes an order (AC 7) | T5, T7 | Verified |
+| ORDER-08 | P1: redelivery (AC 1) | T3, T5 | Verified |
+| ORDER-09 | P1: redelivery (AC 2) | T2, T3 | Verified |
+| ORDER-10 | P1: redelivery (AC 3) | T3 | Verified |
+| ORDER-11 | P1: redelivery (AC 4) | T3 | Verified |
+| ORDER-12 | P1: DLQ (AC 1) | T5 | Verified |
+| ORDER-13 | P1: DLQ (AC 2) | T5 | Verified |
+| ORDER-14 | P1: DLQ (AC 3) | T5 | Verified |
+| ORDER-15 | P1: DLQ (AC 4) | T5 | Verified |
+| ORDER-16 | P1: DLQ (AC 5) | T5 | Verified |
+| ORDER-17 | P1: DLQ (AC 6) | T5 | Verified |
+| ORDER-18 | P1: API (AC 1) | T4, T6 | Verified |
+| ORDER-19 | P1: API (AC 2) | T6 | Verified |
+| ORDER-20 | P1: API (AC 3) | T4, T6 | Verified |
+| ORDER-21 | P1: API (AC 4) | T4, T6 | Verified |
+| ORDER-22 | P1: API (AC 5) | T6 | Verified |
+| ORDER-23 | P1: API (AC 6) | T2, T4, T6 | Verified |
+| ORDER-24 | P1: API (AC 7) | T6 | Verified |
+| ORDER-25 | P1: API (AC 8) | T2, T4, T6 | Verified |
+| ORDER-26 | P2: lifecycle (AC 1) | T7 | Verified |
+| ORDER-27 | P2: lifecycle (AC 2) | T7 | Verified |
+| ORDER-28 | P2: lifecycle (AC 3) | T7 | Verified |
+| ORDER-29 | P2: lifecycle (AC 4) | T7 | Verified |
+| ORDER-30 | P1: DLQ (AC 7) | T5 | Verified |
+| ORDER-31 | P1: DLQ (AC 8) | T5 | Verified |
 
 **Coverage:** 31 total, 31 mapped to tasks, 0 unmapped
 

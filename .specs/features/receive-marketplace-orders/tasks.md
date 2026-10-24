@@ -10,7 +10,7 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 
 **Spec**: `.specs/features/receive-marketplace-orders/spec.md`
 **Design**: skipped - the aggregate, facade, repository, consumer and routes follow the patterns already in `order-service/CLAUDE.md`, `catalog-service` and `marketplace-gateway`; the decisions are in the spec's Assumptions table
-**Status**: In Progress
+**Status**: Done (independent Verifier PASS in round 2: 31/31 ACs, 16/16 mutants killed, 191 tests)
 
 **Granularity (user decision, 2026-10-23, kept for this feature):** 8 cohesive tasks, one commit each. Each task is one deliverable that works and can be reverted on its own; `Where` names a directory when the deliverable spans several files.
 
