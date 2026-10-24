@@ -1,0 +1,10 @@
+{
+  "error": "",
+  "message": "",
+  "request_id": "{{randomValue type='UUID'}}",
+  "response": {
+    "item_list": [
+      { "item_id": {{request.query.item_id_list}}, "item_name": "Anúncio simulado", "item_status": "NORMAL" }
+    ]
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "id": "{{request.pathSegments.[2]}}",
+  "status": "active",
+  "last_updated": "{{now}}"
+}

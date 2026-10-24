@@ -1,0 +1,4 @@
+{
+  "id": "{{request.pathSegments.[2]}}",
+  "status": "cancelled"
+}
