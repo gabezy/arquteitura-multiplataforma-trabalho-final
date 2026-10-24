@@ -2,12 +2,13 @@ COMPOSE := docker compose -f docker-compose.yaml
 # Applications built from source; `up-infra` leaves them out. A new service is added here too.
 APPS := bff-gateway catalog-service compliance-service order-service billing-service marketplace-gateway
 KIND := $(shell command -v kind 2>/dev/null || printf '%s/.local/bin/kind' '$(HOME)')
+ACT := $(shell if [ -x '$(HOME)/.local/bin/act' ]; then printf '%s/.local/bin/act' '$(HOME)'; else command -v act 2>/dev/null; fi)
 KUBECTL := $(shell command -v kubectl 2>/dev/null)
 HELM := $(shell command -v helm 2>/dev/null)
 K8S_CONTEXT := kind-omni-market
 
 .DEFAULT_GOAL := help
-.PHONY: help env up up-infra down clean restart ps logs topics vault kind-install k8s-up k8s-registry k8s-build k8s-push k8s-load k8s-config k8s-deploy k8s-status k8s-down act-list act-kind-deploy
+.PHONY: help env up up-infra down clean restart ps logs topics vault kind-install k8s-up k8s-registry k8s-build k8s-push k8s-load k8s-config k8s-deploy k8s-status k8s-down act-install act-list act-kind-deploy
 
 help: ## lista os comandos disponíveis
 	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2}'
@@ -103,8 +104,12 @@ k8s-status: ## mostra pods e services do namespace omni-market
 k8s-down: ## remove o cluster kind do Omni Market e seus dados locais
 	$(KIND) delete cluster --name omni-market
 
+act-install: ## instala act em ~/.local/bin (opcional; Docker precisa estar instalado à parte)
+	sh scripts/install-act.sh
+
 act-list: ## lista workflows que act pode executar localmente
-	act --list
+	@test -x "$(ACT)" || { echo "act is required; run make act-install" >&2; exit 1; }
+	$(ACT) --list
 
 act-kind-deploy: ## executa localmente com act o workflow de deploy no kind
 	sh scripts/act-kind-deploy.sh

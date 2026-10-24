@@ -4,31 +4,29 @@ O ambiente de demonstração pode ser executado num cluster Kubernetes local cri
 
 ## Pré-requisitos
 
-- Docker Engine em execução
-- `kubectl`
-- Helm 3
-- `act` para executar o workflow localmente
+- Linux ou WSL2 para executar o wrapper local de `act`
+- Docker CLI e Engine em execução
 - `make` e `curl`
 
-Instale o kind (a versão é fixada no script do projeto) e suba o ambiente:
+Para instalar o `act`, use o alvo opcional `make act-install`, que o instala em `~/.local/bin`. Docker e o Docker Engine ativo são os pré-requisitos de sistema para executar o fluxo local. O workflow instala `kubectl` e Helm no runner, e `make k8s-up` instala `kind` no runner se necessário. Para implantar diretamente no kind pelo host, instale `kubectl` e Helm; o projeto instala `kind` automaticamente.
 
-```bash
-make kind-install
-make k8s-up
-```
+No WSL2 com Docker Desktop, habilite a integração do Docker Desktop para a distribuição Linux e o host networking (Docker Desktop 4.34 ou superior), necessário para o runner alcançar o cluster kind ([host networking](https://docs.docker.com/engine/network/drivers/host/#docker-desktop), [integração WSL](https://docs.docker.com/desktop/features/wsl/)).
 
-`k8s-up` gera/completa `.env`, cria o cluster `omni-market`, inicia o registry, constrói e publica as imagens locais e instala o chart. As credenciais são geradas localmente por `make env`; `.env` não deve ser versionado.
+O fluxo padrão simula o pipeline de GitHub Actions e provisiona a stack num cluster Kubernetes local. O comando e os passos estão na seção [Executar o workflow com act](#executar-o-workflow-com-act). O workflow prepara `kubectl` e Helm no runner e executa `make k8s-up`: gera/completa `.env`, cria o cluster `omni-market`, inicia o registry, constrói e publica as imagens locais e instala o chart. As credenciais são geradas localmente por `make env`; `.env` não deve ser versionado.
+
+Para subir diretamente, sem `act`, instale `kubectl` e Helm no host e use `make k8s-up`. A instalação explícita do kind também está disponível com `make kind-install`.
 
 ## Executar o workflow com act
 
-O workflow manual `.github/workflows/kind-deploy.yml` roda a mesma preparação a partir do checkout local. `act` executa os workflows do GitHub Actions localmente usando Docker ([documentação do projeto](https://github.com/nektos/act)).
+O workflow manual `.github/workflows/kind-deploy.yml` simula o pipeline de GitHub Actions a partir do checkout local. O job constrói e publica as imagens e provisiona a aplicação no cluster kind pelo Helm. `act` executa o workflow localmente usando Docker ([documentação do projeto](https://github.com/nektos/act)).
 
 ```bash
+make act-install # opcional: instala/atualiza act em ~/.local/bin
 make act-list
 make act-kind-deploy
 ```
 
-O wrapper monta no runner local o socket do Docker, o diretório de kubeconfig e os binários `kind`, `kubectl` e `helm`. Ele usa a rede do host para que o runner alcance a API do cluster local. Não envie kubeconfig ou `.env` para o GitHub.
+O `act` baixa a imagem do runner configurada em `.actrc` se ela ainda não estiver no cache do Docker. O wrapper monta no runner local o socket do Docker, o diretório de kubeconfig e o Docker CLI. Ele usa a rede do host para que o runner alcance a API do cluster local. Não envie kubeconfig ou `.env` para o GitHub.
 
 Para executar apenas o deploy num cluster já criado, use `make k8s-deploy`. Veja pods, serviços e jobs com `make k8s-status`.
 
