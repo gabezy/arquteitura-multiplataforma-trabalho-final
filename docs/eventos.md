@@ -41,7 +41,7 @@ Cada contrato tem um estado:
 | [`catalog.stock.insufficient.v1`](#catalogstockinsufficientv1) | catalog-service | order-service (#20, #29) | `orderId` | Provisório |
 | [`order.order.placed.v1`](#orderorderplacedv1) | order-service (#20) | catalog-service | `orderId` | Provisório |
 | [`order.order.confirmed.v1`](#orderorderconfirmedv1) | order-service (#20) | billing-service (#23) | `orderId` | Proposto |
-| [`order.order.cancelled.v1`](#orderordercancelledv1) | order-service (#20) | catalog-service, marketplace-gateway | `orderId` | Provisório |
+| [`order.order.cancelled.v1`](#orderordercancelledv1) | order-service (#20) | catalog-service, marketplace-gateway, billing-service (#23) | `orderId` | Provisório |
 | [`marketplace.order.received.v1`](#marketplaceorderreceivedv1) | marketplace-gateway (#22) | order-service (#20) | `<marketplace>:<externalOrderId>` | Proposto |
 | [`marketplace.listing.published.v1`](#marketplacelistingpublishedv1-e-marketplacelistingfailedv1) | marketplace-gateway (#21) | nenhum (consulta pela API, #35) | `productId` | Proposto |
 | [`marketplace.listing.failed.v1`](#marketplacelistingpublishedv1-e-marketplacelistingfailedv1) | marketplace-gateway (#21) | nenhum (consulta pela API, #35) | `productId` | Proposto |
@@ -243,7 +243,7 @@ Publicado quando o order-service persiste um pedido novo. Pede a reserva do esto
 
 ### `order.order.cancelled.v1`
 
-**Estado:** Provisório (o consumidor do catalog existe, o produtor vem na #20) · **Produtor:** order-service · **Consumidores:** catalog-service (devolve o estoque) e marketplace-gateway (cancela no marketplace, previsto)
+**Estado:** Provisório (o consumidor do catalog existe, o produtor vem na #20) · **Produtor:** order-service · **Consumidores:** catalog-service (devolve o estoque), marketplace-gateway (cancela no marketplace, previsto) e billing-service (cancela a fatura que ainda não foi paga, #23)
 
 | Campo | Tipo | Regra | Estado |
 |---|---|---|---|
@@ -266,6 +266,9 @@ Publicado quando o order-service persiste um pedido novo. Pede a reserva do esto
 - No catalog:
   - só uma reserva ainda `RESERVED` devolve estoque, e repetir o cancelamento não muda nada;
   - um cancelamento que chega antes do `placed` grava um tombstone, e o `placed` que chegar depois é ignorado.
+- No billing (group `billing-service`, DLQ `billing.order-events.dlq`):
+  - cancela a fatura `ISSUED` ou `PAYMENT_PENDING`; uma fatura `PAID`, `PAYMENT_FAILED` ou `CANCELLED` não muda, porque não há estorno;
+  - um cancelamento que chega antes do `confirmed` fica registrado, e o `confirmed` que chegar depois não gera fatura.
 
 ### `catalog.stock.reserved.v1`
 
@@ -363,7 +366,7 @@ O estoque do pedido foi reservado (`catalog.stock.reserved.v1`), então o pedido
 }
 ```
 
-O billing deduplica por `orderId`, já que um pedido gera exatamente uma cobrança (#23). DLQ do consumidor: `billing.order-confirmed.dlq`.
+O billing deduplica por `ce_id` (inbox) e por `orderId`, já que um pedido gera exatamente uma fatura (#23). DLQ do consumidor: `billing.order-events.dlq`, a mesma do `order.order.cancelled.v1`, porque o billing lê os dois tópicos com um consumer group só.
 
 ### `marketplace.listing.published.v1` e `marketplace.listing.failed.v1`
 
@@ -437,7 +440,7 @@ O valor depende do escopo da ADR #11. Se a cobrança for a comissão do Omni Mar
 | `order.billing-payment.dlq` | order-service | `billing.payment.*` | Proposto |
 | `marketplace.catalog-product.dlq` | marketplace-gateway | `catalog.product.approved.v1`, `catalog.product.stock-changed.v1` | Proposto |
 | `marketplace.order-cancelled.dlq` | marketplace-gateway | `order.order.cancelled.v1` | Proposto |
-| `billing.order-confirmed.dlq` | billing-service | `order.order.confirmed.v1` | Proposto |
+| `billing.order-events.dlq` | `billing-service` | `order.order.confirmed.v1`, `order.order.cancelled.v1` | Proposto |
 
 Os nomes das DLQs propostas seguem o padrão das existentes. Se um serviço novo usar um consumer group por tópico, ele terá uma DLQ por tópico.
 
@@ -488,7 +491,7 @@ create marketplace.order-cancelled.dlq 1 retention.ms=1209600000 # 14 days to in
 create billing.invoice.issued.v1 3
 create billing.payment.confirmed.v1 3
 create billing.payment.failed.v1 3
-create billing.order-confirmed.dlq 1 retention.ms=1209600000 # 14 days to inspect and replay
+create billing.order-events.dlq 1 retention.ms=1209600000 # 14 days to inspect and replay
 ```
 
 ## Como adicionar ou mudar um evento
