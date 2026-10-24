@@ -1,0 +1,14 @@
+# Donos por diretório: a mitigação prevista no ADR-0001 para um monorepo sem isolamento de acesso.
+# O GitHub pede a revisão do dono quando um PR altera arquivos do diretório dele.
+# Cada dono precisa ser colaborador com acesso de escrita; senão o GitHub aponta erro e a linha não vale.
+# Os caminhos começam com "/" para valerem só para o diretório da raiz do repositório.
+
+/order-service/        @RodrigoPretes-257199
+/billing-service/      @paulnune
+/marketplace-gateway/  @diegodiogenes
+/bff-gateway/          @HenriqueDest
+/docker/               @zeciola
+/.github/              @zeciola
+/docs/                 @natantn
+/catalog-service/      @gabezy
+/compliance-service/   @gabezy
