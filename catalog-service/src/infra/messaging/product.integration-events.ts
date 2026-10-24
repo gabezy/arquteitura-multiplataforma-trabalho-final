@@ -1,6 +1,7 @@
 import { ProductCreated } from "../../core/product/model/product-created.event";
 import { ProductAnalysisApproved, ProductAnalysisRejected } from "../../core/product/model/product-analysis.events";
 import { ProductStockChanged } from "../../core/product/model/product-stock-changed.event";
+import { ProductPriceChanged } from "../../core/product/model/product-price-changed.event";
 import { IntegrationEventMapper } from "./integration-event";
 
 export const toProductIntegrationEvent: IntegrationEventMapper = event => {
@@ -30,6 +31,13 @@ export const toProductIntegrationEvent: IntegrationEventMapper = event => {
         return {
             type: 'catalog.product.stock-changed.v1',
             data: { productId: event.aggregateId, sku: event.sku, stock: event.stock },
+        };
+    }
+
+    if (event instanceof ProductPriceChanged) {
+        return {
+            type: 'catalog.product.price-changed.v1',
+            data: { productId: event.aggregateId, sku: event.sku, price: event.price },
         };
     }
 
