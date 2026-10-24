@@ -105,7 +105,7 @@ sequenceDiagram
     end
 ```
 
-Setas tracejadas são eventos no Kafka; setas contínuas são chamadas síncronas. O trecho a partir do pedido segue a [ADR-0004](adr/0004-catalog-dono-do-estoque-com-reserva-por-coreografia.md). O trecho de cobrança depende da ADR do billing (#11).
+Setas tracejadas são eventos no Kafka; setas contínuas são chamadas síncronas. O trecho a partir do pedido segue a [ADR-0004](adr/0004-catalog-dono-do-estoque-com-reserva-por-coreografia.md). O trecho de cobrança segue a ADR-0005 (escopo da cobrança, PR #51).
 
 ---
 
@@ -368,6 +368,8 @@ O estoque do pedido foi reservado (`catalog.stock.reserved.v1`), então o pedido
 
 O billing deduplica por `ce_id` (inbox) e por `orderId`, já que um pedido gera exatamente uma fatura (#23). DLQ do consumidor: `billing.order-events.dlq`, a mesma do `order.order.cancelled.v1`, porque o billing lê os dois tópicos com um consumer group só.
 
+O billing recalcula o total pelos itens. Vai para a DLQ a mensagem com `marketplace` desconhecido, com `total` diferente da soma de `quantity × unitPrice`, ou fora destes limites: de 1 a 100 itens, `quantity` de 1 a 10 000 e `unitPrice` de 0.01 a 1 000 000.00. Não há campo de moeda: todos os valores são em reais (BRL).
+
 ### `marketplace.listing.published.v1` e `marketplace.listing.failed.v1`
 
 **Estado:** Proposto · **A aprovar:** @diegodiogenes (#21) · **Depende de:** ADR #12
@@ -392,36 +394,74 @@ Ainda não há consumidor: o status dos anúncios é consultado pela API do mark
 
 ### `billing.invoice.issued.v1`
 
-**Estado:** Proposto · **A aprovar:** @paulnune (#11, #23) · **Depende de:** ADR #11 (o que é cobrado, de quem e quando)
+**Estado:** Proposto · **Produtor:** billing-service (#23), que aprova esta ficha · **Origem:** ADR-0005 (escopo da cobrança, PR #51)
 
-| Campo | Tipo |
-|---|---|
-| `invoiceId` | string (UUID) |
-| `orderId` | string (UUID) |
-| `marketplace` | string |
-| `amount` | number |
-| `issuedAt` | string (ISO-8601) |
+Publicado quando a fatura nasce de um `order.order.confirmed.v1`. O `amount` é o total cobrado do pedido. A comissão do Omni Market vem da taxa do marketplace (Amazon 12%, Mercado Livre 11% e Shopee 14%, configuráveis), e o `netAmount` é o que cabe à loja.
+
+| Campo | Tipo | Regra |
+|---|---|---|
+| `invoiceId` | string (UUID) | |
+| `orderId` | string (UUID) | |
+| `externalOrderId` | string | opcional; id do pedido no marketplace |
+| `marketplace` | string | como no `confirmed` |
+| `amount` | number | total do pedido |
+| `commissionPercent` | number | taxa aplicada, ex.: `11.00` |
+| `commissionAmount` | number | `amount × taxa`, arredondado para cima no centavo (half-up) |
+| `netAmount` | number | `amount − commissionAmount` |
+| `issuedAt` | string (ISO-8601) | |
 
 ```json
-{ "invoiceId": "a3c1d5e2-7b4f-4c8a-9e10-2d3f4a5b6c7d", "orderId": "6f1c2b8e-0000-4000-8000-000000000001", "marketplace": "MERCADO_LIVRE", "amount": 4500, "issuedAt": "2026-10-28T13:05:03Z" }
+{
+  "invoiceId": "a3c1d5e2-7b4f-4c8a-9e10-2d3f4a5b6c7d",
+  "orderId": "6f1c2b8e-0000-4000-8000-000000000001",
+  "externalOrderId": "ML-2000001",
+  "marketplace": "MERCADO_LIVRE",
+  "amount": 15000.00,
+  "commissionPercent": 11.00,
+  "commissionAmount": 1650.00,
+  "netAmount": 13350.00,
+  "issuedAt": "2026-10-28T13:05:03Z"
+}
 ```
 
-O valor depende do escopo da ADR #11. Se a cobrança for a comissão do Omni Market, o `amount` é a comissão, e não o total do pedido.
+Ainda não há consumidor: a fatura é consultada pela API do billing (#34).
 
 ### `billing.payment.confirmed.v1` e `billing.payment.failed.v1`
 
-**Estado:** Proposto · **A aprovar:** @paulnune (produtor, #32) e @RodrigoPretes-257199 (consumidor) · **Depende de:** ADR #11 e simulador do PSP (#26)
+**Estado:** Proposto · **A aprovar:** @RodrigoPretes-257199 (consumidor); @paulnune, o produtor (#32), aprova esta ficha · **Origem:** ADR-0005 e [contrato do PSP simulado](#contrato-do-psp-simulado)
 
 | Campo | Tipo | Evento |
 |---|---|---|
 | `invoiceId` | string (UUID) | ambos |
 | `orderId` | string (UUID) | ambos |
 | `amount` | number | ambos |
-| `pspTransactionId` | string | `confirmed` |
+| `pspTransactionId` | string | `confirmed` e `failed`: id da cobrança no PSP |
 | `paidAt` | string (ISO-8601) | `confirmed` |
-| `reason` | string | `failed` (ex.: `CARD_DECLINED`, `PSP_TIMEOUT`) |
+| `reason` | string | `failed`: código devolvido pelo PSP (ex.: `INSUFFICIENT_FUNDS`, `AMOUNT_NOT_ALLOWED`) |
 | `failedAt` | string (ISO-8601) | `failed` |
 
+```json
+{
+  "invoiceId": "a3c1d5e2-7b4f-4c8a-9e10-2d3f4a5b6c7d",
+  "orderId": "6f1c2b8e-0000-4000-8000-000000000001",
+  "amount": 15000.00,
+  "pspTransactionId": "ch_paid_a3c1d5e2-7b4f-4c8a-9e10-2d3f4a5b6c7d",
+  "paidAt": "2026-10-28T13:05:06Z"
+}
+```
+
+```json
+{
+  "invoiceId": "7c4d1e90-2b7f-4f0e-9a3c-51c0f4d8e6a2",
+  "orderId": "6f1c2b8e-0000-4000-8000-000000000002",
+  "amount": 105000.00,
+  "pspTransactionId": "ch_failed_7c4d1e90-2b7f-4f0e-9a3c-51c0f4d8e6a2",
+  "reason": "INSUFFICIENT_FUNDS",
+  "failedAt": "2026-10-28T13:10:06Z"
+}
+```
+
+- O billing publica `confirmed` ao receber o webhook `PAID`, e `failed` ao receber `FAILED` ou um `422` do PSP. Indisponibilidade do PSP (timeout, `5xx`, circuito aberto) não falha a fatura: o billing tenta de novo com espera crescente.
 - Com `failed`, o order-service cancela o pedido com `reason: PAYMENT_FAILED`. O catalog devolve o estoque, e o marketplace-gateway cancela no marketplace (ADR-0004).
 - Com `confirmed`, o order-service pode marcar o pedido como pago. A decisão é da #20.
 - DLQ do consumidor no order: `order.billing-payment.dlq`.
