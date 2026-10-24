@@ -38,7 +38,9 @@ npm run migrate:deploy                    # apply from dist/ (used by the Docker
 - The Docker image runs `migrate:deploy` before starting the app, and a failed migration exits with code 1 so the app never starts. Write backward-compatible migrations (expand/contract).
 - Existing tables: `outbox` (ADR-0002, read by the relay) and `processed_events` (inbox: one row per consumed event id, for the consumers of #20).
 
-Config comes from env vars (see `.env.example`; `.env` is loaded if present): `PORT` (8084), `LOG_LEVEL` (`info`), `OTEL_SERVICE_NAME` (`order-service`), `OTEL_COLLECTOR_URL` (`http://localhost:4318`), `DATABASE_URL` (`postgresql://orders:orders@localhost:5434/orders`) and `KAFKA_BROKERS` (comma-separated, `localhost:9092`; inside a compose container `kafka:19092`). An invalid `PORT` stops the service at startup.
+Config comes from env vars (see `.env.example`; `.env` is loaded if present): `PORT` (8084), `LOG_LEVEL` (`info`), `OTEL_SERVICE_NAME` (`order-service`), `OTEL_COLLECTOR_URL` (`http://localhost:4318`), `DB_HOST` / `DB_PORT` / `DB_NAME` (`order-db` on `localhost:5434/orders`) and `KAFKA_BROKERS` (comma-separated, `localhost:9092`; inside a compose container `kafka:19092`). An invalid `PORT` stops the service at startup.
+
+Database credentials come from Vault, not from env (`../docs/adr/0003-vault-para-secrets-das-aplicacoes.md`). `loadAppConfig()` (`infra/config/load-app-config.ts`) logs in with the AppRole in `VAULT_ADDR` / `VAULT_ROLE_ID` / `VAULT_SECRET_ID` (copy `ORDER_VAULT_ROLE_ID` / `_SECRET_ID` from the root `.env`), reads `db_username` / `db_password` from `secret/order-service` and passes them to `loadConfig`, which builds `databaseUrl`. `main.ts`, `migrate.ts` and `knexfile.ts` use it, so none of them runs without Vault. `instrumentation.ts` runs before anything can be awaited, so it reads only `loadTelemetryConfig()`, which needs no secret.
 
 TypeScript is pinned to 6.x because `ts-jest` does not support TypeScript 7.
 
@@ -60,7 +62,7 @@ src/
     http/                        Express app (createApp), error handler, health route
     persistence/                 Knex connection, migrations, migrator, database probe, outbox repository
     messaging/                   Kafka producer, outbox relay, integration-event mapper type
-    config/                      env loading (loadConfig)
+    config/                      env loading (loadConfig) and Vault (loadAppConfig)
     observability/               OpenTelemetry SDK bootstrap, logger, trace context
   main.ts                        composition root: opens resources, starts the relay and the server
 ```

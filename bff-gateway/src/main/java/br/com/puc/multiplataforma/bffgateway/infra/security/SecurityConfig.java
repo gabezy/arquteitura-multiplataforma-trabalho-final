@@ -1,6 +1,7 @@
 package br.com.puc.multiplataforma.bffgateway.infra.security;
 
 import br.com.puc.multiplataforma.bffgateway.infra.observability.AuthenticatedUserMdcFilter;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -14,6 +15,7 @@ import org.springframework.security.web.SecurityFilterChain;
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
+@EnableConfigurationProperties(KeycloakClientProperties.class)
 public class SecurityConfig {
 
     @Bean
