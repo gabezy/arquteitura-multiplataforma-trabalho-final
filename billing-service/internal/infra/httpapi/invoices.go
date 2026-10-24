@@ -51,6 +51,10 @@ type invoiceResponse struct {
 	IssuedAt           string         `json:"issuedAt"`
 	CancelledAt        *string        `json:"cancelledAt"`
 	CancellationReason *string        `json:"cancellationReason"`
+	PSPTransactionID   *string        `json:"pspTransactionId"`
+	FailureReason      *string        `json:"failureReason"`
+	PaidAt             *string        `json:"paidAt"`
+	FailedAt           *string        `json:"failedAt"`
 }
 
 type invoiceListResponse struct {
@@ -160,6 +164,10 @@ func toInvoiceResponse(s model.Snapshot) invoiceResponse {
 		IssuedAt:           formatTime(s.IssuedAt),
 		CancelledAt:        formatOptionalTime(s.CancelledAt),
 		CancellationReason: nullable(s.CancellationReason),
+		PSPTransactionID:   nullable(s.PSPTransactionID),
+		FailureReason:      nullable(s.FailureReason),
+		PaidAt:             formatOptionalTime(s.PaidAt),
+		FailedAt:           formatOptionalTime(s.FailedAt),
 	}
 }
 

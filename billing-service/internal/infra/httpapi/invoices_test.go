@@ -79,7 +79,8 @@ func TestGetInvoiceReturnsTheInvoiceWithItsItemsAndAmounts(t *testing.T) {
 	want := `{"id":"a3c1d5e2-7b4f-4c8a-9e10-2d3f4a5b6c7d","orderId":"6f1c2b8e-0000-4000-8000-000000000001","externalOrderId":"ML-2000001",` +
 		`"marketplace":"MERCADO_LIVRE","status":"ISSUED","amount":39001.00,"commissionPercent":11.00,"commissionAmount":4290.11,"netAmount":34710.89,` +
 		`"items":[{"sku":"231","quantity":2,"unitPrice":15000.50,"amount":30001.00},{"sku":"412","quantity":1,"unitPrice":9000.00,"amount":9000.00}],` +
-		`"issuedAt":"2026-10-28T13:05:03Z","cancelledAt":null,"cancellationReason":null}`
+		`"issuedAt":"2026-10-28T13:05:03Z","cancelledAt":null,"cancellationReason":null,` +
+		`"pspTransactionId":null,"failureReason":null,"paidAt":null,"failedAt":null}`
 	if got := strings.TrimSpace(rec.Body.String()); got != want {
 		t.Fatalf("body =\n %s\nwant\n %s", got, want)
 	}
@@ -102,6 +103,59 @@ func TestGetInvoiceShowsTheCancellationOfACancelledInvoice(t *testing.T) {
 	}
 	if value, present := body["externalOrderId"]; !present || value != nil {
 		t.Errorf("externalOrderId = %v (present %v), want null when the order has none", value, present)
+	}
+}
+
+// PAY-03: a paid invoice shows its charge and when it was paid.
+func TestGetInvoiceShowsThePaymentOfAPaidInvoice(t *testing.T) {
+	snapshot := issuedSnapshot()
+	snapshot.Status = model.StatusPaid
+	snapshot.PSPTransactionID = "ch_paid_" + testInvoiceID
+	paidAt := time.Date(2026, 10, 28, 13, 5, 6, 0, time.UTC)
+	snapshot.PaidAt = &paidAt
+	f := &fakeInvoices{snapshots: map[string]model.Snapshot{testInvoiceID: snapshot}}
+
+	body := decode(t, do(invoiceRouter(f), http.MethodGet, "/invoices/"+testInvoiceID))
+
+	if body["status"] != "PAID" || body["pspTransactionId"] != "ch_paid_"+testInvoiceID || body["paidAt"] != "2026-10-28T13:05:06Z" {
+		t.Errorf("payment fields = %v/%v/%v, want PAID, the charge and 2026-10-28T13:05:06Z", body["status"], body["pspTransactionId"], body["paidAt"])
+	}
+	for _, field := range []string{"failureReason", "failedAt"} {
+		if value, present := body[field]; !present || value != nil {
+			t.Errorf("%s = %v (present %v), want null on a paid invoice", field, value, present)
+		}
+	}
+}
+
+// PAY-04 and PAY-05: a refused invoice shows the reason, and the charge only when the PSP created one.
+func TestGetInvoiceShowsTheRefusalOfAFailedInvoice(t *testing.T) {
+	failedAt := time.Date(2026, 10, 28, 13, 10, 6, 0, time.UTC)
+	tests := []struct {
+		name       string
+		charge     string
+		wantCharge any
+	}{
+		{"refused after the charge was created", "ch_failed_" + testInvoiceID, "ch_failed_" + testInvoiceID},
+		{"refused when creating the charge", "", nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			snapshot := issuedSnapshot()
+			snapshot.Status = model.StatusPaymentFailed
+			snapshot.PSPTransactionID = tt.charge
+			snapshot.FailureReason = "INSUFFICIENT_FUNDS"
+			snapshot.FailedAt = &failedAt
+			f := &fakeInvoices{snapshots: map[string]model.Snapshot{testInvoiceID: snapshot}}
+
+			body := decode(t, do(invoiceRouter(f), http.MethodGet, "/invoices/"+testInvoiceID))
+
+			if body["status"] != "PAYMENT_FAILED" || body["failureReason"] != "INSUFFICIENT_FUNDS" || body["failedAt"] != "2026-10-28T13:10:06Z" || body["pspTransactionId"] != tt.wantCharge {
+				t.Errorf("payment fields = %v/%v/%v/%v, want PAYMENT_FAILED, INSUFFICIENT_FUNDS, 2026-10-28T13:10:06Z and %v", body["status"], body["failureReason"], body["failedAt"], body["pspTransactionId"], tt.wantCharge)
+			}
+			if value, present := body["paidAt"]; !present || value != nil {
+				t.Errorf("paidAt = %v (present %v), want null on a failed invoice", value, present)
+			}
+		})
 	}
 }
 

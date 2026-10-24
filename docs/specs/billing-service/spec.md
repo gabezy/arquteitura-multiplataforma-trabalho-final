@@ -233,7 +233,7 @@ Every ambiguity is resolved or recorded here - nothing is left silently unclear.
 | PAY-03 | P2: Charge the invoice at the PSP | Tasks T19, T22 | Implementing |
 | PAY-04 | P2: Charge the invoice at the PSP | Tasks T19, T22 | Implementing |
 | PAY-05 | P2: Charge the invoice at the PSP | Tasks T19, T21 | Implementing |
-| PAY-06 | P2: Charge the invoice at the PSP | Tasks T22 | In Tasks |
+| PAY-06 | P2: Charge the invoice at the PSP | Tasks T22 | Implementing |
 | PAY-07 | P2: Charge the invoice at the PSP | Tasks T19, T22 | Implementing |
 | PAY-08 | P2: Charge the invoice at the PSP | Tasks T19, T22 | Implementing |
 | PAY-09 | P2: Charge the invoice at the PSP | Tasks T21 | Implementing |

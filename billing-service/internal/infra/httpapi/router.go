@@ -11,6 +11,7 @@ import (
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
+	"github.com/gabezy/arquteitura-multiplataforma-trabalho-final/billing-service/internal/core/invoice/port/in"
 	"github.com/gabezy/arquteitura-multiplataforma-trabalho-final/billing-service/internal/core/shared/domain"
 )
 
@@ -26,6 +27,10 @@ type Deps struct {
 	HealthTimeout time.Duration
 	// Invoices are the use cases behind the invoice routes; without them the routes are not registered.
 	Invoices InvoiceQueries
+	// Payments applies what the PSP reports; without it the webhook is not registered.
+	Payments in.ApplyPaymentResultUseCase
+	// WebhookToken is the secret the PSP sends in X-PSP-Token. An empty token rejects every webhook.
+	WebhookToken string
 }
 
 // Router holds the routes of the service.
@@ -48,6 +53,9 @@ func NewRouter(deps Deps) *Router {
 	if deps.Invoices != nil {
 		router.handle("GET /invoices/{id}", router.getInvoice)
 		router.handle("GET /invoices", router.listInvoices)
+	}
+	if deps.Payments != nil {
+		router.handle("POST /webhooks/psp", router.pspWebhook)
 	}
 	return router
 }
@@ -96,16 +104,30 @@ type requestError struct {
 
 func (e *requestError) Error() string { return e.Message }
 
+// unauthorizedError reports a caller that did not prove who it is. The message is for the log only.
+type unauthorizedError struct{ Message string }
+
+func (e *unauthorizedError) Error() string { return e.Message }
+
 func (r *Router) writeError(w http.ResponseWriter, req *http.Request, err error) {
 	var invalidRequest *requestError
+	var unauthorized *unauthorizedError
 	var domainError domain.Error
 
 	switch {
 	case errors.As(err, &invalidRequest):
 		r.deps.Logger.WarnContext(req.Context(), invalidRequest.Message, "method", req.Method, "path", req.URL.Path)
 		writeProblem(w, req, http.StatusBadRequest, invalidRequest.Message, map[string]any{"errors": invalidRequest.Issues})
+	case errors.As(err, &unauthorized):
+		r.deps.Logger.WarnContext(req.Context(), unauthorized.Message, "method", req.Method, "path", req.URL.Path)
+		writeProblem(w, req, http.StatusUnauthorized, "", nil)
 	case errors.As(err, &domainError):
-		r.deps.Logger.WarnContext(req.Context(), err.Error(), "method", req.Method, "path", req.URL.Path)
+		// A conflict is a state that contradicts what the caller says, so it is worth an error.
+		level := slog.LevelWarn
+		if status := statusOf(domainError); status == http.StatusConflict {
+			level = slog.LevelError
+		}
+		r.deps.Logger.Log(req.Context(), level, err.Error(), "method", req.Method, "path", req.URL.Path)
 		writeProblem(w, req, statusOf(domainError), err.Error(), nil)
 	default:
 		r.deps.Logger.ErrorContext(req.Context(), "unhandled error", "error", err.Error(), "method", req.Method, "path", req.URL.Path)

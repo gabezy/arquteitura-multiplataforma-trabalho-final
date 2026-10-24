@@ -642,7 +642,7 @@ T18 → T19 → T20 → T21 → T22 → T23
 
 #### T22: PSP webhook
 
-**What**: `POST /webhooks/psp` with token check, body validation and translation to `ApplyPaymentResult`.
+**What**: `POST /webhooks/psp` with token check, body validation and translation to `ApplyPaymentResult`, plus what the outcome needs to be seen: the outbox mapping of `PaymentConfirmed` and `PaymentFailed` to their catalog contracts and the payment fields of the invoice API.
 **Where**: `billing-service/internal/infra/httpapi/`
 **Depends on**: T21
 **Reuses**: problem details from T6
@@ -655,8 +655,8 @@ T18 → T19 → T20 → T21 → T22 → T23
 
 **Done when**:
 
-- [ ] 204 for applied and repeated outcomes, 401 for a bad token, 400 for a bad body, 404 for an unknown invoice, 409 for a conflict
-- [ ] Gate check passes: quick gate; test count ≥ 7
+- [x] 204 for applied and repeated outcomes, 401 for a bad token, 400 for a bad body, 404 for an unknown invoice, 409 for a conflict
+- [x] Gate check passes: quick gate; test count ≥ 7
 
 **Tests**: unit
 **Gate**: quick
