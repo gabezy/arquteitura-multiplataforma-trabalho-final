@@ -97,7 +97,23 @@ e2e E2E_SKIP_UP=1 E2E_TIMEOUT=5
 docker start order-service > /dev/null
 check "an unhealthy stack fails the environment step listing the service (E2E-13)" \
   '[ "$code" = 1 ] && has "[FALHA] ambiente: servicos sem healthy apos 5s: order-service=exited"'
+check "a failed run still prints the summary (E2E-21)" 'has "Resumo: 0 ok, 1 falha(s), 0 pendente(s)"'
 wait_healthy order-service
+
+# E2E-06: the request without a token goes to the catalog, which answers 404 instead of 401
+e2e E2E_SKIP_UP=1 BFF_PORT=8082
+check "a request without token that is not refused with 401 fails the authentication step (E2E-06)" \
+  '[ "$code" = 1 ] && has "[FALHA] autenticacao: importacao sem token respondeu HTTP 404, esperado 401"'
+
+# E2E-09, E2E-24: a reserved message already keyed by the order id makes the topic hold two
+order_id=$(printf '%04x%04x-%04x-4%03x-%04x-%04x%04x%04x' $RANDOM $RANDOM $RANDOM $((RANDOM & 0xfff)) \
+  $(((RANDOM & 0x3fff) | 0x8000)) $RANDOM $RANDOM $RANDOM)
+printf '%s|{"orderId":"%s","items":[]}\n' "$order_id" "$order_id" \
+  | MSYS_NO_PATHCONV=1 docker exec -i kafka /opt/kafka/bin/kafka-console-producer.sh --bootstrap-server kafka:19092 \
+    --topic catalog.stock.reserved.v1 --reader-property parse.key=true --reader-property key.separator='|' > /dev/null 2>&1
+e2e E2E_SKIP_UP=1 E2E_ORDER_ID="$order_id"
+check "the reservation step checks the reserved message keyed by the order id (E2E-09, E2E-24)" \
+  "[ \"\$code\" = 1 ] && has \"[FALHA] estoque: reserva: mensagens em catalog.stock.reserved.v1 com a chave $order_id: esperado '1', ultimo valor '2'\""
 
 # Edge case: Keycloak gives no token
 isolate keycloak

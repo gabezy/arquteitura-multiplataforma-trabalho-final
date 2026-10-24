@@ -39,6 +39,7 @@ The demo script (#27) proves the flow by hand, and nothing re-checks it when a s
 | Ports | BFF on `BFF_PORT` (default 8080); catalog 8082, Keycloak 8085, same as the compose | The compose lets only `BFF_PORT` and `GRAFANA_PORT` change | y |
 | Script location and name | `scripts/e2e-smoke.sh` at the repository root, target `e2e` in the root `Makefile` | Suggested by #37 | y |
 | What "never deletes" covers (E2E-17) | No `down`, `rm` or `volume rm`; every volume survives. Containers that `docker compose up --build` recreates because an image changed do not count | Found during Execute: the first harness run saw catalog and compliance recreated by the compose up, with their volumes intact; that is compose's normal behavior, not data loss | y |
+| Choosing the order id (E2E-24) | `E2E_ORDER_ID` overrides the generated order id | Found by the Verifier (iteration 1): without it no scenario could make the reserved-message check fail, so deleting that check went unnoticed | y |
 | Output language | Report lines in Portuguese (`[OK]`, `[FALHA]`, `[PENDENTE]`), ASCII only | The team's docs are in Portuguese; ASCII avoids broken characters in the Windows console | y |
 
 **Open questions:** none - all resolved or logged above.
@@ -66,6 +67,7 @@ The demo script (#27) proves the flow by hand, and nothing re-checks it when a s
 9. WHEN the approved product has stock 2 THEN the script SHALL publish `order.order.placed.v1` for 1 unit with a new UUID order id, and SHALL check within 60 s that the stock becomes 1 and that `catalog.stock.reserved.v1` holds a message keyed by that order id.  <!-- event-driven -->
 10. WHEN the reservation succeeded THEN the script SHALL publish `order.order.cancelled.v1` for the same order id and SHALL check within 60 s that the stock returns to 2.  <!-- event-driven -->
 11. WHEN every step passes THEN the script SHALL print one `[OK] <step>` line per step and exit with code 0.  <!-- event-driven -->
+12. WHERE `E2E_ORDER_ID` is set the script SHALL use it as the order id of the stock steps instead of a new UUID.  <!-- optional-feature -->
 
 **Independent Test**: on a running stack, `E2E_SKIP_UP=1 bash scripts/e2e-smoke.sh` prints `[OK]` for authentication, import, compliance and stock, lists the pending steps and exits 0.
 
@@ -179,8 +181,9 @@ The demo script (#27) proves the flow by hand, and nothing re-checks it when a s
 | E2E-21 | P1 Pending: summary line | Execute | Implementing |
 | E2E-22 | P2 Docs: README section | Execute | Implementing |
 | E2E-23 | P2 Docs: `e2e` in `make help` | Execute | Implementing |
+| E2E-24 | P1 Run: `E2E_ORDER_ID` sets the order id | Execute | Implementing |
 
-**Coverage:** 23 total, 23 mapped to Execute, 0 unmapped
+**Coverage:** 24 total, 24 mapped to Execute, 0 unmapped
 
 ---
 

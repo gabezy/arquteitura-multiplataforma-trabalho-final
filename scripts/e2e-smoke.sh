@@ -6,6 +6,7 @@
 #   E2E_STRICT=1                  # pending steps fail the run (final delivery)
 #   E2E_TIMEOUT=300               # seconds to wait for the stack to be healthy
 #   BFF_PORT=8080                 # same variable as the compose file
+#   E2E_ORDER_ID=<uuid>           # order id of the stock steps (default: a new UUID per run)
 #
 # Needs bash, curl and Docker. It never deletes containers, volumes or data.
 set -uo pipefail
@@ -88,7 +89,7 @@ docker run --rm -i python:3.13-alpine python - "$RUN" < scripts/e2e-catalog-xlsx
   || fail importacao "nao foi possivel gerar a planilha: $(tail -3 "$tmp/xlsx.log")"
 status=$(curl -s --max-time 30 -o "$tmp/import.json" -w '%{http_code}' -H "Authorization: Bearer $token" \
   -F "file=@$tmp/catalog.xlsx" "$BFF/catalog/import/xlsx")
-[ "$status" = 200 ] && grep -q '"importedProducts":3' "$tmp/import.json" \
+[ "$status" = 200 ] && grep -qE '"importedProducts":3[,}]' "$tmp/import.json" \
   || fail importacao "HTTP $status: $(cat "$tmp/import.json")"
 ok importacao
 
@@ -109,8 +110,8 @@ messages_keyed() {
     --topic "$1" --from-beginning --timeout-ms 5000 --formatter-property print.key=true 2>/dev/null \
     | grep -c "^$2"
 }
-order=$(printf '%04x%04x-%04x-4%03x-%04x-%04x%04x%04x' $RANDOM $RANDOM $RANDOM $((RANDOM & 0xfff)) \
-  $(((RANDOM & 0x3fff) | 0x8000)) $RANDOM $RANDOM $RANDOM)
+order=${E2E_ORDER_ID:-$(printf '%04x%04x-%04x-4%03x-%04x-%04x%04x%04x' $RANDOM $RANDOM $RANDOM \
+  $((RANDOM & 0xfff)) $(((RANDOM & 0x3fff) | 0x8000)) $RANDOM $RANDOM $RANDOM)}
 
 wait_for "estoque: reserva" "estoque inicial de $APPROVED" 2 product_field "$APPROVED" stock
 publish order.order.placed.v1 "$order" "{\"orderId\":\"$order\",\"items\":[{\"sku\":\"$APPROVED\",\"quantity\":1}]}" \
