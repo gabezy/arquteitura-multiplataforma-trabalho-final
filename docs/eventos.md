@@ -493,12 +493,85 @@ Os serviços internos não validam token: a autenticação e a autorização por
 | bff-gateway | catalog-service | `POST /products/import` com `{ items: [{ sku, name, description, price, stock }] }` (1 a 1000 itens) | importação da planilha (`POST /catalog/import/xlsx` no BFF) | Implementado |
 | bff-gateway, marketplace-gateway | catalog-service | `GET /products/sku/:sku` → `{ id, sku, name, description, price, stock, analysisStatus }` | consulta do produto e dos dados para o anúncio | Implementado (o uso pelo marketplace depende da ADR #12) |
 | bff-gateway | order-service | listar e detalhar pedidos, relatórios por marketplace | #24, #31 | Proposto |
-| bff-gateway | billing-service | consultar cobranças | #34 | Proposto |
+| bff-gateway | billing-service | `GET /invoices` (filtros `orderId`, `status`, `marketplace`, `limit`, `offset`) e `GET /invoices/{id}` | #34 | Proposto |
 | bff-gateway | marketplace-gateway | status dos anúncios por marketplace | #35 | Proposto |
 | marketplace-gateway | marketplaces (WireMock) | publicar anúncio, atualizar estoque, receber e cancelar pedidos | #18, #21, #22, #33 | Proposto (ADR #12) |
-| billing-service | PSP (WireMock) | cobrar e consultar pagamento | #26, #32 | Proposto (ADR #11) |
+| billing-service | PSP (WireMock) | `POST /psp/v1/charges` e `GET /psp/v1/charges/{id}`; o PSP chama de volta `POST /webhooks/psp` | #26, #32 | Proposto ([contrato do PSP](#contrato-do-psp-simulado)) |
 
 O catalog responde erros em `application/problem+json`: 422 para validação, 404 para não encontrado e 409 para conflito (ex.: SKU repetido na importação).
+
+## Contrato do PSP (simulado)
+
+O billing cobra de forma assíncrona: pede a cobrança e recebe o resultado por webhook, com a consulta de status como reserva. No ambiente local o PSP é o WireMock (`http://wiremock:8080` na rede do compose, `http://localhost:8089` na máquina). Os mappings entram no PR da #32, que cobre o que a #26 pede.
+
+**Criar a cobrança**
+
+```http
+POST /psp/v1/charges
+Content-Type: application/json
+Idempotency-Key: a3c1d5e2-7b4f-4c8a-9e10-2d3f4a5b6c7d
+
+{
+  "reference": "a3c1d5e2-7b4f-4c8a-9e10-2d3f4a5b6c7d",
+  "amount": 1500000,
+  "currency": "BRL",
+  "description": "Pedido 6f1c2b8e-0000-4000-8000-000000000001 (MERCADO_LIVRE)",
+  "callbackUrl": "http://billing-service:8086/webhooks/psp"
+}
+```
+
+`Idempotency-Key` e `reference` são o `invoiceId`: repetir a chamada não cria outra cobrança. O `amount` vai em centavos.
+
+```http
+201 Created
+{ "id": "ch_paid_a3c1d5e2-7b4f-4c8a-9e10-2d3f4a5b6c7d", "reference": "a3c1d5e2-7b4f-4c8a-9e10-2d3f4a5b6c7d", "status": "PENDING" }
+
+422 Unprocessable Entity
+{ "code": "AMOUNT_NOT_ALLOWED" }
+```
+
+O `201` aceita a cobrança e o resultado chega pelo webhook. O `422` é uma recusa na criação: o billing marca a fatura como `PAYMENT_FAILED`. Timeout (3 s), falha de conexão, `429` e `5xx` contam como indisponibilidade: até 3 tentativas com espera crescente, e circuit breaker.
+
+**Webhook de resultado**
+
+```http
+POST /webhooks/psp
+Content-Type: application/json
+X-PSP-Token: <token compartilhado>
+
+{
+  "chargeId": "ch_failed_7c4d1e90-2b7f-4f0e-9a3c-51c0f4d8e6a2",
+  "reference": "7c4d1e90-2b7f-4f0e-9a3c-51c0f4d8e6a2",
+  "status": "FAILED",
+  "failureReason": "INSUFFICIENT_FUNDS",
+  "occurredAt": "2026-10-28T13:10:06Z"
+}
+```
+
+`status` é `PAID` ou `FAILED`, e `failureReason` é `null` quando pago.
+
+| Resposta do billing | Quando |
+|---|---|
+| `204` | resultado aplicado, ou o mesmo resultado repetido |
+| `400` | corpo inválido |
+| `401` | `X-PSP-Token` ausente ou errado |
+| `404` | `reference` desconhecida |
+| `409` | resultado contradiz o estado final da fatura ou o `chargeId` já guardado |
+
+**Consultar a cobrança** (conciliação, para fatura `PAYMENT_PENDING` há mais de 60 s)
+
+```http
+GET /psp/v1/charges/ch_paid_a3c1d5e2-7b4f-4c8a-9e10-2d3f4a5b6c7d
+
+200 OK
+{ "id": "ch_paid_a3c1d5e2-7b4f-4c8a-9e10-2d3f4a5b6c7d", "reference": "a3c1d5e2-7b4f-4c8a-9e10-2d3f4a5b6c7d", "status": "PAID", "failureReason": null }
+```
+
+**Comportamento do simulador**
+
+- Cobrança de R$ 100.000,00 ou mais (`amount` ≥ 10 000 000): responde `201` e, 2 s depois, chama o webhook com `FAILED` e `INSUFFICIENT_FUNDS`. Abaixo disso, chama com `PAID`.
+- O simulador não guarda estado: o resultado vai codificado no id da cobrança (`ch_paid_…` ou `ch_failed_…`), que o billing trata como opaco e a consulta de status lê.
+- Na demo, 1 iPhone (R$ 15.000,00) é aprovado e 7 iPhones (R$ 105.000,00) são recusados.
 
 ## Divergências conhecidas
 
