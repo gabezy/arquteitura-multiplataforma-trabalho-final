@@ -31,9 +31,13 @@ wait_healthy() {
 network=$(docker inspect -f '{{range $name, $_ := .NetworkSettings.Networks}}{{$name}}{{end}}' catalog-service)
 isolate() { docker network disconnect "$network" "$1" > /dev/null; }
 reconnect() { docker network connect --alias "$1" "$network" "$1" > /dev/null 2>&1; }
+WIREMOCK=http://localhost:8089/__admin/mappings
+FAKE_BFF_STUBS=(e2e00000-0000-4000-8000-000000000401 e2e00000-0000-4000-8000-000000000200)
+remove_fake_bff() { for id in "${FAKE_BFF_STUBS[@]}"; do curl -s -o /dev/null -X DELETE "$WIREMOCK/$id"; done; }
 restore() {
   for app in compliance-service keycloak catalog-service; do reconnect "$app"; done
   docker start order-service > /dev/null 2>&1
+  remove_fake_bff
 }
 trap restore EXIT
 
@@ -127,9 +131,21 @@ isolate catalog-service
 e2e E2E_SKIP_UP=1
 reconnect catalog-service
 check "an import without 200 fails the import step with the status and body (edge case)" \
-  '[ "$code" = 1 ] && has "[FALHA] importacao: HTTP 500: {" && has "\"status\":500"'
+  '[ "$code" = 1 ] && grep -qE "^\[FALHA\] importacao: HTTP (500: \{.*\"status\":500|000: $)" <<< "$output"'
 # The BFF's JVM caches the failed DNS lookup of catalog-service for 10 s.
 sleep 15
+
+# E2E-07: a BFF stand-in on WireMock refuses the request without token and imports only 2 products
+curl -s -o /dev/null -X POST "$WIREMOCK" -H 'Content-Type: application/json' -d "{\"id\":\"${FAKE_BFF_STUBS[0]}\",
+  \"priority\":1,\"request\":{\"method\":\"POST\",\"urlPath\":\"/catalog/import/xlsx\",\"headers\":{\"Authorization\":{\"absent\":true}}},
+  \"response\":{\"status\":401}}"
+curl -s -o /dev/null -X POST "$WIREMOCK" -H 'Content-Type: application/json' -d "{\"id\":\"${FAKE_BFF_STUBS[1]}\",
+  \"priority\":2,\"request\":{\"method\":\"POST\",\"urlPath\":\"/catalog/import/xlsx\"},
+  \"response\":{\"status\":200,\"headers\":{\"Content-Type\":\"application/json\"},\"body\":\"{\\\"importedProducts\\\":2}\"}}"
+e2e E2E_SKIP_UP=1 BFF_PORT=8089
+remove_fake_bff
+check "an import that does not report 3 products fails the import step (E2E-07)" \
+  '[ "$code" = 1 ] && has "[FALHA] importacao: HTTP 200: {\"importedProducts\":2}"'
 
 # The environment works again once every container is back
 e2e E2E_SKIP_UP=1

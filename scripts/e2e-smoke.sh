@@ -90,7 +90,7 @@ docker run --rm -i python:3.13-alpine python - "$RUN" < scripts/e2e-catalog-xlsx
 status=$(curl -s --max-time 30 -o "$tmp/import.json" -w '%{http_code}' -H "Authorization: Bearer $token" \
   -F "file=@$tmp/catalog.xlsx" "$BFF/catalog/import/xlsx")
 [ "$status" = 200 ] && grep -qE '"importedProducts":3[,}]' "$tmp/import.json" \
-  || fail importacao "HTTP $status: $(cat "$tmp/import.json")"
+  || fail importacao "HTTP $status: $(cat "$tmp/import.json" 2> /dev/null)"
 ok importacao
 
 wait_for compliance "analysisStatus de $APPROVED" APPROVED product_field "$APPROVED" analysisStatus
