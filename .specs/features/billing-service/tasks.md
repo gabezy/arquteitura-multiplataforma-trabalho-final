@@ -177,10 +177,10 @@ T18 → T19 → T20 → T21 → T22 → T23
 
 **Done when**:
 
-- [ ] An invalid variable fails with its name and without its value; defaults match the design
-- [ ] A span, a metric and a log record reach a fake OTLP collector with `service.name=billing-service`
-- [ ] The architecture test fails when a core file imports a non-standard package
-- [ ] Gate check passes: quick gate; test count ≥ 10
+- [x] An invalid variable fails with its name and without its value; defaults match the design
+- [x] A span, a metric and a log record reach a fake OTLP collector with `service.name=billing-service`
+- [x] The architecture test fails when a core file imports a non-standard package
+- [x] Gate check passes: quick gate; test count ≥ 10
 
 **Tests**: unit
 **Gate**: quick
