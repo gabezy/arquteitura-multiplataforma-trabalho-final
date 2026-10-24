@@ -23,8 +23,8 @@ The order-service, billing-service and marketplace-gateway need their own databa
 
 ## Goals
 
-- [ ] `make up` starts `order-db`, `billing-db` and `marketplace-db` and all three reach `healthy`.
-- [ ] `make topics` creates every topic and DLQ of the event catalog (#8) for the three services.
+- [ ] `make compose-up` starts `order-db`, `billing-db` and `marketplace-db` and all three reach `healthy`.
+- [ ] `make compose-topics` creates every topic and DLQ of the event catalog (#8) for the three services.
 - [ ] A push that touches only one service runs only that service's workflow, with GitHub Actions runs as evidence.
 - [ ] `docs/eventos.md`, the README and the C4 container diagram describe the topics, ports, stacks and databases that actually exist.
 
@@ -60,6 +60,7 @@ The order-service, billing-service and marketplace-gateway need their own databa
 | C4 descriptions of the new databases | `billing-db`: `Faturas, pagamentos, outbox e inbox`; `marketplace-db`: `Anúncios, pedidos recebidos, cursores de polling, outbox e inbox` | Same style as `order-db` (`Pedidos, outbox e inbox`), taken from the migrations on `dev` | n |
 | C4 technology of the new services | `billing-service`: `Go 1.27, net/http`; `marketplace-gateway`: `Node.js 22, TypeScript, Express 5` | Same style as `order-service`, taken from `go.mod`, `package.json` and the Dockerfile | n |
 | C4 PNG export | Edit the `c4Technology` and `c4Description` attributes in the `.drawio` XML; re-export the container PNG in draw.io desktop | The draw.io CLI is not installed here; the PNG is what the README and the delivery show | n |
+| Makefile target names | `make compose-up`, `make compose-up-infra`, `make compose-topics`, `make compose-ps`, `make compose-clean` | The issue says `make up` and `make topics`; `dev` renamed the targets after the issue was written, and they run the same `docker compose` commands | y |
 | Spec language and location | English, source in `.specs/features/new-services-infra/`, copy in `docs/specs/platform/new-services-infra/spec.md` | Same convention as the order-service and billing-service specs | y |
 
 **Open questions:** none - all resolved or logged above. Rows marked `n` are the defaults the owner confirms when approving this spec.
@@ -70,36 +71,36 @@ The order-service, billing-service and marketplace-gateway need their own databa
 
 ### P1: Databases of the new services ⭐ MVP
 
-**User Story**: As a developer of order-service, billing-service or marketplace-gateway, I want `make up` to start my service's own Postgres so that I can run migrations and integration tests on the shared environment.
+**User Story**: As a developer of order-service, billing-service or marketplace-gateway, I want `make compose-up` to start my service's own Postgres so that I can run migrations and integration tests on the shared environment.
 
 **Why P1**: First acceptance criterion of #14; every service bootstrap depends on it.
 
 **Acceptance Criteria**:
 
-1. WHEN `make up` runs THEN the compose SHALL start `order-db` on host port 5434, `billing-db` on host port 5435 and `marketplace-db` on host port 5436, all from `postgres:18-alpine`.  <!-- event-driven -->
-2. WHEN `make up` has run for 60 s THEN `docker inspect` SHALL report health status `healthy` for `order-db`, `billing-db` and `marketplace-db`.  <!-- event-driven -->
+1. WHEN `make compose-up` runs THEN the compose SHALL start `order-db` on host port 5434, `billing-db` on host port 5435 and `marketplace-db` on host port 5436, all from `postgres:18-alpine`.  <!-- event-driven -->
+2. WHEN `make compose-up` has run for 60 s THEN `docker inspect` SHALL report health status `healthy` for `order-db`, `billing-db` and `marketplace-db`.  <!-- event-driven -->
 3. The compose SHALL mount the named volumes `order-db-data`, `billing-db-data` and `marketplace-db-data` at `/var/lib/postgresql` of their database containers.  <!-- ubiquitous -->
-4. WHEN `make up-infra` runs THEN the compose SHALL start the three databases and SHALL NOT start `order-service`, `billing-service` or `marketplace-gateway`.  <!-- event-driven -->
+4. WHEN `make compose-up-infra` runs THEN the compose SHALL start the three databases and SHALL NOT start `order-service`, `billing-service` or `marketplace-gateway`.  <!-- event-driven -->
 5. IF `ORDER_DB_PASSWORD` is missing from `.env` THEN `docker compose config` SHALL fail with an error containing `run make env`.  <!-- unwanted -->
 
-**Independent Test**: `make up-infra`, wait 60 s, then `docker inspect -f '{{.State.Health.Status}}' order-db billing-db marketplace-db` prints `healthy` three times and `make ps` shows none of the three applications.
+**Independent Test**: `make compose-up-infra`, wait 60 s, then `docker inspect -f '{{.State.Health.Status}}' order-db billing-db marketplace-db` prints `healthy` three times and `make compose-ps` shows none of the three applications.
 
 ---
 
 ### P1: Kafka topics of the new services ⭐ MVP
 
-**User Story**: As the owner of a producer or consumer, I want `make topics` to create the topics and DLQs of the event catalog so that the services do not depend on topic auto-creation.
+**User Story**: As the owner of a producer or consumer, I want `make compose-topics` to create the topics and DLQs of the event catalog so that the services do not depend on topic auto-creation.
 
 **Why P1**: Second part of the first acceptance criterion of #14.
 
 **Acceptance Criteria**:
 
-1. WHEN `make topics` runs THEN `kafka-init` SHALL create `order.order.placed.v1`, `order.order.cancelled.v1`, `order.order.confirmed.v1`, `marketplace.order.received.v1`, `marketplace.listing.published.v1`, `marketplace.listing.failed.v1`, `billing.invoice.issued.v1`, `billing.payment.confirmed.v1` and `billing.payment.failed.v1` with 3 partitions each.  <!-- event-driven -->
-2. WHEN `make topics` runs THEN `kafka-init` SHALL create `order.marketplace-order.dlq`, `order.stock-response.dlq`, `order.billing-payment.dlq`, `marketplace.catalog-product.dlq`, `marketplace.order-cancelled.dlq` and `billing.order-events.dlq` with 1 partition and `retention.ms=1209600000` each.  <!-- event-driven -->
-3. WHEN `make topics` runs on a broker where the topics already exist THEN `kafka-init` SHALL exit with code 0 and SHALL leave the partition count of every existing topic unchanged.  <!-- event-driven -->
+1. WHEN `make compose-topics` runs THEN `kafka-init` SHALL create `order.order.placed.v1`, `order.order.cancelled.v1`, `order.order.confirmed.v1`, `marketplace.order.received.v1`, `marketplace.listing.published.v1`, `marketplace.listing.failed.v1`, `billing.invoice.issued.v1`, `billing.payment.confirmed.v1` and `billing.payment.failed.v1` with 3 partitions each.  <!-- event-driven -->
+2. WHEN `make compose-topics` runs THEN `kafka-init` SHALL create `order.marketplace-order.dlq`, `order.stock-response.dlq`, `order.billing-payment.dlq`, `marketplace.catalog-product.dlq`, `marketplace.order-cancelled.dlq` and `billing.order-events.dlq` with 1 partition and `retention.ms=1209600000` each.  <!-- event-driven -->
+3. WHEN `make compose-topics` runs on a broker where the topics already exist THEN `kafka-init` SHALL exit with code 0 and SHALL leave the partition count of every existing topic unchanged.  <!-- event-driven -->
 4. The `docs/eventos.md` file SHALL NOT list as pending any topic that `docker/kafka/create-topics.sh` already creates.  <!-- ubiquitous -->
 
-**Independent Test**: `make topics`, then `docker compose exec kafka /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:19092 --describe --topic <topic>` shows the partition count and `retention.ms` above for each topic; a second `make topics` finishes with `kafka-init` exited 0.
+**Independent Test**: `make compose-topics`, then `docker compose exec kafka /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:19092 --describe --topic <topic>` shows the partition count and `retention.ms` above for each topic; a second `make compose-topics` finishes with `kafka-init` exited 0.
 
 ---
 
@@ -157,9 +158,9 @@ The order-service, billing-service and marketplace-gateway need their own databa
 
 ## Edge Cases
 
-- IF a host port among 5434, 5435, 5436, 8084, 8086 or 8087 is already in use THEN `make up` SHALL fail for that container with Docker's `port is already allocated` error and SHALL leave the other containers running.
+- IF a host port among 5434, 5435, 5436, 8084, 8086 or 8087 is already in use THEN `make compose-up` SHALL fail for that container with Docker's `port is already allocated` error and SHALL leave the other containers running.
 - IF Kafka is not healthy THEN `kafka-init` SHALL NOT start, because it depends on `kafka` with `condition: service_healthy`.
-- WHEN a database volume already exists from an older `.env` THEN Postgres SHALL keep its original password, and the fix SHALL be `make clean` (documented in `CLAUDE.md`).
+- WHEN a database volume already exists from an older `.env` THEN Postgres SHALL keep its original password, and the fix SHALL be `make compose-clean` (documented in `CLAUDE.md`).
 
 ---
 
@@ -170,11 +171,11 @@ The order-service, billing-service and marketplace-gateway need their own databa
 | PLAT-01 | P1: Databases - three databases on 5434/5435/5436 | T2 | Implementing |
 | PLAT-02 | P1: Databases - healthy within 60 s | T2 | Implementing |
 | PLAT-03 | P1: Databases - named volumes | T2 | Implementing |
-| PLAT-04 | P1: Databases - `make up-infra` leaves the apps out | T2 | Implementing |
+| PLAT-04 | P1: Databases - `make compose-up-infra` leaves the apps out | T2 | Implementing |
 | PLAT-05 | P1: Databases - missing password fails with `run make env` | T2 | Implementing |
 | PLAT-06 | P1: Topics - 9 event topics, 3 partitions | T3 | Implementing |
 | PLAT-07 | P1: Topics - 6 DLQs, 1 partition, 14 days | T3 | Implementing |
-| PLAT-08 | P1: Topics - `make topics` is idempotent | T3 | Implementing |
+| PLAT-08 | P1: Topics - `make compose-topics` is idempotent | T3 | Implementing |
 | PLAT-09 | P1: Topics - `docs/eventos.md` lists nothing already created | T1 | Implementing |
 | PLAT-10 | P1: CI - each workflow calls its stack's reusable workflow | T4 | Implementing |
 | PLAT-11 | P1: CI - push to `order-service/` runs only its CI | T5 | Implementing |

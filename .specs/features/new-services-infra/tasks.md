@@ -14,6 +14,8 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 
 **Nature of the tasks:** the infra of #14 is already on `dev`. Most tasks verify a group of requirements and record the evidence (command and output) under the task. They change files only when the check finds a gap. Each task ends in one commit with the traceability update, plus the fix when there is one.
 
+**Rebase on `origin/dev` (2026-10-24):** after T1–T7, the branch was rebased onto `origin/dev` (`0731899`), which renamed the Makefile targets to `compose-*`. The evidence below was recorded with `make up-infra` and `make topics` before the rebase. After the rebase the checks were run again with the new names: `make compose-up-infra` → the 3 databases `healthy` and 0 of the 3 apps started; `make compose-topics` → `kafka-init` exit 0 and the 15 topics present; `docker compose config -q`, eventos gate and C4 gate → `OK`. `dev` changed only comments in the compose and added `catalog.product.price-changed.v1` (catalog, out of scope).
+
 ---
 
 ## Test Coverage Matrix
