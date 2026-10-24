@@ -22,13 +22,18 @@ async function start(): Promise<void> {
   } = configureKafka(config.kafkaBrokers);
   const relay = new OutboxRelay(db, producer);
   const marketplaces = createMarketplaceRegistry(config.marketplaces, logger);
-  const { listingController, catalogProductConsumer } = createListingModule({
+  const { listingController, catalogProductConsumer, stockSynchronizers } = createListingModule({
     db,
     marketplaces,
     catalog: { baseUrl: config.catalog.serviceUrl, timeoutMs: config.catalog.timeoutMs },
     producer,
     catalogProductKafkaConsumer,
-    catalogProductTopics: { approvedTopic: config.catalogProductApprovedTopic, deadLetterTopic: config.catalogProductDeadLetterTopic },
+    catalogProductTopics: {
+      approvedTopic: config.catalogProductApprovedTopic,
+      stockChangedTopic: config.catalogStockChangedTopic,
+      deadLetterTopic: config.catalogProductDeadLetterTopic,
+    },
+    stockSync: config.stockSync,
     logger,
   });
   const { orderPollers, orderCancelledConsumer } = createOrderModule({
@@ -50,6 +55,7 @@ async function start(): Promise<void> {
     onError: err => logger.error({ err }, 'Failed to relay outbox messages'),
   });
   orderPollers.start();
+  stockSynchronizers.start();
 
   const server = createApp({ logger, checkDatabase: createDatabaseProbe(db), listingController }).listen(config.port, () => {
     logger.info({ port: config.port }, `${config.serviceName} listening`);
@@ -61,6 +67,7 @@ async function start(): Promise<void> {
     await catalogProductKafkaConsumer.disconnect();
     await orderCancelledKafkaConsumer.disconnect();
     await orderPollers.stop();
+    await stockSynchronizers.stop();
     await relay.stop();
     await producer.disconnect();
     await db.destroy();
