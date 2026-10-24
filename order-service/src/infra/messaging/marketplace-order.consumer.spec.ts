@@ -212,6 +212,39 @@ describe('MarketplaceOrderConsumer', () => {
       expectDeadLetter(reason);
     });
 
+    it.each([
+      ['a quantity above the int4 column', { ...VALID, items: [{ ...VALID.items[0], quantity: 2_147_483_648 }] }, /quantity/],
+      ['a unit price above the decimal(14,2) column', { ...VALID, items: [{ ...VALID.items[0], unitPrice: 1_000_000_000_000 }] }, /unitPrice/],
+      ['a SKU with a NUL character', { ...VALID, items: [{ ...VALID.items[0], sku: 'NB\u0000001' }] }, /sku/],
+      ['a SKU longer than 200 characters', { ...VALID, items: [{ ...VALID.items[0], sku: 'S'.repeat(201) }] }, /sku/],
+      ['an external id with a NUL character', { ...VALID, externalOrderId: 'ML\u00001' }, /externalOrderId/],
+      ['more than 1000 items', { ...VALID, items: Array.from({ length: 1001 }, () => VALID.items[0]) }, /items/],
+    ])('with %s, which the database would refuse', async (_, body, reason) => {
+      await handle(received(body));
+
+      expectDeadLetter(reason);
+    });
+
+    it('with a ce_id that is not printable ASCII, without touching the inbox', async () => {
+      await handle(messageWith(JSON.stringify(VALID), { ce_id: 'ce\u00001' }));
+
+      expect(inbox.hasProcessed).not.toHaveBeenCalled();
+      expect(inbox.markProcessed).not.toHaveBeenCalled();
+      expect(receivePort.receive).not.toHaveBeenCalled();
+      expect(producer.send).toHaveBeenCalledTimes(1);
+      expect(producer.send.mock.calls[0][0].messages[0].headers['dlq-reason']).toContain('ce_id');
+    });
+
+    it('when the database refuses the data (SQLSTATE class 22), such as a total above decimal(14,2)', async () => {
+      receivePort.receive.mockRejectedValue(Object.assign(new Error('numeric field overflow'), { code: '22003' }));
+
+      await handle(received(VALID));
+
+      expect(producer.send).toHaveBeenCalledTimes(1);
+      expect(producer.send.mock.calls[0][0].messages[0].headers['dlq-reason']).toContain('numeric field overflow');
+      expect(inbox.markProcessed).toHaveBeenCalledWith('ce-1', TOPIC);
+    });
+
     it('with a unit price of more than two decimals, refused by the domain', async () => {
       receivePort.receive.mockRejectedValue(new InvalidMoneyError('1.234 is not an amount in reais with at most two decimals.'));
 
@@ -235,8 +268,11 @@ describe('MarketplaceOrderConsumer', () => {
     });
   });
 
-  it('rethrows an infrastructure error so Kafka redelivers the message, and sends nothing to the dead letter topic', async () => {
-    receivePort.receive.mockRejectedValue(new Error('connection terminated'));
+  it.each([
+    ['without a SQLSTATE', new Error('connection terminated')],
+    ['with a connection SQLSTATE', Object.assign(new Error('connection terminated'), { code: '08006' })],
+  ])('rethrows an infrastructure error %s so Kafka redelivers the message, and sends nothing to the dead letter topic', async (_, error) => {
+    receivePort.receive.mockRejectedValue(error);
 
     await expect(handle(received(VALID))).rejects.toThrow('connection terminated');
 

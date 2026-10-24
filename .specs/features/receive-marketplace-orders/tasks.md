@@ -216,7 +216,7 @@ T7 → T8
 **Where**: `order-service/src/infra/messaging/marketplace-order.consumer.ts` (plus `dead-letter.ts`, `inbox.ts`, `persistence/knex-inbox.ts`, `package.json`)
 **Depends on**: T2
 **Reuses**: `marketplace-gateway/src/infra/messaging/dead-letter.ts`, `inbox.ts`, `order-cancelled.consumer.ts`; `infra/observability/trace-context.ts`
-**Requirement**: ORDER-05, ORDER-07, ORDER-08, ORDER-12, ORDER-13, ORDER-14, ORDER-15, ORDER-16, ORDER-17
+**Requirement**: ORDER-05, ORDER-07, ORDER-08, ORDER-12, ORDER-13, ORDER-14, ORDER-15, ORDER-16, ORDER-17, ORDER-30, ORDER-31
 
 **Tools**:
 
@@ -245,6 +245,8 @@ T7 → T8
 **Status**: ✅ Complete
 
 **Deviations**: `unitPrice` with more than two decimals passes the zod schema and is refused by `Money` in the domain (`InvalidMoneyError`, a `ValidationError`), which the consumer sends to the DLQ like any `DomainError`. `KnexInbox` is a copy of the marketplace-gateway one.
+
+**Security fix (after the commit review)**: a value the database can never store (int4 `quantity`, `decimal(14,2)` money, NUL in text, a NUL or oversized `ce_id`) used to be rethrown and redelivered forever, stalling the partition. The schema now has the storage limits, `ce_id` is checked before the inbox, and an SQLSTATE class 22 error goes to the DLQ (ORDER-30, ORDER-31). 9 more tests; 33 in `marketplace-order.consumer.spec.ts`, 181 in total.
 
 ---
 

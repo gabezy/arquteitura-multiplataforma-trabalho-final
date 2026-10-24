@@ -110,6 +110,8 @@ The marketplace-gateway (#22) already polls the marketplaces and publishes `mark
 4. IF `orderedAt` is not an ISO-8601 instant, or `total` is not a number THEN the order-service SHALL send the message to the DLQ and save no order.  <!-- unwanted -->
 5. WHEN a message is sent to the DLQ THEN the order-service SHALL record its `ce_id` in `processed_events` (when present), log a `warn` with topic, partition, offset and reason, and go on with the next message.  <!-- event-driven -->
 6. IF the database or Kafka fails while a message is handled THEN the order-service SHALL rethrow the error, SHALL NOT send the message to the DLQ, and Kafka SHALL redeliver it.  <!-- unwanted -->
+7. IF a value exceeds the storage limits (`quantity` > 2 147 483 647, `unitPrice` > 999 999 999 999.99, a text field longer than 200 characters or with a NUL character, more than 1000 items) or Postgres refuses the data with an SQLSTATE of class 22 (e.g. `22003` for a total above `decimal(14,2)`) THEN the order-service SHALL send the message to the DLQ instead of rethrowing it.  <!-- unwanted -->
+8. IF the `ce_id` header is not 1 to 200 printable ASCII characters THEN the order-service SHALL send the message to the DLQ without reading or writing `processed_events`.  <!-- unwanted -->
 
 **Independent Test**: publish `{}` and a message with `marketplace: "EBAY"` to `marketplace.order.received.v1`; both appear in `order.marketplace-order.dlq` with `dlq-reason`, and a valid order published right after is saved.
 
@@ -166,14 +168,14 @@ The marketplace-gateway (#22) already polls the marketplaces and publishes `mark
 
 | Dimension | Coverage |
 | --- | --- |
-| Input validation & bounds | ORDER-12..15, ORDER-22, ORDER-24 |
+| Input validation & bounds | ORDER-12..15, ORDER-22, ORDER-24, ORDER-30, ORDER-31 |
 | Failure / partial-failure states | ORDER-04, ORDER-17 |
 | Idempotency / retry / duplicate handling | ORDER-08..11 |
 | Auth boundaries & rate limits | N/A because the BFF authorizes by role and internal services do not check tokens (ADR-0009) |
 | Concurrency / ordering | ORDER-10, ORDER-11 |
 | Data lifecycle / expiry | N/A because orders are never deleted in this scope and `processed_events` cleanup is not decided for any service |
 | Observability | ORDER-05, ORDER-07, ORDER-16 |
-| External-dependency failure | ORDER-17, ORDER-27 |
+| External-dependency failure | ORDER-17, ORDER-27, ORDER-30 |
 | State-transition integrity | N/A in #20 because only `RECEIVED` is created; the transitions and their guards are #29 |
 
 ---
@@ -211,8 +213,10 @@ The marketplace-gateway (#22) already polls the marketplaces and publishes `mark
 | ORDER-27 | P2: lifecycle (AC 2) | T7 | In Tasks |
 | ORDER-28 | P2: lifecycle (AC 3) | T7 | In Tasks |
 | ORDER-29 | P2: lifecycle (AC 4) | T7 | In Tasks |
+| ORDER-30 | P1: DLQ (AC 7) | T5 | Implementing |
+| ORDER-31 | P1: DLQ (AC 8) | T5 | Implementing |
 
-**Coverage:** 29 total, 29 mapped to tasks, 0 unmapped
+**Coverage:** 31 total, 31 mapped to tasks, 0 unmapped
 
 ---
 
