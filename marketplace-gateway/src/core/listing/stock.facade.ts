@@ -2,16 +2,27 @@ import { MarketplaceRegistry } from '../marketplace/marketplace.registry';
 import { MarketplaceError } from '../marketplace/model/marketplace.errors';
 import { InvalidListingError } from './model/listing.errors';
 import { normalizeSku } from './model/sku';
+import { RecordProductPriceInput, RecordProductPricePort } from './port/in/record-product-price.port';
 import { RecordProductStockInput, RecordProductStockPort } from './port/in/record-product-stock.port';
+import {
+    PriceSyncFailure,
+    PriceSyncResult,
+    SyncListingPriceInput,
+    SyncListingPricePort,
+} from './port/in/sync-listing-price.port';
 import {
     StockSyncFailure,
     StockSyncResult,
     SyncListingStockInput,
     SyncListingStockPort,
 } from './port/in/sync-listing-stock.port';
-import { ListingStockRepositoryPort, UnsyncedListing } from './port/out/listing-stock.repository';
+import { ListingStockRepositoryPort, UnsyncedListing, UnsyncedPriceListing } from './port/out/listing-stock.repository';
 
-export class StockFacade implements RecordProductStockPort, SyncListingStockPort {
+function roundMoney(value: number): number {
+    return Math.round(value * 100) / 100;
+}
+
+export class StockFacade implements RecordProductStockPort, RecordProductPricePort, SyncListingStockPort, SyncListingPricePort {
 
     constructor(
         private readonly marketplaces: MarketplaceRegistry,
@@ -21,17 +32,47 @@ export class StockFacade implements RecordProductStockPort, SyncListingStockPort
     ) {}
 
     // Only records: no marketplace is called here, so one that is down never holds back the events.
-    async record({ sku, stock }: RecordProductStockInput): Promise<number> {
-        if (!Number.isInteger(stock) || stock < 0) {
-            throw new InvalidListingError('The stock of a listing must be an integer that is not negative.');
+    async record(input: RecordProductStockInput | RecordProductPriceInput): Promise<number> {
+        if ('stock' in input) {
+            if (!Number.isInteger(input.stock) || input.stock < 0) {
+                throw new InvalidListingError('The stock of a listing must be an integer that is not negative.');
+            }
+            return this.stocks.recordStock(normalizeSku(input.sku), input.stock, this.now());
+        }
+        if ('price' in input) {
+            if (!Number.isFinite(input.price) || input.price < 0) {
+                throw new InvalidListingError('The price of a listing must not be negative.');
+            }
+            return this.stocks.recordPrice(normalizeSku(input.sku), roundMoney(input.price), this.now());
+        }
+        throw new InvalidListingError('Invalid record input.');
+    }
+
+    async recordPrice({ sku, price }: RecordProductPriceInput): Promise<number> {
+        if (!Number.isFinite(price) || price < 0) {
+            throw new InvalidListingError('The price of a listing must not be negative.');
         }
 
-        return this.stocks.recordStock(normalizeSku(sku), stock, this.now());
+        return this.stocks.recordPrice(normalizeSku(sku), roundMoney(price), this.now());
     }
 
     async sync({ marketplace }: SyncListingStockInput): Promise<StockSyncResult> {
         const unsynced = await this.stocks.findUnsynced(marketplace, this.batchSize);
         const outcomes = await Promise.allSettled(unsynced.map(listing => this.send(listing)));
+
+        const unexpected = outcomes.find((outcome): outcome is PromiseRejectedResult => outcome.status === 'rejected');
+        if (unexpected) {
+            throw unexpected.reason;
+        }
+
+        const failures = outcomes.flatMap(outcome => (outcome.status === 'fulfilled' && outcome.value ? [outcome.value] : []));
+
+        return { pending: unsynced.length, synced: unsynced.length - failures.length, failures };
+    }
+
+    async syncPrice({ marketplace }: SyncListingPriceInput): Promise<PriceSyncResult> {
+        const unsynced = await this.stocks.findPriceUnsynced(marketplace, this.batchSize);
+        const outcomes = await Promise.allSettled(unsynced.map(listing => this.sendPrice(listing)));
 
         const unexpected = outcomes.find((outcome): outcome is PromiseRejectedResult => outcome.status === 'rejected');
         if (unexpected) {
@@ -60,6 +101,24 @@ export class StockFacade implements RecordProductStockPort, SyncListingStockPort
         }
 
         await this.stocks.markSynced(listing.id, listing.stock);
+        return undefined;
+    }
+
+    private async sendPrice(listing: UnsyncedPriceListing): Promise<PriceSyncFailure | undefined> {
+        try {
+            await this.marketplaces.get(listing.marketplace).updatePrice({
+                externalListingId: listing.externalListingId,
+                sku: listing.sku,
+                price: roundMoney(listing.price),
+            });
+        } catch (err) {
+            if (!(err instanceof MarketplaceError)) {
+                throw err;
+            }
+            return { listingId: listing.id, sku: listing.sku, attempts: err.attempts, reason: err.message };
+        }
+
+        await this.stocks.markPriceSynced(listing.id, roundMoney(listing.price));
         return undefined;
     }
 
