@@ -23,6 +23,7 @@ Monorepo do sistema **omni-market**, trabalho final de Arquitetura Multiplatafor
 | [`compliance-service`](compliance-service/) | Python, FastAPI, uv | 8083 | Análise de conformidade dos produtos; publica `produto.analisado.v1` |
 | [`order-service`](order-service/) | Node.js, TypeScript, Express | 8084 | Pedidos dos marketplaces; publica eventos de pedido via outbox (em construção: #20, #29, #31) |
 | [`billing-service`](billing-service/) | Go | 8086 | Cobrança dos pedidos confirmados: fatura com a comissão do marketplace e pagamento pelo PSP simulado; publica `billing.*` via outbox |
+| [`marketplace-gateway`](marketplace-gateway/) | Node.js, TypeScript, Express | 8087 | Integração com Amazon, Mercado Livre e Shopee (simulados no WireMock): publica anúncios, recebe pedidos e sincroniza estoque (em construção: #21, #22, #33) |
 
 Cada serviço tem build próprio e um `CLAUDE.md` com comandos e arquitetura. Todos seguem Clean Architecture (core sem framework, adapters em `infra`).
 
@@ -59,6 +60,7 @@ make vault      # regrava os secrets no Vault (depois de reiniciar o container v
 | compliance-db (Postgres) | `localhost:5433` | `compliance` / `COMPLIANCE_DB_PASSWORD` do `.env` |
 | order-db (Postgres) | `localhost:5434` | `orders` / `ORDER_DB_PASSWORD` do `.env` |
 | billing-db (Postgres) | `localhost:5435` | `billing` / `billing` (o billing-service ainda não lê o Vault) |
+| marketplace-db (Postgres) | `localhost:5436` | `marketplace` / `marketplace` (o marketplace-gateway ainda não lê o Vault) |
 | OTel Collector (OTLP HTTP) | http://localhost:4318 | — |
 | Grafana | http://localhost:3000 (`GRAFANA_PORT`) | `admin` / `admin` |
 | WireMock | http://localhost:8089 | — |
@@ -67,6 +69,7 @@ make vault      # regrava os secrets no Vault (depois de reiniciar o container v
 | compliance-service | http://localhost:8083 | — |
 | order-service | http://localhost:8084 | — |
 | billing-service | http://localhost:8086 | — |
+| marketplace-gateway | http://localhost:8087 | — |
 
 ### Keycloak
 
@@ -98,7 +101,7 @@ O import ignora um realm que já existe: depois de alterar o JSON, rode `make cl
 
 ### Aplicações no compose
 
-`bff-gateway`, `catalog-service`, `compliance-service`, `order-service` e `billing-service` são buildados a partir do código e sobem junto com a infra. Para rodar um deles pelo código (com hot reload, debugger etc.), use `make up-infra`, que deixa as aplicações de fora e evita disputa pelas portas.
+`bff-gateway`, `catalog-service`, `compliance-service`, `order-service`, `billing-service` e `marketplace-gateway` são buildados a partir do código e sobem junto com a infra. Para rodar um deles pelo código (com hot reload, debugger etc.), use `make up-infra`, que deixa as aplicações de fora e evita disputa pelas portas.
 
 Se uma porta do host já estiver ocupada por outro projeto, troque pelas variáveis, na linha de comando ou no `.env` da raiz:
 

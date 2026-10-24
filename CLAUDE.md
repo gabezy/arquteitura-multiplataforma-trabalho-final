@@ -11,6 +11,7 @@ This monorepo holds the services of the "omni-market" system. Each service sits 
 - `compliance-service/` — simulated product compliance checks (Python, FastAPI, uv). See `compliance-service/CLAUDE.md`.
 - `order-service/` — sales orders from the marketplaces (Node.js, TypeScript, Express, OpenTelemetry). See `order-service/CLAUDE.md`.
 - `billing-service/` — invoices and payments of the confirmed orders (Go, net/http, pgx, OpenTelemetry). See `billing-service/CLAUDE.md`.
+- `marketplace-gateway/` — integration with Amazon, Mercado Livre and Shopee, simulated in WireMock (Node.js, TypeScript, Express, OpenTelemetry). See `marketplace-gateway/CLAUDE.md`.
 
 Shared local infrastructure lives at the root:
 
@@ -28,7 +29,7 @@ docker compose down -v         # stop and drop volumes (needed to re-import a ch
 
 The root `Makefile` wraps these (`make` lists targets): `up` (everything), `up-infra` (everything but the applications), `down`, `clean` (drops volumes), `restart`, `ps`, `logs s=<service>`, `topics`, `env` (creates or completes `.env`), `vault` (re-runs the Vault bootstrap).
 
-**Applications**: `bff-gateway`, `catalog-service`, `compliance-service`, `order-service` and `billing-service` are built from source and run inside the compose network (`kafka:19092`, `catalog-db:5432`, `otel-collector:4318`). To run one of them from its own directory, start the rest with `make up-infra`, which leaves out the services listed in `APPS` in the Makefile. A new service is added to the compose file and to `APPS`. Inside the network the BFF fetches Keycloak's signing keys from `keycloak:8080` (`SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWKSETURI`) but keeps validating `iss` against `http://localhost:8085/realms/omni-market`, the issuer of tokens fetched from the host. `BFF_PORT` and `GRAFANA_PORT` change the host ports when 8080 or 3000 are taken.
+**Applications**: `bff-gateway`, `catalog-service`, `compliance-service`, `order-service`, `billing-service` and `marketplace-gateway` are built from source and run inside the compose network (`kafka:19092`, `catalog-db:5432`, `otel-collector:4318`). To run one of them from its own directory, start the rest with `make up-infra`, which leaves out the services listed in `APPS` in the Makefile. A new service is added to the compose file and to `APPS`. Inside the network the BFF fetches Keycloak's signing keys from `keycloak:8080` (`SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWKSETURI`) but keeps validating `iss` against `http://localhost:8085/realms/omni-market`, the issuer of tokens fetched from the host. `BFF_PORT` and `GRAFANA_PORT` change the host ports when 8080 or 3000 are taken.
 
 **Keycloak** (26.x) runs on http://localhost:8085 (admin console: `admin`/`admin`). The realm is `omni-market` and the issuer is `http://localhost:8085/realms/omni-market`.
 
@@ -52,7 +53,7 @@ Event contracts (topics, keys, payloads, DLQs, conventions) and the REST calls b
 
 Topics are created by the one-shot `kafka-init` service, which runs `docker/kafka/create-topics.sh` once the broker is healthy. A service that publishes or consumes a new topic adds it to that script. The script is idempotent (`--if-not-exists`), so `docker compose up -d kafka-init` applies new topics without touching existing ones.
 
-**Postgres**: one container per service. `catalog-db` on localhost:5432 (user `catalog`), `compliance-db` on localhost:5433 (user `compliance`), `order-db` on localhost:5434 (user `orders`) and `billing-db` on localhost:5435 (user `billing`). The passwords of the first three are `CATALOG_DB_PASSWORD` / `COMPLIANCE_DB_PASSWORD` / `ORDER_DB_PASSWORD` in `.env`; `billing-db` still uses `billing` (`BILLING_DB_PASSWORD`), because the billing-service does not read the Vault yet. Postgres keeps the password it was created with, so a new `.env` needs `make clean`.
+**Postgres**: one container per service. `catalog-db` on localhost:5432 (user `catalog`), `compliance-db` on localhost:5433 (user `compliance`), `order-db` on localhost:5434 (user `orders`), `billing-db` on localhost:5435 (user `billing`) and `marketplace-db` on localhost:5436 (user `marketplace`). The passwords of the first three are `CATALOG_DB_PASSWORD` / `COMPLIANCE_DB_PASSWORD` / `ORDER_DB_PASSWORD` in `.env`; `billing-db` and `marketplace-db` still use their own name (`BILLING_DB_PASSWORD`, `MARKETPLACE_DB_PASSWORD`), because the billing-service and the marketplace-gateway do not read the Vault yet. Postgres keeps the password it was created with, so a new `.env` needs `make clean`.
 
 **Vault** (HashiCorp, dev mode) runs on http://localhost:8200 (root token `VAULT_ROOT_TOKEN` in `.env`) and holds the application secrets (`docs/adr/0003-vault-para-secrets-das-aplicacoes.md`):
 

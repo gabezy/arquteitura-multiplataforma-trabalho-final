@@ -1,6 +1,6 @@
 COMPOSE := docker compose -f docker-compose.yaml
 # Applications built from source; `up-infra` leaves them out. A new service is added here too.
-APPS := bff-gateway catalog-service compliance-service order-service billing-service
+APPS := bff-gateway catalog-service compliance-service order-service billing-service marketplace-gateway
 
 .DEFAULT_GOAL := help
 .PHONY: help env up up-infra down clean restart ps logs topics vault
