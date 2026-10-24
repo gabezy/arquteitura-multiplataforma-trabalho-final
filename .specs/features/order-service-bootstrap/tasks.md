@@ -288,14 +288,16 @@ T6 → T8
 
 **Done when**:
 
-- [ ] The workflow differs from `catalog-service.yml` only in service name, paths and image name
-- [ ] After the push (with user go-ahead), the `order-service` run on the branch is green and no other service's workflow ran for the order-only commits
-- [ ] Gate check passes: build gate from T6
+- [x] The workflow differs from `catalog-service.yml` only in service name, paths and image name
+- [ ] After the push (with user go-ahead), the `order-service` run on the branch is green and no other service's workflow ran for the order-only commits (checked after the push, recorded in validation)
+- [x] Gate check passes: build gate from T6
 
 **Tests**: none
 **Gate**: build
 
 **Commit**: `ci(order): adiciona o pipeline do order-service`
+
+**Status**: ✅ Complete
 
 ---
 
