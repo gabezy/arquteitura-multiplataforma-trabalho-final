@@ -1,0 +1,85 @@
+import { loadConfig } from './infra/config/env';
+import { createLogger } from './infra/observability/logger';
+import { createApp } from './infra/http/app';
+import { createDatabaseConnection } from './infra/persistence/database';
+import { createDatabaseProbe } from './infra/persistence/database-probe';
+import { configureKafka } from './infra/messaging/kafka.config';
+import { OutboxRelay } from './infra/messaging/outbox-relay';
+import { createMarketplaceRegistry } from './infra/marketplace/marketplaces.factory';
+import { createListingModule } from './infra/listing.factory';
+import { createOrderModule } from './infra/order.factory';
+
+const RELAY_INTERVAL_MS = 1000;
+
+async function start(): Promise<void> {
+  const config = loadConfig();
+  const logger = createLogger(config.logLevel);
+  const db = createDatabaseConnection(config.databaseUrl, logger);
+  const {
+    producer,
+    catalogProductConsumer: catalogProductKafkaConsumer,
+    orderCancelledConsumer: orderCancelledKafkaConsumer,
+  } = configureKafka(config.kafkaBrokers);
+  const relay = new OutboxRelay(db, producer);
+  const marketplaces = createMarketplaceRegistry(config.marketplaces, logger);
+  const { listingController, catalogProductConsumer, stockSynchronizers } = createListingModule({
+    db,
+    marketplaces,
+    catalog: { baseUrl: config.catalog.serviceUrl, timeoutMs: config.catalog.timeoutMs },
+    producer,
+    catalogProductKafkaConsumer,
+    catalogProductTopics: {
+      approvedTopic: config.catalogProductApprovedTopic,
+      stockChangedTopic: config.catalogStockChangedTopic,
+      deadLetterTopic: config.catalogProductDeadLetterTopic,
+    },
+    stockSync: config.stockSync,
+    logger,
+  });
+  const { orderPollers, orderCancelledConsumer } = createOrderModule({
+    db,
+    marketplaces,
+    producer,
+    orderCancelledKafkaConsumer,
+    orderCancelledTopics: { topic: config.orderCancelledTopic, deadLetterTopic: config.orderCancelledDeadLetterTopic },
+    polling: config.orderPolling,
+    logger,
+  });
+
+  await producer.connect();
+  await catalogProductConsumer.start();
+  await orderCancelledConsumer.start();
+
+  relay.start({
+    intervalMs: RELAY_INTERVAL_MS,
+    onError: err => logger.error({ err }, 'Failed to relay outbox messages'),
+  });
+  orderPollers.start();
+  stockSynchronizers.start();
+
+  const server = createApp({ logger, checkDatabase: createDatabaseProbe(db), listingController }).listen(config.port, () => {
+    logger.info({ port: config.port }, `${config.serviceName} listening`);
+  });
+
+  const shutdown = async (signal: string): Promise<void> => {
+    logger.info({ signal }, `${config.serviceName} shutting down`);
+    server.close();
+    await catalogProductKafkaConsumer.disconnect();
+    await orderCancelledKafkaConsumer.disconnect();
+    await orderPollers.stop();
+    await stockSynchronizers.stop();
+    await relay.stop();
+    await producer.disconnect();
+    await db.destroy();
+    process.exit(0);
+  };
+
+  process.once('SIGTERM', shutdown);
+  process.once('SIGINT', shutdown);
+}
+
+start().catch(err => {
+  // The config may be what failed, so this logger does not depend on it.
+  createLogger(process.env.LOG_LEVEL ?? 'info').error({ err }, 'marketplace-gateway failed to start');
+  process.exit(1);
+});

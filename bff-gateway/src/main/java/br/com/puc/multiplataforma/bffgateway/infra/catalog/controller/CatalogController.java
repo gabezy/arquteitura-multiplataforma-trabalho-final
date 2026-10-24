@@ -25,7 +25,7 @@ public class CatalogController {
     }
 
     @PostMapping(path = "/import/xlsx", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasRole('admin') or hasAuthority('SCOPE_catalog:write')")
+    @PreAuthorize("hasAnyRole('admin', 'store') or hasAuthority('SCOPE_catalog:write')")
     public ResponseEntity<ImportCatalogResponse> importCatalog(@RequestPart("file") MultipartFile file) throws IOException {
         try (InputStream spreadsheet = file.getInputStream()) {
             return ResponseEntity.ok(ImportCatalogResponse.from(importExcelCatalog.execute(spreadsheet)));

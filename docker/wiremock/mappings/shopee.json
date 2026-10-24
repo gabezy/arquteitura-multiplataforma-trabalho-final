@@ -1,0 +1,227 @@
+{
+  "mappings": [
+    {
+      "id": "cc000000-0000-4000-8000-000000000001",
+      "name": "shopee: modo UNAVAILABLE (503 em toda chamada)",
+      "priority": 1,
+      "scenarioName": "shopee-mode",
+      "requiredScenarioState": "UNAVAILABLE",
+      "request": { "urlPathPattern": "/shopee/.*" },
+      "response": {
+        "status": 503,
+        "headers": { "Content-Type": "application/json" },
+        "jsonBody": { "error": "error_server", "message": "Service unavailable", "request_id": "simulated" }
+      }
+    },
+    {
+      "id": "cc000000-0000-4000-8000-000000000002",
+      "name": "shopee: modo THROTTLED (429 com Retry-After de 1 s)",
+      "priority": 1,
+      "scenarioName": "shopee-mode",
+      "requiredScenarioState": "THROTTLED",
+      "request": { "urlPathPattern": "/shopee/.*" },
+      "response": {
+        "status": 429,
+        "headers": { "Content-Type": "application/json", "Retry-After": "1" },
+        "jsonBody": { "error": "error_rate_limit", "message": "Too many requests", "request_id": "simulated" }
+      }
+    },
+    {
+      "id": "cc000000-0000-4000-8000-000000000003",
+      "name": "shopee: modo SLOW (responde 504 depois de 8 s, acima do timeout do gateway)",
+      "priority": 1,
+      "scenarioName": "shopee-mode",
+      "requiredScenarioState": "SLOW",
+      "request": { "urlPathPattern": "/shopee/.*" },
+      "response": {
+        "status": 504,
+        "fixedDelayMilliseconds": 8000,
+        "headers": { "Content-Type": "application/json" },
+        "jsonBody": { "error": "error_timeout", "message": "Gateway timeout", "request_id": "simulated" }
+      }
+    },
+    {
+      "id": "cc000000-0000-4000-8000-000000000004",
+      "name": "shopee: modo FLAKY, 1ª chamada falha (503) e passa para FLAKY_2",
+      "priority": 1,
+      "scenarioName": "shopee-mode",
+      "requiredScenarioState": "FLAKY_1",
+      "newScenarioState": "FLAKY_2",
+      "request": { "urlPathPattern": "/shopee/.*" },
+      "response": {
+        "status": 503,
+        "headers": { "Content-Type": "application/json" },
+        "jsonBody": { "error": "error_server", "message": "Service unavailable", "request_id": "simulated" }
+      }
+    },
+    {
+      "id": "cc000000-0000-4000-8000-000000000005",
+      "name": "shopee: modo FLAKY, 2ª chamada falha (503) e volta ao normal (Started)",
+      "priority": 1,
+      "scenarioName": "shopee-mode",
+      "requiredScenarioState": "FLAKY_2",
+      "newScenarioState": "Started",
+      "request": { "urlPathPattern": "/shopee/.*" },
+      "response": {
+        "status": 503,
+        "headers": { "Content-Type": "application/json" },
+        "jsonBody": { "error": "error_server", "message": "Service unavailable", "request_id": "simulated" }
+      }
+    },
+    {
+      "id": "cc000000-0000-4000-8000-000000000011",
+      "name": "shopee: recusa o anúncio com original_price menor ou igual a zero (200 com error)",
+      "priority": 3,
+      "request": {
+        "method": "POST",
+        "urlPath": "/shopee/api/v2/product/add_item",
+        "bodyPatterns": [{ "matchesJsonPath": { "expression": "$.original_price", "matches": "^(-.*|0(\\.0+)?)$" } }]
+      },
+      "response": {
+        "status": 200,
+        "headers": { "Content-Type": "application/json" },
+        "jsonBody": {
+          "error": "error_param",
+          "message": "original_price must be greater than 0",
+          "request_id": "simulated",
+          "response": {}
+        }
+      }
+    },
+    {
+      "id": "cc000000-0000-4000-8000-000000000012",
+      "name": "shopee: recusa o cancelamento de pedido já enviado (order_sn com SHIPPED, 200 com error)",
+      "priority": 3,
+      "request": {
+        "method": "POST",
+        "urlPath": "/shopee/api/v2/order/cancel_order",
+        "bodyPatterns": [{ "matchesJsonPath": { "expression": "$.order_sn", "contains": "SHIPPED" } }]
+      },
+      "response": {
+        "status": 200,
+        "headers": { "Content-Type": "application/json" },
+        "jsonBody": {
+          "error": "error_cannot_cancel",
+          "message": "Order already shipped",
+          "request_id": "simulated",
+          "response": {}
+        }
+      }
+    },
+    {
+      "id": "cc000000-0000-4000-8000-000000000013",
+      "name": "shopee: pedido desconhecido no cancelamento (order_sn com UNKNOWN, 200 com error)",
+      "priority": 3,
+      "request": {
+        "method": "POST",
+        "urlPath": "/shopee/api/v2/order/cancel_order",
+        "bodyPatterns": [{ "matchesJsonPath": { "expression": "$.order_sn", "contains": "UNKNOWN" } }]
+      },
+      "response": {
+        "status": 200,
+        "headers": { "Content-Type": "application/json" },
+        "jsonBody": {
+          "error": "error_not_found",
+          "message": "Order not found",
+          "request_id": "simulated",
+          "response": {}
+        }
+      }
+    },
+    {
+      "id": "cc000000-0000-4000-8000-000000000021",
+      "name": "shopee: cria o anúncio (add_item)",
+      "priority": 5,
+      "request": {
+        "method": "POST",
+        "urlPath": "/shopee/api/v2/product/add_item"
+      },
+      "response": {
+        "status": 200,
+        "headers": { "Content-Type": "application/json" },
+        "bodyFileName": "shopee/add-item.json",
+        "transformers": ["response-template"]
+      }
+    },
+    {
+      "id": "cc000000-0000-4000-8000-000000000022",
+      "name": "shopee: atualiza o estoque do anúncio (update_stock)",
+      "priority": 5,
+      "request": {
+        "method": "POST",
+        "urlPath": "/shopee/api/v2/product/update_stock"
+      },
+      "response": {
+        "status": 200,
+        "headers": { "Content-Type": "application/json" },
+        "bodyFileName": "shopee/update-stock.json",
+        "transformers": ["response-template"]
+      }
+    },
+    {
+      "id": "cc000000-0000-4000-8000-000000000023",
+      "name": "shopee: atualiza o preço do anúncio (update_price)",
+      "priority": 5,
+      "request": {
+        "method": "POST",
+        "urlPath": "/shopee/api/v2/product/update_price"
+      },
+      "response": {
+        "status": 200,
+        "headers": { "Content-Type": "application/json" },
+        "bodyFileName": "shopee/update-price.json",
+        "transformers": ["response-template"]
+      }
+    },
+    {
+      "id": "cc000000-0000-4000-8000-000000000024",
+      "name": "shopee: consulta o anúncio (get_item_base_info, um item_id por chamada)",
+      "priority": 5,
+      "request": {
+        "method": "GET",
+        "urlPath": "/shopee/api/v2/product/get_item_base_info",
+        "queryParameters": { "item_id_list": { "matches": "[0-9]+" } }
+      },
+      "response": {
+        "status": 200,
+        "headers": { "Content-Type": "application/json" },
+        "bodyFileName": "shopee/get-item.json",
+        "transformers": ["response-template"]
+      }
+    },
+    {
+      "id": "cc000000-0000-4000-8000-000000000025",
+      "name": "shopee: lista os pedidos novos (vazia; scripts/simulate-order.sh registra pedidos)",
+      "priority": 5,
+      "request": {
+        "method": "GET",
+        "urlPath": "/shopee/api/v2/order/get_order_list"
+      },
+      "response": {
+        "status": 200,
+        "headers": { "Content-Type": "application/json" },
+        "jsonBody": {
+          "error": "",
+          "message": "",
+          "request_id": "simulated",
+          "response": { "more": false, "next_cursor": "", "order_list": [] }
+        }
+      }
+    },
+    {
+      "id": "cc000000-0000-4000-8000-000000000026",
+      "name": "shopee: cancela o pedido (cancel_order)",
+      "priority": 5,
+      "request": {
+        "method": "POST",
+        "urlPath": "/shopee/api/v2/order/cancel_order"
+      },
+      "response": {
+        "status": 200,
+        "headers": { "Content-Type": "application/json" },
+        "bodyFileName": "shopee/cancel-order.json",
+        "transformers": ["response-template"]
+      }
+    }
+  ]
+}

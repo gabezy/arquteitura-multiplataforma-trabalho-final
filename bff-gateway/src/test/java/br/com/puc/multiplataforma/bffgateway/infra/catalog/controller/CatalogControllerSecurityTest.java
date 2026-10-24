@@ -5,6 +5,8 @@ import br.com.puc.multiplataforma.bffgateway.core.catalog.usecase.importcatalog.
 import br.com.puc.multiplataforma.bffgateway.infra.security.SecurityConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.micrometer.tracing.test.autoconfigure.AutoConfigureTracing;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -69,11 +71,42 @@ class CatalogControllerSecurityTest {
     }
 
     @Test
+    void returnsOkForStore() throws Exception {
+        mockMvc.perform(importRequest()
+                        .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_store"))))
+                .andExpect(status().isOk());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"specialist", "fiscal", "csm"})
+    void returnsForbiddenForPersonasThatCannotImport(String role) throws Exception {
+        mockMvc.perform(importRequest()
+                        .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_" + role))))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void appliesKeycloakConverterToBearerTokenWithAdminRole() throws Exception {
         given(jwtDecoder.decode("admin-token")).willReturn(keycloakJwt("admin-token", List.of("customer", "admin")));
 
         mockMvc.perform(importRequest().header("Authorization", "Bearer admin-token"))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    void appliesKeycloakConverterToBearerTokenWithStoreRole() throws Exception {
+        given(jwtDecoder.decode("store-token")).willReturn(keycloakJwt("store-token", List.of("store")));
+
+        mockMvc.perform(importRequest().header("Authorization", "Bearer store-token"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void appliesKeycloakConverterToBearerTokenWithCsmRole() throws Exception {
+        given(jwtDecoder.decode("csm-token")).willReturn(keycloakJwt("csm-token", List.of("csm")));
+
+        mockMvc.perform(importRequest().header("Authorization", "Bearer csm-token"))
+                .andExpect(status().isForbidden());
     }
 
     @Test

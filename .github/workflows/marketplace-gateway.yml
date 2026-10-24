@@ -1,0 +1,81 @@
+name: marketplace-gateway
+
+# main only receives changes through merged pull requests (branch protection),
+# so a push to main is always a merge: it runs CI and then CD.
+# Any other branch runs CI only, on push and on pull request.
+on:
+  push:
+    paths:
+      - 'marketplace-gateway/**'
+      # The tests run against the simulators and the scripts of the demo.
+      - 'docker/wiremock/mappings/amazon.json'
+      - 'docker/wiremock/mappings/mercadolivre.json'
+      - 'docker/wiremock/mappings/shopee.json'
+      - 'docker/wiremock/__files/amazon/**'
+      - 'docker/wiremock/__files/mercadolivre/**'
+      - 'docker/wiremock/__files/shopee/**'
+      - 'scripts/simulate-order.sh'
+      - 'scripts/simulate-failure.sh'
+      - '.github/workflows/marketplace-gateway.yml'
+      - '.github/workflows/_node-service.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'marketplace-gateway/**'
+      # The tests run against the simulators and the scripts of the demo.
+      - 'docker/wiremock/mappings/amazon.json'
+      - 'docker/wiremock/mappings/mercadolivre.json'
+      - 'docker/wiremock/mappings/shopee.json'
+      - 'docker/wiremock/__files/amazon/**'
+      - 'docker/wiremock/__files/mercadolivre/**'
+      - 'docker/wiremock/__files/shopee/**'
+      - 'scripts/simulate-order.sh'
+      - 'scripts/simulate-failure.sh'
+      - '.github/workflows/marketplace-gateway.yml'
+      - '.github/workflows/_node-service.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  ci:
+    uses: ./.github/workflows/_node-service.yml
+    with:
+      service: marketplace-gateway
+
+  cd:
+    needs: ci
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set image name
+        run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/omni-market-marketplace-gateway" >> "$GITHUB_ENV"
+
+      # Tests already passed in the ci job for this same commit.
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: marketplace-gateway
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:${{ github.sha }}
+            ${{ env.IMAGE }}:latest
+          cache-from: type=gha,scope=marketplace-gateway
+          cache-to: type=gha,mode=max,scope=marketplace-gateway
+
+      # TODO: run migrations and deploy once the target environment is defined.

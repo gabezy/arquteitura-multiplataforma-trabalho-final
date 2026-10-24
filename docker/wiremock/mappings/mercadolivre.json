@@ -1,0 +1,195 @@
+{
+  "mappings": [
+    {
+      "id": "bb000000-0000-4000-8000-000000000001",
+      "name": "mercadolivre: modo UNAVAILABLE (503 em toda chamada)",
+      "priority": 1,
+      "scenarioName": "mercadolivre-mode",
+      "requiredScenarioState": "UNAVAILABLE",
+      "request": { "urlPathPattern": "/mercadolivre/.*" },
+      "response": {
+        "status": 503,
+        "headers": { "Content-Type": "application/json" },
+        "jsonBody": { "message": "Service unavailable", "error": "service_unavailable", "status": 503, "cause": [] }
+      }
+    },
+    {
+      "id": "bb000000-0000-4000-8000-000000000002",
+      "name": "mercadolivre: modo THROTTLED (429 com Retry-After de 1 s)",
+      "priority": 1,
+      "scenarioName": "mercadolivre-mode",
+      "requiredScenarioState": "THROTTLED",
+      "request": { "urlPathPattern": "/mercadolivre/.*" },
+      "response": {
+        "status": 429,
+        "headers": { "Content-Type": "application/json", "Retry-After": "1" },
+        "jsonBody": { "message": "Too many requests", "error": "too_many_requests", "status": 429, "cause": [] }
+      }
+    },
+    {
+      "id": "bb000000-0000-4000-8000-000000000003",
+      "name": "mercadolivre: modo SLOW (responde 504 depois de 8 s, acima do timeout do gateway)",
+      "priority": 1,
+      "scenarioName": "mercadolivre-mode",
+      "requiredScenarioState": "SLOW",
+      "request": { "urlPathPattern": "/mercadolivre/.*" },
+      "response": {
+        "status": 504,
+        "fixedDelayMilliseconds": 8000,
+        "headers": { "Content-Type": "application/json" },
+        "jsonBody": { "message": "Gateway timeout", "error": "gateway_timeout", "status": 504, "cause": [] }
+      }
+    },
+    {
+      "id": "bb000000-0000-4000-8000-000000000004",
+      "name": "mercadolivre: modo FLAKY, 1ª chamada falha (503) e passa para FLAKY_2",
+      "priority": 1,
+      "scenarioName": "mercadolivre-mode",
+      "requiredScenarioState": "FLAKY_1",
+      "newScenarioState": "FLAKY_2",
+      "request": { "urlPathPattern": "/mercadolivre/.*" },
+      "response": {
+        "status": 503,
+        "headers": { "Content-Type": "application/json" },
+        "jsonBody": { "message": "Service unavailable", "error": "service_unavailable", "status": 503, "cause": [] }
+      }
+    },
+    {
+      "id": "bb000000-0000-4000-8000-000000000005",
+      "name": "mercadolivre: modo FLAKY, 2ª chamada falha (503) e volta ao normal (Started)",
+      "priority": 1,
+      "scenarioName": "mercadolivre-mode",
+      "requiredScenarioState": "FLAKY_2",
+      "newScenarioState": "Started",
+      "request": { "urlPathPattern": "/mercadolivre/.*" },
+      "response": {
+        "status": 503,
+        "headers": { "Content-Type": "application/json" },
+        "jsonBody": { "message": "Service unavailable", "error": "service_unavailable", "status": 503, "cause": [] }
+      }
+    },
+    {
+      "id": "bb000000-0000-4000-8000-000000000011",
+      "name": "mercadolivre: recusa o anúncio com price menor ou igual a zero (400)",
+      "priority": 3,
+      "request": {
+        "method": "POST",
+        "urlPath": "/mercadolivre/items",
+        "bodyPatterns": [{ "matchesJsonPath": { "expression": "$.price", "matches": "^(-.*|0(\\.0+)?)$" } }]
+      },
+      "response": {
+        "status": 400,
+        "headers": { "Content-Type": "application/json" },
+        "jsonBody": {
+          "message": "Validation error",
+          "error": "validation_error",
+          "status": 400,
+          "cause": [{ "code": "item.price.invalid", "message": "Item price invalid" }]
+        }
+      }
+    },
+    {
+      "id": "bb000000-0000-4000-8000-000000000012",
+      "name": "mercadolivre: recusa o cancelamento de pedido já enviado (id com SHIPPED, 409)",
+      "priority": 3,
+      "request": {
+        "method": "PUT",
+        "urlPathPattern": "/mercadolivre/orders/[^/]*SHIPPED[^/]*"
+      },
+      "response": {
+        "status": 409,
+        "headers": { "Content-Type": "application/json" },
+        "jsonBody": { "message": "Order cannot be cancelled", "error": "conflict", "status": 409, "cause": [] }
+      }
+    },
+    {
+      "id": "bb000000-0000-4000-8000-000000000013",
+      "name": "mercadolivre: pedido desconhecido no cancelamento (id com UNKNOWN, 404)",
+      "priority": 3,
+      "request": {
+        "method": "PUT",
+        "urlPathPattern": "/mercadolivre/orders/[^/]*UNKNOWN[^/]*"
+      },
+      "response": {
+        "status": 404,
+        "headers": { "Content-Type": "application/json" },
+        "jsonBody": { "message": "Order not found", "error": "not_found", "status": 404, "cause": [] }
+      }
+    },
+    {
+      "id": "bb000000-0000-4000-8000-000000000021",
+      "name": "mercadolivre: cria o anúncio (POST /items)",
+      "priority": 5,
+      "request": {
+        "method": "POST",
+        "urlPath": "/mercadolivre/items"
+      },
+      "response": {
+        "status": 201,
+        "headers": { "Content-Type": "application/json" },
+        "bodyFileName": "mercadolivre/post-item.json",
+        "transformers": ["response-template"]
+      }
+    },
+    {
+      "id": "bb000000-0000-4000-8000-000000000022",
+      "name": "mercadolivre: atualiza estoque e preço do anúncio (PUT /items/{id})",
+      "priority": 5,
+      "request": {
+        "method": "PUT",
+        "urlPathPattern": "/mercadolivre/items/[^/]+"
+      },
+      "response": {
+        "status": 200,
+        "headers": { "Content-Type": "application/json" },
+        "bodyFileName": "mercadolivre/put-item.json",
+        "transformers": ["response-template"]
+      }
+    },
+    {
+      "id": "bb000000-0000-4000-8000-000000000023",
+      "name": "mercadolivre: consulta o anúncio pelo id",
+      "priority": 5,
+      "request": {
+        "method": "GET",
+        "urlPathPattern": "/mercadolivre/items/[^/]+"
+      },
+      "response": {
+        "status": 200,
+        "headers": { "Content-Type": "application/json" },
+        "bodyFileName": "mercadolivre/get-item.json",
+        "transformers": ["response-template"]
+      }
+    },
+    {
+      "id": "bb000000-0000-4000-8000-000000000024",
+      "name": "mercadolivre: lista os pedidos novos (vazia; scripts/simulate-order.sh registra pedidos)",
+      "priority": 5,
+      "request": {
+        "method": "GET",
+        "urlPath": "/mercadolivre/orders/search"
+      },
+      "response": {
+        "status": 200,
+        "headers": { "Content-Type": "application/json" },
+        "jsonBody": { "results": [], "paging": { "total": 0, "offset": 0, "limit": 50 } }
+      }
+    },
+    {
+      "id": "bb000000-0000-4000-8000-000000000025",
+      "name": "mercadolivre: cancela o pedido (PUT /orders/{id} com status cancelled)",
+      "priority": 5,
+      "request": {
+        "method": "PUT",
+        "urlPathPattern": "/mercadolivre/orders/[^/]+",
+        "bodyPatterns": [{ "matchesJsonPath": { "expression": "$.status", "equalTo": "cancelled" } }]
+      },
+      "response": {
+        "status": 200,
+        "headers": { "Content-Type": "application/json" },
+        "bodyFileName": "mercadolivre/cancel-order.json",
+        "transformers": ["response-template"]
+      }
+    }
+  ]
+}
