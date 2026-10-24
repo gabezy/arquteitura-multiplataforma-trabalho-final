@@ -203,8 +203,8 @@ T8 → T9 → T10
 
 **Done when**:
 
-- [ ] Each payload equals the contract of `docs/eventos.md`, with money as numbers and dates in UTC
-- [ ] An unmapped event is rejected
+- [x] Each payload equals the contract of `docs/eventos.md`, with money as numbers and dates in UTC
+- [x] An unmapped event is rejected
 
 **Tests**: unit
 **Gate**: quick
