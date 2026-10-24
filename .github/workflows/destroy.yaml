@@ -37,7 +37,7 @@ jobs:
 
       - name: Delete local image registry
         run: |
-          if docker inspect "$REGISTRY_NAME" >/dev/null 2>&1; then
+          if docker container inspect "$REGISTRY_NAME" >/dev/null 2>&1; then
             docker rm -f "$REGISTRY_NAME"
           fi
           if docker volume inspect omni-market-registry >/dev/null 2>&1; then

@@ -70,8 +70,8 @@ k8s-build: ## constrói imagens locais para o cluster kind
 	docker build -t omni-market/wiremock:local -f k8s/wiremock/Dockerfile .
 
 k8s-registry: ## inicia o registry Docker local e conecta o kind
-	@if ! docker inspect omni-market-registry >/dev/null 2>&1; then docker volume create omni-market-registry >/dev/null; docker run -d --restart=always --name omni-market-registry -p 127.0.0.1:5001:5000 -v omni-market-registry:/var/lib/registry registry:3; elif [ "`docker inspect -f '{{.State.Running}}' omni-market-registry`" != "true" ]; then docker start omni-market-registry >/dev/null; fi
-	@if ! docker inspect -f '{{json .NetworkSettings.Networks.kind}}' omni-market-registry | grep -qv '^null$$'; then docker network connect kind omni-market-registry; fi
+	@if ! docker container inspect omni-market-registry >/dev/null 2>&1; then docker volume create omni-market-registry >/dev/null; docker run -d --restart=always --name omni-market-registry -p 127.0.0.1:5001:5000 -v omni-market-registry:/var/lib/registry registry:3; elif [ "`docker container inspect -f '{{.State.Running}}' omni-market-registry`" != "true" ]; then docker start omni-market-registry >/dev/null; fi
+	@if ! docker container inspect -f '{{json .NetworkSettings.Networks.kind}}' omni-market-registry | grep -qv '^null$$'; then docker network connect kind omni-market-registry; fi
 	@for node in `$(KIND) get nodes --name omni-market`; do docker exec $$node mkdir -p /etc/containerd/certs.d/localhost:5001; printf '[host."http://omni-market-registry:5000"]\n  capabilities = ["pull", "resolve", "push"]\n' | docker exec -i $$node sh -c 'cat > /etc/containerd/certs.d/localhost:5001/hosts.toml'; done
 	@until curl --fail --silent http://127.0.0.1:5001/v2/ >/dev/null; do sleep 1; done
 	$(KUBECTL) --context $(K8S_CONTEXT) apply -f k8s/local-registry.yaml
