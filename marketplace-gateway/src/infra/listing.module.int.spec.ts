@@ -125,7 +125,7 @@ describe('the listings of a product, end to end', () => {
       catalog: { baseUrl: config.catalog.serviceUrl, timeoutMs: config.catalog.timeoutMs },
       producer,
       catalogProductKafkaConsumer: consumer as unknown as Consumer,
-      catalogProductTopics: { approvedTopic: APPROVED_TOPIC, stockChangedTopic: STOCK_CHANGED_TOPIC, deadLetterTopic: DEAD_LETTER_TOPIC },
+      catalogProductTopics: { approvedTopic: APPROVED_TOPIC, stockChangedTopic: STOCK_CHANGED_TOPIC, priceChangedTopic: 'catalog.product.price-changed.v1', deadLetterTopic: DEAD_LETTER_TOPIC },
       stockSync: { intervalMs: 25, batchSize: 50 },
       logger,
     });
@@ -154,6 +154,7 @@ describe('the listings of a product, end to end', () => {
 
   afterEach(async () => {
     await listingModule.stockSynchronizers.stop();
+    await (listingModule as any).priceSynchronizers?.stop?.();
   });
 
   afterAll(async () => {

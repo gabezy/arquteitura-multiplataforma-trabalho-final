@@ -17,9 +17,10 @@ const portOf = (marketplace: Marketplace): jest.Mocked<MarketplacePort> => ({
     marketplace,
     publishListing: jest.fn(),
     updateStock: jest.fn().mockResolvedValue(undefined),
+    updatePrice: jest.fn().mockResolvedValue(undefined),
     fetchNewOrders: jest.fn(),
     cancelOrder: jest.fn(),
-});
+} as any);
 
 const unsynced = (overrides: Partial<UnsyncedListing> = {}): UnsyncedListing => ({
     id: 'listing-1',
@@ -39,9 +40,12 @@ describe('StockFacade', () => {
         ports = { AMAZON: portOf('AMAZON'), MERCADO_LIVRE: portOf('MERCADO_LIVRE'), SHOPEE: portOf('SHOPEE') };
         stocks = {
             recordStock: jest.fn().mockResolvedValue(0),
+            recordPrice: jest.fn().mockResolvedValue(0),
             findUnsynced: jest.fn().mockResolvedValue([]),
+            findPriceUnsynced: jest.fn().mockResolvedValue([]),
             markSynced: jest.fn().mockResolvedValue(true),
-        };
+            markPriceSynced: jest.fn().mockResolvedValue(true),
+        } as any;
         facade = new StockFacade(new MarketplaceRegistry(Object.values(ports)), stocks, BATCH_SIZE, () => NOW);
     });
 
