@@ -115,10 +115,10 @@ T8 → T9 → T10
 
 **Done when**:
 
-- [ ] Every bound of the spec (items, quantity, price, decimals, total, marketplace) rejected with an `InvalidOrderError`
-- [ ] Every transition and every no-op of the state table, and the conflicts, have a test
-- [ ] `Order.receive` records `OrderPlaced`; each transition records its event with the data of the contract
-- [ ] Gate check passes: quick gate; test count ≥ 30
+- [x] Every bound of the spec (items, quantity, price, decimals, total, marketplace) rejected with an `InvalidOrderError`
+- [x] Every transition and every no-op of the state table, and the conflicts, have a test
+- [x] `Order.receive` records `OrderPlaced`; each transition records its event with the data of the contract
+- [x] Gate check passes: quick gate; test count ≥ 30
 
 **Tests**: unit
 **Gate**: quick

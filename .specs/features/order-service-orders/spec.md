@@ -40,7 +40,7 @@ Every ambiguity is resolved or recorded here - nothing is left silently unclear.
 | Order id | A new UUID generated when the order is persisted | The marketplace message has no internal id | n |
 | Idempotency of the intake | The unique pair `marketplace` + `external_order_id` | `docs/eventos.md`: "o order-service ignora um marketplace + externalOrderId que já existe, mesmo vindo com outro ce_id" | y |
 | Idempotency of the outcomes | By the state of the order: the same outcome again changes nothing, a contradicting one is a domain error that goes to the dead letter | The catalog and the billing-service do the same | n |
-| Input bounds | 1 to 100 items; quantity 1 to 10 000; unit price 0.01 to 1 000 000.00 with at most two decimals; the total must equal the sum of quantity × unit price | The billing-service sends to its dead letter the orders outside these bounds, so the order-service rejects them first, before the catalog reserves stock for an order that could never be charged | n |
+| Input bounds | 1 to 100 items; quantity 1 to 10 000; unit price 0.01 to 1 000 000.00 with at most two decimals; the total must equal the sum of quantity × unit price; SKU and external order id with 1 to 100 characters | The billing-service sends to its dead letter the orders outside these bounds, so the order-service rejects them first, before the catalog reserves stock for an order that could never be charged. The length of the identifiers keeps the unique index and the events within what Postgres and Kafka accept: a value that broke them would fail on every redelivery | n |
 | Money | Integer cents inside the service; JSON numbers with at most two decimals on the wire and in the API | Same choice as the billing-service; avoids float rounding in totals and reports | n |
 | `createdAt` of an order | The `orderedAt` of the marketplace message (the date of the sale); `updatedAt` is the last change in this service | The report is by date of sale; the demo simulators date their orders | n |
 | SKU | Kept as received, trimmed | The catalog already treats `nb-001` and `NB-001` as the same SKU | n |
@@ -65,7 +65,7 @@ Every ambiguity is resolved or recorded here - nothing is left silently unclear.
 1. WHEN a `marketplace.order.received.v1` message with a valid body arrives THEN the order-service SHALL persist a `RECEIVED` order with a new id and publish `order.order.placed.v1` with its id, marketplace, external order id and items, in the same transaction. (ORD-01)
 2. WHEN a message arrives for a marketplace and external order id that already have an order THEN the order-service SHALL keep that order and publish nothing, whatever the `ce_id` of the message. (ORD-02)
 3. IF two messages for the same marketplace and external order id are processed at the same time THEN the unique pair SHALL keep a single order, and the losing transaction SHALL be retried and find it. (ORD-03)
-4. IF a message lacks a required CloudEvents header (`ce_specversion`, `ce_id`, `ce_source` or `ce_type`), is not valid JSON, has an unknown marketplace, a blank external order id, no items or more than 100, a quantity outside 1 to 10 000, a unit price outside 0.01 to 1 000 000.00 or with more than two decimals, a total that differs from the sum of quantity × unit price or an `orderedAt` that is not an ISO-8601 time THEN the order-service SHALL publish it to `order.marketplace-order.dlq` with the `dlq-*` headers and commit its offset. (ORD-04)
+4. IF a message lacks a required CloudEvents header (`ce_specversion`, `ce_id`, `ce_source` or `ce_type`), is not valid JSON, has an unknown marketplace, an external order id or a SKU that is blank or longer than 100 characters, no items or more than 100, a quantity outside 1 to 10 000, a unit price outside 0.01 to 1 000 000.00 or with more than two decimals, a total that differs from the sum of quantity × unit price or an `orderedAt` that is not an ISO-8601 time THEN the order-service SHALL publish it to `order.marketplace-order.dlq` with the `dlq-*` headers and commit its offset. (ORD-04)
 5. IF persisting the order fails for a transient reason THEN the order-service SHALL leave the offset uncommitted so the message is delivered again, and publish nothing. (ORD-05)
 
 **Independent Test**: Publish a `marketplace.order.received.v1` twice; one order exists and one `order.order.placed.v1` is on the topic.
@@ -80,8 +80,8 @@ Every ambiguity is resolved or recorded here - nothing is left silently unclear.
 
 1. WHEN `catalog.stock.reserved.v1` arrives for a `RECEIVED` order THEN the order-service SHALL set it `CONFIRMED` and publish `order.order.confirmed.v1` with its items, its total and the time of the confirmation. (STK-01)
 2. WHEN `catalog.stock.insufficient.v1` arrives for a `RECEIVED` order THEN the order-service SHALL set it `CANCELLED` with the reason `OUT_OF_STOCK` and publish `order.order.cancelled.v1` with the reason, the marketplace and the external order id. (STK-02)
-3. IF the outcome the order already has arrives again THEN the order-service SHALL change nothing and publish nothing. (STK-03)
-4. IF the outcome contradicts the order (the other outcome after one was applied, or an order that was already cancelled or paid), or the order is unknown, or the message is out of contract THEN the order-service SHALL publish it to `order.stock-response.dlq` with the `dlq-*` headers and commit its offset. (STK-04)
+3. IF an outcome that is already in the history of the order arrives again (`reserved` for an order that is `CONFIRMED`, `PAID` or cancelled for payment, which only a reserved order can be; `insufficient` for an order cancelled for lack of stock) THEN the order-service SHALL change nothing and publish nothing. (STK-03)
+4. IF the outcome contradicts the history of the order (`reserved` for an order cancelled for lack of stock or by the marketplace; `insufficient` for an order that is `CONFIRMED`, `PAID`, cancelled for payment or by the marketplace), or the order is unknown, or the message is out of contract THEN the order-service SHALL publish it to `order.stock-response.dlq` with the `dlq-*` headers and commit its offset. (STK-04)
 
 **Independent Test**: An order with enough stock ends `CONFIRMED` with one `order.order.confirmed.v1`; one without ends `CANCELLED` with `OUT_OF_STOCK` and one `order.order.cancelled.v1`.
 
@@ -159,18 +159,18 @@ Every ambiguity is resolved or recorded here - nothing is left silently unclear.
 
 | Requirement ID | Story | Phase | Status |
 | --- | --- | --- | --- |
-| ORD-01 | P1: Receive the marketplace order | Tasks T2, T3, T4, T5, T7 | In Tasks |
+| ORD-01 | P1: Receive the marketplace order | Tasks T2, T3, T4, T5, T7 | Implementing |
 | ORD-02 | P1: Receive the marketplace order | Tasks T3, T4 | In Tasks |
 | ORD-03 | P1: Receive the marketplace order | Tasks T4 | In Tasks |
-| ORD-04 | P1: Receive the marketplace order | Tasks T2, T7 | In Tasks |
+| ORD-04 | P1: Receive the marketplace order | Tasks T2, T7 | Implementing |
 | ORD-05 | P1: Receive the marketplace order | Tasks T7 | In Tasks |
-| STK-01 | P1: Follow the stock answer | Tasks T2, T3, T5, T7 | In Tasks |
-| STK-02 | P1: Follow the stock answer | Tasks T2, T3, T5, T7 | In Tasks |
-| STK-03 | P1: Follow the stock answer | Tasks T2, T3 | In Tasks |
+| STK-01 | P1: Follow the stock answer | Tasks T2, T3, T5, T7 | Implementing |
+| STK-02 | P1: Follow the stock answer | Tasks T2, T3, T5, T7 | Implementing |
+| STK-03 | P1: Follow the stock answer | Tasks T2, T3 | Implementing |
 | STK-04 | P1: Follow the stock answer | Tasks T3, T7 | In Tasks |
-| PAY-01 | P1: Follow the payment result | Tasks T2, T3, T7 | In Tasks |
-| PAY-02 | P1: Follow the payment result | Tasks T2, T3, T5, T7 | In Tasks |
-| PAY-03 | P1: Follow the payment result | Tasks T2, T3 | In Tasks |
+| PAY-01 | P1: Follow the payment result | Tasks T2, T3, T7 | Implementing |
+| PAY-02 | P1: Follow the payment result | Tasks T2, T3, T5, T7 | Implementing |
+| PAY-03 | P1: Follow the payment result | Tasks T2, T3 | Implementing |
 | PAY-04 | P1: Follow the payment result | Tasks T3, T7 | In Tasks |
 | API-01 | P1: Query the orders | Tasks T3, T6 | In Tasks |
 | API-02 | P1: Query the orders | Tasks T6 | In Tasks |
