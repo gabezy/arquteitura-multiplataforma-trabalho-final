@@ -159,7 +159,7 @@ Module `github.com/gabezy/arquteitura-multiplataforma-trabalho-final/billing-ser
 ### HTTP
 
 - **Purpose**: Health, invoice queries, PSP webhook, problem details.
-- **Location**: `billing-service/internal/infra/http/`
+- **Location**: `billing-service/internal/infra/httpapi/`
 - **Interfaces**: `NewServer(cfg, deps) *http.Server` with `net/http` patterns (`GET /health`, `GET /invoices`, `GET /invoices/{id}`, `POST /webhooks/psp`), wrapped by `otelhttp`
 
 ### PSP adapter

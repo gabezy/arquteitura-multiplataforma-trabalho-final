@@ -203,16 +203,16 @@ Every ambiguity is resolved or recorded here - nothing is left silently unclear.
 | DOC-01 | P1: Billing scope and contracts recorded | Tasks T1 | Implementing |
 | DOC-02 | P1: Billing scope and contracts recorded | Tasks T2 | Implementing |
 | DOC-03 | P1: Billing scope and contracts recorded | Tasks T2 | Implementing |
-| BOOT-01 | P1: Service bootstrap | Tasks T6 | In Tasks |
-| BOOT-02 | P1: Service bootstrap | Tasks T6 | In Tasks |
-| BOOT-03 | P1: Service bootstrap | Tasks T5 | In Tasks |
-| BOOT-04 | P1: Service bootstrap | Tasks T4 | In Tasks |
-| BOOT-05 | P1: Service bootstrap | Tasks T4 | In Tasks |
-| BOOT-06 | P1: Service bootstrap | Tasks T8 | In Tasks |
-| BOOT-07 | P1: Service bootstrap | Tasks T9 | In Tasks |
-| BOOT-08 | P1: Service bootstrap | Tasks T10 | In Tasks |
-| BOOT-09 | P1: Service bootstrap | Tasks T4 | In Tasks |
-| BOOT-10 | P1: Service bootstrap | Tasks T7 | In Tasks |
+| BOOT-01 | P1: Service bootstrap | Tasks T6 | Implementing |
+| BOOT-02 | P1: Service bootstrap | Tasks T6 | Implementing |
+| BOOT-03 | P1: Service bootstrap | Tasks T5 | Implementing |
+| BOOT-04 | P1: Service bootstrap | Tasks T4 | Implementing |
+| BOOT-05 | P1: Service bootstrap | Tasks T4 | Implementing |
+| BOOT-06 | P1: Service bootstrap | Tasks T8 | Implementing |
+| BOOT-07 | P1: Service bootstrap | Tasks T9 | Implementing |
+| BOOT-08 | P1: Service bootstrap | Tasks T10 | Implementing |
+| BOOT-09 | P1: Service bootstrap | Tasks T4 | Implementing |
+| BOOT-10 | P1: Service bootstrap | Tasks T7 | Implementing |
 | INV-01 | P1: Invoice from the confirmed order | Tasks T12, T13 | In Tasks |
 | INV-02 | P1: Invoice from the confirmed order | Tasks T12 | In Tasks |
 | INV-03 | P1: Invoice from the confirmed order | Tasks T14, T15 | In Tasks |

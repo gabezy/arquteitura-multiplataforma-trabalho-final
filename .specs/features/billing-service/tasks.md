@@ -28,7 +28,7 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 | Config and observability | unit | Defaults, every invalid value named without its value, telemetry received by a fake collector | `billing-service/internal/infra/{config,observability}/*_test.go` | `go test ./internal/infra/config/... ./internal/infra/observability/...` |
 | Persistence and outbox | integration (Testcontainers Postgres) | Key query paths, locking, idempotency and error paths | `billing-service/internal/infra/{persistence,outbox}/*_test.go` | `go test ./internal/infra/persistence/... ./internal/infra/outbox/...` |
 | Messaging (consumer, mapping, CloudEvents) | unit (fake facade, fake inbox, fake producer) | Every consumer AC: happy, duplicate, DLQ, transient retry | `billing-service/internal/infra/messaging/*_test.go` | `go test ./internal/infra/messaging/...` |
-| HTTP handlers | unit (`httptest`, fake ports) | All routes: happy + edge + error | `billing-service/internal/infra/http/*_test.go` | `go test ./internal/infra/http/...` |
+| HTTP handlers | unit (`httptest`, fake ports) | All routes: happy + edge + error | `billing-service/internal/infra/httpapi/*_test.go` | `go test ./internal/infra/httpapi/...` |
 | PSP adapter | integration (WireMock container with the real mappings) + unit (`httptest` faults) | Approved, refused, status query, timeout, 5xx, circuit open | `billing-service/internal/infra/psp/*_test.go` | `go test ./internal/infra/psp/...` |
 | Workers | unit (fake facade, short intervals) | Drains due work, stops when the PSP is unavailable, stops on cancel | `billing-service/internal/infra/worker/*_test.go` | `go test ./internal/infra/worker/...` |
 | Composition root | integration (Testcontainers Postgres and Kafka) | Starts, answers health, issues an invoice from a Kafka event, stops within 10 s | `billing-service/internal/app/*_test.go` | `go test ./internal/app/...` |
@@ -40,7 +40,7 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 
 | Gate Level | When to Use | Command |
 | --- | --- | --- |
-| Quick | Tasks with unit tests only | `go vet ./... && go test ./internal/core/... ./internal/infra/config/... ./internal/infra/http/... ./internal/infra/messaging/... ./internal/infra/worker/...` |
+| Quick | Tasks with unit tests only | `go vet ./... && go test ./internal/core/... ./internal/infra/config/... ./internal/infra/httpapi/... ./internal/infra/messaging/... ./internal/infra/worker/...` |
 | Full | Tasks with integration tests | `go vet ./... && go test ./...` (Docker running) |
 | Build | Phase completion and Docker, compose or CI tasks | `test -z "$(gofmt -l .)" && go vet ./... && golangci-lint run && go test -race ./... && docker build .` |
 | Docs | Documentation-only tasks (from the repository root) | `git diff --check && python3 <skill-dir>/scripts/validate_spec.py .specs/features/billing-service/spec.md` |
@@ -152,8 +152,8 @@ T18 → T19 → T20 → T21 → T22 → T23
 
 **Done when**:
 
-- [ ] Four alternatives with trade-offs, honest negatives (new reusable workflow, no Go reference in the repo)
-- [ ] Gate check passes: docs gate
+- [x] Four alternatives with trade-offs, honest negatives (new reusable workflow, no Go reference in the repo)
+- [x] Gate check passes: docs gate
 
 **Tests**: none
 **Gate**: docs
@@ -177,10 +177,10 @@ T18 → T19 → T20 → T21 → T22 → T23
 
 **Done when**:
 
-- [ ] An invalid variable fails with its name and without its value; defaults match the design
-- [ ] A span, a metric and a log record reach a fake OTLP collector with `service.name=billing-service`
-- [ ] The architecture test fails when a core file imports a non-standard package
-- [ ] Gate check passes: quick gate; test count ≥ 10
+- [x] An invalid variable fails with its name and without its value; defaults match the design
+- [x] A span, a metric and a log record reach a fake OTLP collector with `service.name=billing-service`
+- [x] The architecture test fails when a core file imports a non-standard package
+- [x] Gate check passes: quick gate; test count ≥ 10
 
 **Tests**: unit
 **Gate**: quick
@@ -204,9 +204,9 @@ T18 → T19 → T20 → T21 → T22 → T23
 
 **Done when**:
 
-- [ ] Migrating twice is a no-op; the tables exist afterwards
-- [ ] A nested `WithinTransaction` joins the outer transaction; an error rolls everything back
-- [ ] Gate check passes: full gate; test count ≥ 4
+- [x] Migrating twice is a no-op; the tables exist afterwards
+- [x] A nested `WithinTransaction` joins the outer transaction; an error rolls everything back
+- [x] Gate check passes: full gate; test count ≥ 4
 
 **Tests**: integration
 **Gate**: full
@@ -218,7 +218,7 @@ T18 → T19 → T20 → T21 → T22 → T23
 #### T6: HTTP server, health check and problem details
 
 **What**: `net/http` server with `otelhttp`, `GET /health` with a 2 s database probe, and the problem details writer that maps domain error categories to status codes.
-**Where**: `billing-service/internal/infra/http/`
+**Where**: `billing-service/internal/infra/httpapi/`
 **Depends on**: T5
 **Reuses**: `order-service/src/infra/http/health/health.routes.ts`, `catalog-service/src/infra/http/error-handler.ts`
 **Requirement**: BOOT-01, BOOT-02
@@ -230,9 +230,9 @@ T18 → T19 → T20 → T21 → T22 → T23
 
 **Done when**:
 
-- [ ] 200 `{"status":"UP"}` with a healthy probe, 503 `{"status":"DOWN"}` with a failing or slow probe
-- [ ] Validation, not found, conflict and unknown errors become 422, 404, 409 and 500 problems; 500 hides the message
-- [ ] Gate check passes: quick gate; test count ≥ 6
+- [x] 200 `{"status":"UP"}` with a healthy probe, 503 `{"status":"DOWN"}` with a failing or slow probe
+- [x] Validation, not found, conflict and unknown errors become 422, 404, 409 and 500 problems; 500 hides the message
+- [x] Gate check passes: quick gate; test count ≥ 6
 
 **Tests**: unit
 **Gate**: quick
@@ -256,9 +256,9 @@ T18 → T19 → T20 → T21 → T22 → T23
 
 **Done when**:
 
-- [ ] Appended events are published in order with key, topic and `ce_*` headers, then marked
-- [ ] A producer failure leaves the rows pending; an unmapped event fails the append
-- [ ] Gate check passes: full gate; test count ≥ 5
+- [x] Appended events are published in order with key, topic and `ce_*` headers, then marked
+- [x] A producer failure leaves the rows pending; an unmapped event fails the append
+- [x] Gate check passes: full gate; test count ≥ 5
 
 **Tests**: integration
 **Gate**: full
@@ -282,9 +282,9 @@ T18 → T19 → T20 → T21 → T22 → T23
 
 **Done when**:
 
-- [ ] Started against a Testcontainers Postgres, `/health` answers `UP` and migrations are applied before the server listens
-- [ ] Cancelling the context makes `Run` return within 10 s with no error
-- [ ] Gate check passes: full gate; test count ≥ 2
+- [x] Started against a Testcontainers Postgres, `/health` answers `UP` and migrations are applied before the server listens
+- [x] Cancelling the context makes `Run` return within 10 s with no error
+- [x] Gate check passes: full gate; test count ≥ 2
 
 **Tests**: integration
 **Gate**: full
@@ -308,9 +308,9 @@ T18 → T19 → T20 → T21 → T22 → T23
 
 **Done when**:
 
-- [ ] `docker compose up -d --build billing-db billing-service` brings both to healthy and `curl localhost:8086/health` answers `UP`
-- [ ] `docker buildx build --platform linux/amd64,linux/arm64 .` succeeds
-- [ ] Gate check passes: build gate
+- [x] `docker compose up -d --build billing-db billing-service` brings both to healthy and `curl localhost:8086/health` answers `UP`
+- [x] `docker buildx build --platform linux/amd64,linux/arm64 .` succeeds
+- [x] Gate check passes: build gate
 
 **Tests**: none
 **Gate**: build
@@ -334,9 +334,9 @@ T18 → T19 → T20 → T21 → T22 → T23
 
 **Done when**:
 
-- [ ] Workflows parse as YAML and `golangci-lint run` passes locally
-- [ ] After the push, the billing workflow runs green on the branch and the other services' workflows do not run
-- [ ] Gate check passes: build gate
+- [x] Workflows parse as YAML and `golangci-lint run` passes locally
+- [x] After the push, the billing workflow runs green on the branch and the other services' workflows do not run
+- [x] Gate check passes: build gate
 
 **Tests**: none
 **Gate**: build
@@ -360,9 +360,9 @@ T18 → T19 → T20 → T21 → T22 → T23
 
 **Done when**:
 
-- [ ] Commands, environment variables, architecture and testing rules documented
-- [ ] `diff .specs/features/billing-service/spec.md docs/specs/billing-service/spec.md` is empty
-- [ ] Gate check passes: docs gate
+- [x] Commands, environment variables, architecture and testing rules documented
+- [x] `diff .specs/features/billing-service/spec.md docs/specs/billing-service/spec.md` is empty
+- [x] Gate check passes: docs gate
 
 **Tests**: none
 **Gate**: docs
@@ -485,7 +485,7 @@ T18 → T19 → T20 → T21 → T22 → T23
 #### T16: Invoice query API
 
 **What**: `GET /invoices/{id}` and `GET /invoices` with filters and pagination, JSON in the design format.
-**Where**: `billing-service/internal/infra/http/`
+**Where**: `billing-service/internal/infra/httpapi/`
 **Depends on**: T15
 **Reuses**: problem details from T6
 **Requirement**: API-01, API-02, API-03, API-04
@@ -643,7 +643,7 @@ T18 → T19 → T20 → T21 → T22 → T23
 #### T22: PSP webhook
 
 **What**: `POST /webhooks/psp` with token check, body validation and translation to `ApplyPaymentResult`.
-**Where**: `billing-service/internal/infra/http/`
+**Where**: `billing-service/internal/infra/httpapi/`
 **Depends on**: T21
 **Reuses**: problem details from T6
 **Requirement**: PAY-03, PAY-04, PAY-06, PAY-07, PAY-08
