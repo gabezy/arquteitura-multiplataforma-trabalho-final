@@ -8,6 +8,8 @@ import br.com.puc.multiplataforma.bffgateway.core.shared.domain.Marketplace;
 import br.com.puc.multiplataforma.bffgateway.core.shared.domain.PageRequest;
 import br.com.puc.multiplataforma.bffgateway.infra.marketplace.controller.dto.ListingPageResponse;
 import br.com.puc.multiplataforma.bffgateway.infra.marketplace.controller.dto.ListingResponse;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,6 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.UUID;
 
+@Tag(name = "Anúncios", description = "Anúncios dos produtos nos marketplaces")
 @RestController
 @RequestMapping(path = "/listings", produces = MediaType.APPLICATION_JSON_VALUE)
 public class ListingController {
@@ -31,6 +34,7 @@ public class ListingController {
     }
 
     @GetMapping
+    @Operation(summary = "Lista os anúncios", description = "Papéis: admin e store. Filtra por SKU, marketplace e status, com paginação por limit e offset.")
     @PreAuthorize("hasAnyRole('admin', 'store')")
     public ListingPageResponse list(@RequestParam(required = false) String sku,
                                     @RequestParam(required = false) Marketplace marketplace,
@@ -42,6 +46,7 @@ public class ListingController {
     }
 
     @GetMapping("/{id}")
+    @Operation(summary = "Detalha um anúncio", description = "Papéis: admin e store. Responde 404 se o anúncio não existe.")
     @PreAuthorize("hasAnyRole('admin', 'store')")
     public ListingResponse get(@PathVariable UUID id) {
         return ListingResponse.from(getListing.execute(id));

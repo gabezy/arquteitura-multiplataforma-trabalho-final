@@ -24,6 +24,7 @@ O realm é importado de `docker/keycloak/realms/omni-market-realm.json`. Para ob
 | Rota | `admin` | `store` | `specialist` | `fiscal` | `csm` | `customer` | Origem |
 |---|:-:|:-:|:-:|:-:|:-:|:-:|---|
 | `POST /catalog/import/xlsx` | ✔ | ✔ | — | — | — | — | implementada |
+| `PATCH /catalog/products/{sku}/price` | ✔ | ✔ | — | — | — | — | #79 |
 | `GET /orders` e `GET /orders/{id}` | ✔ | ✔ | — | — | ✔ | — | #24 |
 | `GET /reports/sales-by-marketplace` | ✔ | — | — | — | ✔ | — | #24 |
 | `GET /invoices` e `GET /invoices/{id}` | ✔ | ✔ | — | ✔ | — | — | #34 |
@@ -31,12 +32,12 @@ O realm é importado de `docker/keycloak/realms/omni-market-realm.json`. Para ob
 | Consulta de produtos (ainda sem rota no BFF) | ✔ | ✔ | — | — | — | — | prevista |
 | Análises de compliance e violações (ainda sem rota no BFF) | ✔ | — | ✔ | ✔ | — | — | prevista |
 
-A importação do catálogo também aceita o escopo `catalog:write`, para clientes de máquina.
+A importação do catálogo e a alteração de preço também aceitam o escopo `catalog:write`, para clientes de máquina.
 
 ## Regras
 
 - `admin` aparece em toda regra de `@PreAuthorize`: o administrador pode tudo.
-- A única rota de escrita é a importação do catálogo. As demais são `GET`, então `fiscal` e `csm` são somente leitura por construção. Uma rota de escrita nova entra primeiro nesta tabela e não é concedida a `fiscal` nem a `csm`.
+- As únicas rotas de escrita são a importação do catálogo e a alteração de preço. As demais são `GET`, então `fiscal` e `csm` são somente leitura por construção. Uma rota de escrita nova entra primeiro nesta tabela e não é concedida a `fiscal` nem a `csm`.
 - Os papéis se somam: o usuário `admin` tem `admin` e `customer`.
 - Rota nova: acrescente a linha aqui, escreva `@PreAuthorize("hasAnyRole('admin', …)")` conforme a linha e cubra no teste de segurança ao menos um papel permitido e um negado (`@WebMvcTest` + `@Import(SecurityConfig.class)`).
 - Alterou o realm? O Keycloak ignora um realm que já existe: rode `make compose-clean && make compose-up` para reimportar.

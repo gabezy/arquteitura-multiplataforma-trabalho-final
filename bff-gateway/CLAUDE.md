@@ -55,6 +55,12 @@ Rules to keep when adding code:
 - Core throws its own domain exceptions. `infra/exception/GlobalExceptionHandler` (extends `ResponseEntityExceptionHandler`) translates them into `ProblemDetail` responses.
 - Follow Clean Code: small, intention-revealing names, single responsibility per class/method, and no comments that restate the code.
 
+## API docs (springdoc)
+
+- Swagger UI at `/swagger-ui/index.html`, OpenAPI JSON at `/v3/api-docs`, both public. `infra/openapi/OpenApiConfig` sets the info and the global `bearer-jwt` scheme (paste the Keycloak `access_token`).
+- Each controller has a `@Tag`, and each endpoint an `@Operation` whose `description` lists the roles of `@PreAuthorize`. A route that answers something other than 200 declares it with `@ApiResponse`. `OpenApiDocsTest` checks the generated document.
+- springdoc is pinned to 3.1.x, the line built on Spring Boot 4.1.
+
 ## Calling the other services
 
 - A gateway wraps a `DownstreamClient`, which `DownstreamClientFactory` builds from the auto-configured `RestClient.Builder`: base URL, `X-User-Id` (the token `sub`), HTTP/1.1 and the timeouts `downstream.connect-timeout` (2s) and `downstream.read-timeout` (10s).
