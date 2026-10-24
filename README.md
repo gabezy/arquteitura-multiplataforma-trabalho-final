@@ -105,11 +105,12 @@ curl -s http://localhost:8082/products/sku/<sku>   # status da análise feita pe
 2. `compliance-service` consome o evento, aplica as regras e publica `APPROVED`/`REJECTED` em `produto.analisado.v1`.
 3. `catalog-service` consome o resultado e atualiza o produto.
 
-Os eventos usam CloudEvents (binary mode). Mensagens que nunca podem ser processadas vão para `compliance.product-created.dlq`.
+Os eventos usam CloudEvents (binary mode), e cada consumidor tem a sua DLQ. Todos os tópicos, payloads, DLQs e chamadas REST entre os serviços, inclusive o fluxo de pedido e cobrança, estão no [catálogo de eventos](docs/eventos.md).
 
 ## Documentação
 
 - `docs/adr/` — decisões de arquitetura
+- `docs/eventos.md` — catálogo de eventos e contratos entre os serviços
 - `docs/superpowers/specs/` — especificações de design
 
 ## Convenções
