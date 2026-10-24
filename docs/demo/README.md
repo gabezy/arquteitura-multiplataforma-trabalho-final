@@ -27,6 +27,7 @@ Roteiro reproduzível da demo do omni-market (apresentação de 28/10, #27). Nã
 - Portas livres: 8080 (BFF), 8082 a 8085, 8089, 8090, 3000, 4317, 4318, 5432 a 5434 e 9092. Se a 8080 ou a 3000 estiverem ocupadas, use `BFF_PORT` e `GRAFANA_PORT` (ver o README da raiz).
 - `make`. Sem ele, use os comandos `docker compose` indicados ao lado.
 - VS Code com a extensão REST Client para a coleção, ou `curl`.
+- No Windows: leia [Problemas comuns](#problemas-comuns) antes de começar.
 
 ## Preparação (antes da apresentação)
 
@@ -195,3 +196,15 @@ Mensagem de exemplo para o plano B de `marketplace.order.received.v1` (contrato 
 ```
 
 Key: `MERCADO_LIVRE:ML-2000001`.
+
+## Problemas comuns
+
+| Sintoma | Causa | Solução |
+|---|---|---|
+| Build falha com `invalid peer certificate: UnknownIssuer` (uv, npm ou Maven) | Antivírus com inspeção de HTTPS (ex.: Avast Web Shield) reassina os certificados, e os containers não confiam na raiz dele | Desligar a varredura HTTPS do antivírus durante o build (no Avast: *Configurações → Proteção → Escudos principais → Escudo da Web → Ativar varredura HTTPS*). As imagens ficam em cache depois |
+| `kafka-init` sai com código 2 (`set: illegal option -`), e as aplicações ficam em `Created` | No Windows, o Git com `core.autocrlf=true` extrai `docker/kafka/create-topics.sh` com CRLF | Converter o arquivo para LF (`sed -i 's/\r$//' docker/kafka/create-topics.sh`) e rodar `make up` de novo |
+| `docker exec kafka /opt/kafka/...` falha com `C:/Program Files/Git/opt/...` | O Git Bash converte caminhos que começam com `/` | Rodar `export MSYS_NO_PATHCONV=1` antes |
+| Importação responde 500 | SKUs da planilha já importados | `make clean && make up`, ou trocar os SKUs da planilha |
+| Usuário ou papel novo não aparece no Keycloak | O realm só é importado num volume novo | `make clean && make up` |
+| Porta 8080 ou 3000 ocupada | Outro projeto na mesma porta | `BFF_PORT=8081 GRAFANA_PORT=3001 make up`, e ajustar `@bff` na coleção |
+| Mensagem publicada à mão vai para `catalog.order-stock.dlq` | Valor fora do contrato (ex.: campo `content` em vez de `value` na API do Kafka UI, JSON inválido, `orderId` que não é UUID) | Conferir o valor. O motivo está no header `dlq-reason` da mensagem na DLQ |
