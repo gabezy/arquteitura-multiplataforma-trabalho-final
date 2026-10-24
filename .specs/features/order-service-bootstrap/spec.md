@@ -237,10 +237,10 @@ The order-service is in the C4 but has no code, database or pipeline. Issues #20
 
 | Requirement ID | Story | Phase | Status |
 | --- | --- | --- | --- |
-| BOOT-01 | P1: Service runs - compose starts `order-db` and `order-service` | T6 | In Tasks |
-| BOOT-02 | P1: Service runs - migrations before listening | T6 | In Tasks |
+| BOOT-01 | P1: Service runs - compose starts `order-db` and `order-service` | T6 | Implementing |
+| BOOT-02 | P1: Service runs - migrations before listening | T6 | Implementing |
 | BOOT-03 | P1: Service runs - failed migration exits 1 | T3 | Implementing |
-| BOOT-04 | P1: Service runs - `make up-infra` leaves the service out | T6 | In Tasks |
+| BOOT-04 | P1: Service runs - `make up-infra` leaves the service out | T6 | Implementing |
 | BOOT-05 | P1: Service runs - second start applies nothing | T3 | Implementing |
 | BOOT-06 | P1: Health - `UP` with the database | T4 | Implementing |
 | BOOT-07 | P1: Health - `DOWN` within 2 s without the database | T4 | Implementing |
@@ -251,11 +251,11 @@ The order-service is in the C4 but has no code, database or pipeline. Issues #20
 | BOOT-12 | P1: Configuration - `.env.example` | T1 | Implementing |
 | BOOT-13 | P1: Observability - spans exported | T2 | Implementing |
 | BOOT-14 | P1: Observability - logs with trace context | T2 | Implementing |
-| BOOT-15 | P1: Observability - startup log | T6 | In Tasks |
-| BOOT-16 | P1: Graceful shutdown - exit 0 on signal | T6 | In Tasks |
-| BOOT-17 | P1: Graceful shutdown - PID 1, non-root | T6 | In Tasks |
+| BOOT-15 | P1: Observability - startup log | T6 | Implementing |
+| BOOT-16 | P1: Graceful shutdown - exit 0 on signal | T6 | Implementing |
+| BOOT-17 | P1: Graceful shutdown - PID 1, non-root | T6 | Implementing |
 | BOOT-18 | P1: Hexagonal - `core` framework-free | T2 | Implementing |
-| BOOT-19 | P1: Hexagonal - wiring in composition root | T6 | In Tasks |
+| BOOT-19 | P1: Hexagonal - wiring in composition root | T6 | Implementing |
 | BOOT-20 | P1: Hexagonal - unhandled error is 500 | T2 | Implementing |
 | BOOT-21 | P1: Hexagonal - domain errors mapped | T2 | Implementing |
 | BOOT-22 | P1: CI - runs on order-service changes | T7 | In Tasks |
@@ -265,8 +265,8 @@ The order-service is in the C4 but has no code, database or pipeline. Issues #20
 | BOOT-26 | P2: Docs - root README tables | T8 | In Tasks |
 | BOOT-27 | P2: Docs - root CLAUDE.md | T8 | In Tasks |
 | BOOT-28 | P1: Configuration - `KAFKA_BROKERS` list | T1 | Implementing |
-| BOOT-29 | P1: Publishing - producer connects before listening | T6 | In Tasks |
-| BOOT-30 | P1: Publishing - Kafka unreachable at startup exits 1 | T6 | In Tasks |
+| BOOT-29 | P1: Publishing - producer connects before listening | T6 | Implementing |
+| BOOT-30 | P1: Publishing - Kafka unreachable at startup exits 1 | T6 | Implementing |
 | BOOT-31 | P1: Publishing - outbox row per event | T5 | Implementing |
 | BOOT-32 | P1: Publishing - unmapped event throws | T5 | Implementing |
 | BOOT-33 | P1: Publishing - relay sends pending rows in order | T5 | Implementing |
@@ -276,7 +276,7 @@ The order-service is in the C4 but has no code, database or pipeline. Issues #20
 | BOOT-37 | P1: Publishing - 1000 ms polling | T5 | Implementing |
 | BOOT-38 | P1: Publishing - send span in the recording trace | T5 | Implementing |
 
-**Coverage:** 38 total, 38 mapped to tasks, 0 unmapped; 23 implemented
+**Coverage:** 38 total, 38 mapped to tasks, 0 unmapped; 32 implemented
 
 ---
 

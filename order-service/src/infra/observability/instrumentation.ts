@@ -33,8 +33,10 @@ const sdk = new NodeSDK({
 
 sdk.start();
 
+// Only flushes the SDK: main.ts owns the process exit, so the relay round and the
+// database pool can finish closing before the process ends.
 const shutdown = () => {
-  sdk.shutdown().finally(() => process.exit(0));
+  void sdk.shutdown();
 };
 process.once('SIGTERM', shutdown);
 process.once('SIGINT', shutdown);

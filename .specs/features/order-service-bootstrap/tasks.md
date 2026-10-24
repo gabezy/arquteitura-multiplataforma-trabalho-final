@@ -247,19 +247,29 @@ T6 → T8
 
 **Done when**:
 
-- [ ] Build gate passes: `cd order-service && npm run typecheck && npm run test:coverage -- --ci && npm run build && docker build -t order-service .`
-- [ ] Smoke: `make up` → `make ps` shows `order-db` and `order-service` healthy; `curl -s localhost:8084/health` → `{"status":"UP"}`
-- [ ] Smoke: `docker logs order-service` shows the applied migrations before `order-service listening`; `docker restart order-service` logs `Database already up to date`
-- [ ] Smoke: inserting an `outbox` row with `event_type=test.bootstrap.v1` into a topic created by hand reaches Kafka within 2 s with the `ce_*` headers, and the row gets `published_at` (the topic is deleted afterwards)
-- [ ] Smoke: a trace and a log line for `order-service` appear in Grafana (Tempo and Loki) after `GET /health`
-- [ ] Smoke: `docker stop order-service` → exit code `0`; `docker exec order-service id -u` is not `0`
-- [ ] Smoke: with Kafka stopped, starting the service exits with code 1 (BOOT-30); `make up-infra` leaves `order-service` out
-- [ ] Only `main.ts` and `*.factory.ts` instantiate adapters (grep check)
+- [x] Build gate passes: `cd order-service && npm run typecheck && npm run test:coverage -- --ci && npm run build && docker build -t order-service .`
+- [x] Smoke: `make up` → `make ps` shows `order-db` and `order-service` healthy; `curl -s localhost:8084/health` → `{"status":"UP"}`
+- [x] Smoke: `docker logs order-service` shows the applied migrations before `order-service listening`; `docker restart order-service` logs `Database already up to date`
+- [x] Smoke: inserting an `outbox` row with `event_type=test.bootstrap.v1` into a topic created by hand reaches Kafka within 2 s with the `ce_*` headers, and the row gets `published_at` (the topic is deleted afterwards)
+- [x] Smoke: a trace and a log line for `order-service` appear in Grafana (Tempo and Loki) after `GET /health`
+- [x] Smoke: `docker stop order-service` → exit code `0`; `docker exec order-service id -u` is not `0`
+- [x] Smoke: with Kafka stopped, starting the service exits with code 1 (BOOT-30); `make up-infra` leaves `order-service` out
+- [x] Only `main.ts` and `*.factory.ts` instantiate adapters (grep check)
 
 **Tests**: none
 **Gate**: build
 
 **Commit**: `feat(order): conecta o composition root e sobe o order-service no compose`
+
+**Status**: ✅ Complete
+
+**Deviations**:
+
+- No `order-service.factory.ts`: there is no domain module to wire yet; `main.ts` builds everything and #20 adds `order.factory.ts`.
+- `migrate.ts` also builds a database connection: it is the entry point of the migration process (`SPEC_DEVIATION` marker in the file).
+- `instrumentation.ts` no longer calls `process.exit(0)` on `SIGTERM`; `main.ts` owns the exit, so the relay round and the pool close before the process ends (BOOT-16). `catalog-service` still has the race.
+
+**Smoke evidence (2026-10-24)**: `make up` → `order-db` and `order-service` healthy; first start logged `Applied 2 migration(s)` before `order-service listening`, restart logged `Database already up to date`; an `outbox` row reached `test.bootstrap.v1` in 0.89 s with the `ce_*` headers and `traceparent`; `/health` gave `503 DOWN` in 12 ms with `order-db` stopped and `200 UP` after it came back; `docker stop` took 0.31 s with exit code 0; uid 100 and `node` as PID 1; Kafka unreachable at startup → exit 1; `make -n up-infra` scales `order-service` to 0; Tempo has `GET /health` spans for `order-service`; Loki has its logs with `trace_id`, including `Failed to relay outbox messages` while `order-db` was down.
 
 ---
 
