@@ -57,6 +57,7 @@ describe('MarketplaceOrderConsumer', () => {
   const inbox: jest.Mocked<Inbox> = { hasProcessed: jest.fn(), markProcessed: jest.fn() };
   let lines: LogLine[];
   let logger: Logger;
+  let delivered: EachMessagePayload;
 
   const handle = async (payload: EachMessagePayload): Promise<void> => {
     const ordersConsumer = new MarketplaceOrderConsumer(
@@ -69,6 +70,7 @@ describe('MarketplaceOrderConsumer', () => {
     );
     await ordersConsumer.start();
     const { eachMessage } = consumer.run.mock.calls[0][0];
+    delivered = payload;
     await eachMessage(payload);
   };
 
@@ -78,6 +80,7 @@ describe('MarketplaceOrderConsumer', () => {
     const { topic, messages } = producer.send.mock.calls[0][0];
     expect(topic).toBe(DEAD_LETTER_TOPIC);
     expect(messages[0].key.toString()).toBe(KEY);
+    expect(messages[0].value).toEqual(delivered.message.value);
     expect(messages[0].headers).toEqual(expect.objectContaining({
       ce_id: 'ce-1',
       'dlq-original-topic': TOPIC,
@@ -198,7 +201,8 @@ describe('MarketplaceOrderConsumer', () => {
       ['an unknown marketplace', { ...VALID, marketplace: 'EBAY' }, /marketplace/],
       ['a blank external id', { ...VALID, externalOrderId: '  ' }, /externalOrderId/],
       ['no external id', { ...VALID, externalOrderId: undefined }, /externalOrderId/],
-      ['no items', { ...VALID, items: [] }, /items/],
+      ['empty items', { ...VALID, items: [] }, /items/],
+      ['no items', { ...VALID, items: undefined }, /items/],
       ['a blank SKU', { ...VALID, items: [{ ...VALID.items[0], sku: ' ' }] }, /sku/],
       ['a quantity of 0', { ...VALID, items: [{ ...VALID.items[0], quantity: 0 }] }, /quantity/],
       ['a fractional quantity', { ...VALID, items: [{ ...VALID.items[0], quantity: 1.5 }] }, /quantity/],
@@ -219,14 +223,19 @@ describe('MarketplaceOrderConsumer', () => {
       ['a SKU longer than 200 characters', { ...VALID, items: [{ ...VALID.items[0], sku: 'S'.repeat(201) }] }, /sku/],
       ['an external id with a NUL character', { ...VALID, externalOrderId: 'ML\u00001' }, /externalOrderId/],
       ['more than 1000 items', { ...VALID, items: Array.from({ length: 1001 }, () => VALID.items[0]) }, /items/],
+      ['an external id longer than 200 characters', { ...VALID, externalOrderId: 'E'.repeat(201) }, /externalOrderId/],
     ])('with %s, which the database would refuse', async (_, body, reason) => {
       await handle(received(body));
 
       expectDeadLetter(reason);
     });
 
-    it('with a ce_id that is not printable ASCII, without touching the inbox', async () => {
-      await handle(messageWith(JSON.stringify(VALID), { ce_id: 'ce\u00001' }));
+    it.each([
+      ['with a NUL character', 'ce\u00001'],
+      ['empty', ''],
+      ['longer than 200 characters', 'c'.repeat(201)],
+    ])('with a ce_id %s, without touching the inbox', async (_, ceId) => {
+      await handle(messageWith(JSON.stringify(VALID), { ce_id: ceId }));
 
       expect(inbox.hasProcessed).not.toHaveBeenCalled();
       expect(inbox.markProcessed).not.toHaveBeenCalled();
@@ -266,6 +275,41 @@ describe('MarketplaceOrderConsumer', () => {
         reason: expect.stringContaining('marketplace'),
       }));
     });
+  });
+
+  it('accepts the storage limits themselves', async () => {
+    const atLimits = {
+      ...VALID,
+      externalOrderId: 'E'.repeat(200),
+      items: Array.from({ length: 1000 }, () => ({ sku: 'S'.repeat(200), quantity: 2_147_483_647, unitPrice: 999_999_999_999.99 })),
+    };
+
+    await handle(received(atLimits, { ce_id: 'c'.repeat(200) }));
+
+    expect(producer.send).not.toHaveBeenCalled();
+    expect(inbox.hasProcessed).toHaveBeenCalledWith('c'.repeat(200));
+    const [input] = receivePort.receive.mock.calls[0];
+    expect(input.eventId).toBe('c'.repeat(200));
+    expect(input.externalOrderId).toBe('E'.repeat(200));
+    expect(input.items).toHaveLength(1000);
+    expect(input.items[0]).toEqual({ sku: 'S'.repeat(200), quantity: 2_147_483_647, unitPrice: 999_999_999_999.99 });
+  });
+
+  it('rethrows when the dead letter topic cannot be written, leaving the ce_id unmarked so Kafka redelivers', async () => {
+    producer.send.mockRejectedValue(new Error('broker unavailable'));
+
+    await expect(handle(received({ ...VALID, marketplace: 'EBAY' }))).rejects.toThrow('broker unavailable');
+
+    expect(inbox.markProcessed).not.toHaveBeenCalled();
+  });
+
+  it('rethrows when the inbox cannot be read, without receiving the order', async () => {
+    inbox.hasProcessed.mockRejectedValue(new Error('connection terminated'));
+
+    await expect(handle(received(VALID))).rejects.toThrow('connection terminated');
+
+    expect(receivePort.receive).not.toHaveBeenCalled();
+    expect(producer.send).not.toHaveBeenCalled();
   });
 
   it.each([

@@ -350,6 +350,19 @@ T7 → T8
 
 ---
 
+### Fixes after Verifier round 1 (FAIL, 4 surviving mutants)
+
+Test-only, in `order-service/src/infra/messaging/marketplace-order.consumer.spec.ts`, committed as `test(order): ...`:
+
+- [x] ORDER-12: `expectDeadLetter` also asserts the original value of the dead-lettered message (kills `dead-letter.ts:45` `value: null`).
+- [x] ORDER-17: a rejected DLQ send rejects `handle` and leaves the `ce_id` unmarked; a rejected `inbox.hasProcessed` rejects without receiving (kills the swallowed DLQ send).
+- [x] ORDER-31: an empty and a 201-char `ce_id` go to the DLQ without touching the inbox; a 200-char one is processed (kills `{1,200}` → `{0,2000}`).
+- [x] ORDER-30: the limits themselves (int4 `quantity`, `999999999999.99`, 200-char texts, 1000 items) reach `receive`; a 201-char `externalOrderId` goes to the DLQ (kills `MAX_INT4 - 1`).
+- [x] ORDER-14: a message with no `items` field goes to the DLQ.
+- [x] Gate: 191 tests pass (40 in the consumer spec).
+
+---
+
 ## Phase Execution Map
 
 ```
