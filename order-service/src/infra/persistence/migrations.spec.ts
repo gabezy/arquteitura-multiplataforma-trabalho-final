@@ -78,13 +78,13 @@ describe('migrations', () => {
     ]);
   });
 
-  it('exits with code 1 and logs the failure when the database is unreachable', () => {
+  it('exits with code 1 and logs the failure when Vault is unreachable', () => {
     const result = spawnSync(
       path.join(SERVICE_DIR, 'node_modules', '.bin', 'tsx'),
       ['src/infra/persistence/migrate.ts'],
       {
         cwd: SERVICE_DIR,
-        env: { ...process.env, DATABASE_URL: 'postgresql://orders:orders@127.0.0.1:1/orders' },
+        env: { ...process.env, VAULT_ADDR: 'http://127.0.0.1:1', VAULT_ROLE_ID: 'role', VAULT_SECRET_ID: 'secret' },
         encoding: 'utf8',
         timeout: 30_000,
       },

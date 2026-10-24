@@ -35,13 +35,15 @@ npm run migrate:deploy                    # apply from dist/ (used by the Docker
 - `ExtensionlessMigrationSource` records migrations without the extension (`20261010132157_create_products_table`, not `.ts`/`.js`), so a database migrated from `src/` and from `dist/` stays consistent. Every runner (`migrate.ts`, `knexfile.ts`, specs) must use `createMigrationSource()`.
 - The Docker image runs `migrate:deploy` before starting the app. Deploys are rolling, so the old version keeps running on the new schema: write backward-compatible migrations (expand/contract: add nullable columns; rename or drop a column only after no running version uses it).
 
-Config comes from env vars (see `.env.example`; `.env` is loaded if present): `PORT` (8082), `LOG_LEVEL`, `OTEL_SERVICE_NAME`, `OTEL_COLLECTOR_URL` (`http://localhost:4318`, the same default as `bff-gateway`), `DATABASE_URL`, and Kafka:
+Config comes from env vars (see `.env.example`; `.env` is loaded if present): `PORT` (8082), `LOG_LEVEL`, `OTEL_SERVICE_NAME`, `OTEL_COLLECTOR_URL` (`http://localhost:4318`, the same default as `bff-gateway`), the database location `DB_HOST` / `DB_PORT` / `DB_NAME` (`localhost` / `5432` / `catalog`), and Kafka:
 
 - `KAFKA_BROKERS`: comma-separated list, default `localhost:9092`. Inside a compose container use `kafka:19092` (see `../CLAUDE.md`).
 - `PRODUTO_ANALISADO_TOPIC` (`produto.analisado.v1`): analysis results consumed from the compliance-service.
 - `PRODUCT_ANALYSIS_DLQ_TOPIC` (`catalog.product-analysis.dlq`): analysis messages that can never be processed.
 - `ORDER_PLACED_TOPIC` (`order.order.placed.v1`) and `ORDER_CANCELLED_TOPIC` (`order.order.cancelled.v1`): order events that reserve and give back stock (consumer group `catalog-service-order-stock`).
 - `ORDER_STOCK_DLQ_TOPIC` (`catalog.order-stock.dlq`): order events that can never be processed.
+
+Database credentials come from Vault, not from env (`../docs/adr/0003-vault-para-secrets-das-aplicacoes.md`). `loadAppConfig()` (`infra/config/load-app-config.ts`) logs in with the AppRole in `VAULT_ADDR` / `VAULT_ROLE_ID` / `VAULT_SECRET_ID` (copy `CATALOG_VAULT_ROLE_ID` / `_SECRET_ID` from the root `.env`), reads `db_username` / `db_password` from `secret/catalog-service`, and passes them to `loadConfig(credentials, env)`. `main.ts`, `migrate.ts` and `knexfile.ts` all go through it, so nothing starts without Vault. `instrumentation.ts` runs before Vault can be awaited and uses `loadTelemetryConfig()`, which needs no secret. Specs pass a fake `fetch` to `readVaultSecret` / `loadAppConfig`.
 
 TypeScript is pinned to 6.x because `ts-jest` does not support TypeScript 7.
 
@@ -64,7 +66,7 @@ src/
     http/                        Express app (createApp), error handler, health route
       <aggregate>/               controller + routes: driving adapter that calls port/in
     persistence/                 Knex connection, migrations, repositories implementing port/out
-    config/                      env loading (loadConfig)
+    config/                      env loading (loadConfig) and Vault (loadAppConfig)
     observability/               OpenTelemetry SDK bootstrap and logger
     <aggregate>.factory.ts       wires the facade to its adapters and builds the controller
   main.ts                        composition root: opens resources, calls the factories, starts the server

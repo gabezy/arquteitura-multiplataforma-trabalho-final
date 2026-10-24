@@ -5,11 +5,11 @@ import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-http';
 import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-http';
 import { PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
 import { BatchLogRecordProcessor } from '@opentelemetry/sdk-logs';
-import { loadConfig } from '../config/env';
+import { loadTelemetryConfig } from '../config/env';
 
 // Must be loaded before any other module (node --require) so the
 // auto-instrumentations can patch http, express and pino.
-const { serviceName, otelCollectorUrl } = loadConfig();
+const { serviceName, otelCollectorUrl } = loadTelemetryConfig();
 
 const sdk = new NodeSDK({
   serviceName,

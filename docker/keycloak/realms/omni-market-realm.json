@@ -21,7 +21,7 @@
       "protocol": "openid-connect",
       "publicClient": false,
       "clientAuthenticatorType": "client-secret",
-      "secret": "bff-gateway-secret",
+      "secret": "${BFF_CLIENT_SECRET}",
       "standardFlowEnabled": true,
       "directAccessGrantsEnabled": true,
       "serviceAccountsEnabled": true,

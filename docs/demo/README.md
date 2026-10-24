@@ -57,7 +57,7 @@ Deixe abertas três abas:
 |---|---|---|
 | Kafka UI | http://localhost:8090 | — |
 | Grafana | http://localhost:3000 | `admin` / `admin` |
-| Coleção | `docs/demo/omni-market.http` no VS Code | — |
+| Coleção | `docs/demo/omni-market.http` no VS Code (cole o `BFF_CLIENT_SECRET` do `.env` na variável `clientSecret`) | — |
 
 ## Ato 1: autenticação
 
@@ -66,9 +66,10 @@ Deixe abertas três abas:
 Na coleção, rode as requisições do ato 1: os tokens do `admin` e do `customer`, depois a importação sem token e com o `customer`. Com `curl`:
 
 ```bash
+set -a; . ./.env; set +a   # o client secret do BFF é gerado pelo make env (BFF_CLIENT_SECRET)
 token() {
   curl -s -X POST http://localhost:8085/realms/omni-market/protocol/openid-connect/token \
-    -d grant_type=password -d client_id=bff-gateway -d client_secret=bff-gateway-secret \
+    -d grant_type=password -d client_id=bff-gateway -d client_secret="$BFF_CLIENT_SECRET" \
     -d username="$1" -d password="$1" | sed -E 's/.*"access_token":"([^"]+)".*/\1/'
 }
 ADMIN=$(token admin); CUSTOMER=$(token customer)

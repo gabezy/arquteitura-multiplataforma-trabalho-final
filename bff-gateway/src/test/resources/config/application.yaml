@@ -1,0 +1,7 @@
+# Tests run without Vault: the secrets it would provide are set here.
+spring:
+  cloud:
+    vault:
+      enabled: false
+keycloak:
+  client-secret: test-client-secret

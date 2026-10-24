@@ -9,6 +9,8 @@ services:
       KC_HTTP_PORT: 8080
       KC_HOSTNAME: http://localhost:8085
       KC_HEALTH_ENABLED: "true"
+      # Replaces ${BFF_CLIENT_SECRET} in the imported realm.
+      BFF_CLIENT_SECRET: ${BFF_CLIENT_SECRET:?run make env}
     ports:
       - "8085:8080"
     volumes:
@@ -22,13 +24,62 @@ services:
       # The first start builds Keycloak's optimized config, which is slow when the whole stack starts at once.
       start_period: 120s
 
+  # Dev mode: in memory and already unsealed, with KV v2 mounted at secret/. Data is lost on
+  # restart; `make vault` re-runs vault-init to write it back.
+  vault:
+    image: hashicorp/vault:2.2.1
+    container_name: vault
+    command: server -dev
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: ${VAULT_ROOT_TOKEN:?run make env}
+      VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
+    cap_add:
+      - IPC_LOCK
+    ports:
+      - "127.0.0.1:8200:8200"
+    healthcheck:
+      test: ["CMD-SHELL", "VAULT_ADDR=http://127.0.0.1:8200 vault status > /dev/null"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Writes secret/<service> and one AppRole per service from the root .env (docker/vault/bootstrap.sh).
+  vault-init:
+    image: hashicorp/vault:2.2.1
+    container_name: vault-init
+    entrypoint: ["/bin/sh", "/scripts/bootstrap.sh"]
+    restart: "no"
+    environment:
+      VAULT_ADDR: http://vault:8200
+      VAULT_TOKEN: ${VAULT_ROOT_TOKEN:?run make env}
+      CATALOG_DB_USER: ${CATALOG_DB_USER:-catalog}
+      CATALOG_DB_PASSWORD: ${CATALOG_DB_PASSWORD:?run make env}
+      COMPLIANCE_DB_USER: ${COMPLIANCE_DB_USER:-compliance}
+      COMPLIANCE_DB_PASSWORD: ${COMPLIANCE_DB_PASSWORD:?run make env}
+      ORDER_DB_USER: ${ORDER_DB_USER:-orders}
+      ORDER_DB_PASSWORD: ${ORDER_DB_PASSWORD:?run make env}
+      BFF_CLIENT_SECRET: ${BFF_CLIENT_SECRET:?run make env}
+      CATALOG_VAULT_ROLE_ID: ${CATALOG_VAULT_ROLE_ID:?run make env}
+      CATALOG_VAULT_SECRET_ID: ${CATALOG_VAULT_SECRET_ID:?run make env}
+      COMPLIANCE_VAULT_ROLE_ID: ${COMPLIANCE_VAULT_ROLE_ID:?run make env}
+      COMPLIANCE_VAULT_SECRET_ID: ${COMPLIANCE_VAULT_SECRET_ID:?run make env}
+      ORDER_VAULT_ROLE_ID: ${ORDER_VAULT_ROLE_ID:?run make env}
+      ORDER_VAULT_SECRET_ID: ${ORDER_VAULT_SECRET_ID:?run make env}
+      BFF_VAULT_ROLE_ID: ${BFF_VAULT_ROLE_ID:?run make env}
+      BFF_VAULT_SECRET_ID: ${BFF_VAULT_SECRET_ID:?run make env}
+    volumes:
+      - ./docker/vault/bootstrap.sh:/scripts/bootstrap.sh:ro
+    depends_on:
+      vault:
+        condition: service_healthy
+
   catalog-db:
     image: postgres:18-alpine
     container_name: catalog-db
     environment:
       POSTGRES_DB: ${CATALOG_DB_NAME:-catalog}
       POSTGRES_USER: ${CATALOG_DB_USER:-catalog}
-      POSTGRES_PASSWORD: ${CATALOG_DB_PASSWORD:-catalog}
+      POSTGRES_PASSWORD: ${CATALOG_DB_PASSWORD:?run make env}
     ports:
       - "5432:5432"
     volumes:
@@ -46,7 +97,7 @@ services:
     environment:
       POSTGRES_DB: ${COMPLIANCE_DB_NAME:-compliance}
       POSTGRES_USER: ${COMPLIANCE_DB_USER:-compliance}
-      POSTGRES_PASSWORD: ${COMPLIANCE_DB_PASSWORD:-compliance}
+      POSTGRES_PASSWORD: ${COMPLIANCE_DB_PASSWORD:?run make env}
     ports:
       - "5433:5432"
     volumes:
@@ -64,11 +115,29 @@ services:
     environment:
       POSTGRES_DB: ${ORDER_DB_NAME:-orders}
       POSTGRES_USER: ${ORDER_DB_USER:-orders}
-      POSTGRES_PASSWORD: ${ORDER_DB_PASSWORD:-orders}
+      POSTGRES_PASSWORD: ${ORDER_DB_PASSWORD:?run make env}
     ports:
       - "5434:5432"
     volumes:
       - order-db-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  billing-db:
+    image: postgres:18-alpine
+    container_name: billing-db
+    environment:
+      POSTGRES_DB: ${BILLING_DB_NAME:-billing}
+      POSTGRES_USER: ${BILLING_DB_USER:-billing}
+      POSTGRES_PASSWORD: ${BILLING_DB_PASSWORD:-billing}
+    ports:
+      - "5435:5432"
+    volumes:
+      - billing-db-data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
@@ -201,6 +270,10 @@ services:
     volumes:
       - ./docker/wiremock/mappings:/home/wiremock/mappings
       - ./docker/wiremock/__files:/home/wiremock/__files
+    # The webhooks of the PSP mappings reach a service that runs on the host, such as `go run` of the
+    # billing-service against `make up-infra`.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   # Applications, built from source. `make up-infra` leaves them out, for whoever runs a service
   # from its own directory.
@@ -208,12 +281,19 @@ services:
     build: ./catalog-service
     container_name: catalog-service
     environment:
-      DATABASE_URL: postgresql://${CATALOG_DB_USER:-catalog}:${CATALOG_DB_PASSWORD:-catalog}@catalog-db:5432/${CATALOG_DB_NAME:-catalog}
+      DB_HOST: catalog-db
+      DB_PORT: 5432
+      DB_NAME: ${CATALOG_DB_NAME:-catalog}
+      VAULT_ADDR: http://vault:8200
+      VAULT_ROLE_ID: ${CATALOG_VAULT_ROLE_ID:?run make env}
+      VAULT_SECRET_ID: ${CATALOG_VAULT_SECRET_ID:?run make env}
       KAFKA_BROKERS: kafka:19092
       OTEL_COLLECTOR_URL: http://otel-collector:4318
     ports:
       - "8082:8082"
     depends_on:
+      vault-init:
+        condition: service_completed_successfully
       catalog-db:
         condition: service_healthy
       kafka-init:
@@ -223,12 +303,19 @@ services:
     build: ./compliance-service
     container_name: compliance-service
     environment:
-      DATABASE_URL: postgresql+asyncpg://${COMPLIANCE_DB_USER:-compliance}:${COMPLIANCE_DB_PASSWORD:-compliance}@compliance-db:5432/${COMPLIANCE_DB_NAME:-compliance}
+      DB_HOST: compliance-db
+      DB_PORT: 5432
+      DB_NAME: ${COMPLIANCE_DB_NAME:-compliance}
+      VAULT_ADDR: http://vault:8200
+      VAULT_ROLE_ID: ${COMPLIANCE_VAULT_ROLE_ID:?run make env}
+      VAULT_SECRET_ID: ${COMPLIANCE_VAULT_SECRET_ID:?run make env}
       KAFKA_BROKERS: kafka:19092
       OTEL_COLLECTOR_URL: http://otel-collector:4318
     ports:
       - "8083:8083"
     depends_on:
+      vault-init:
+        condition: service_completed_successfully
       compliance-db:
         condition: service_healthy
       kafka-init:
@@ -238,16 +325,46 @@ services:
     build: ./order-service
     container_name: order-service
     environment:
-      DATABASE_URL: postgresql://${ORDER_DB_USER:-orders}:${ORDER_DB_PASSWORD:-orders}@order-db:5432/${ORDER_DB_NAME:-orders}
+      DB_HOST: order-db
+      DB_PORT: 5432
+      DB_NAME: ${ORDER_DB_NAME:-orders}
+      VAULT_ADDR: http://vault:8200
+      VAULT_ROLE_ID: ${ORDER_VAULT_ROLE_ID:?run make env}
+      VAULT_SECRET_ID: ${ORDER_VAULT_SECRET_ID:?run make env}
       KAFKA_BROKERS: kafka:19092
       OTEL_COLLECTOR_URL: http://otel-collector:4318
     ports:
       - "8084:8084"
     depends_on:
+      vault-init:
+        condition: service_completed_successfully
       order-db:
         condition: service_healthy
       kafka-init:
         condition: service_completed_successfully
+
+  billing-service:
+    build: ./billing-service
+    container_name: billing-service
+    environment:
+      DATABASE_URL: postgresql://${BILLING_DB_USER:-billing}:${BILLING_DB_PASSWORD:-billing}@billing-db:5432/${BILLING_DB_NAME:-billing}
+      KAFKA_BROKERS: kafka:19092
+      OTEL_COLLECTOR_URL: http://otel-collector:4318
+      PSP_BASE_URL: http://wiremock:8080
+      # Point it at an address that does not answer to see the reconciliation recover a lost webhook.
+      PSP_CALLBACK_URL: ${PSP_CALLBACK_URL:-http://billing-service:8086/webhooks/psp}
+      # The WireMock mappings send this token back (docker/wiremock/mappings/psp.json), so it stays
+      # fixed while the PSP is the simulator.
+      PSP_WEBHOOK_TOKEN: psp-demo-token
+    ports:
+      - "8086:8086"
+    depends_on:
+      billing-db:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+      wiremock:
+        condition: service_started
 
   bff-gateway:
     build: ./bff-gateway
@@ -258,10 +375,15 @@ services:
       KEYCLOAK_ISSUER_URI: http://localhost:8085/realms/omni-market
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWKSETURI: http://keycloak:8080/realms/omni-market/protocol/openid-connect/certs
       CATALOG_SERVICE_URL: http://catalog-service:8082
+      VAULT_ADDR: http://vault:8200
+      VAULT_ROLE_ID: ${BFF_VAULT_ROLE_ID:?run make env}
+      VAULT_SECRET_ID: ${BFF_VAULT_SECRET_ID:?run make env}
       OTEL_COLLECTOR_URL: http://otel-collector:4318
     ports:
       - "${BFF_PORT:-8080}:8080"
     depends_on:
+      vault-init:
+        condition: service_completed_successfully
       keycloak:
         condition: service_healthy
       catalog-service:
@@ -272,6 +394,7 @@ volumes:
   catalog-db-data:
   compliance-db-data:
   order-db-data:
+  billing-db-data:
   kafka-data:
   grafana-data:
   loki-data:

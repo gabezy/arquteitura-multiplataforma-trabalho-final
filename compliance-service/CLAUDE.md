@@ -35,7 +35,8 @@ Docker image (`Dockerfile`, multi-stage with uv; the runtime image has only the 
 ```bash
 docker build -t compliance-service .
 docker run --rm --network <compose-network> -p 8083:8083 \
-  -e DATABASE_URL=postgresql+asyncpg://compliance:compliance@compliance-db:5432/compliance \
+  -e DB_HOST=compliance-db -e DB_PORT=5432 \
+  -e VAULT_ADDR=http://vault:8200 -e VAULT_ROLE_ID=<role id> -e VAULT_SECRET_ID=<secret id> \
   -e KAFKA_BROKERS=kafka:19092 -e OTEL_COLLECTOR_URL=http://otel-collector:4318 compliance-service
 ```
 
@@ -43,7 +44,9 @@ The container runs `alembic upgrade head` before starting. Deploys are rolling, 
 
 CI/CD: `.github/workflows/compliance-service.yml` calls `_python-service.yml` (`uv sync --locked`, ruff, pytest with Testcontainers, Docker build without push). A push to `main` also publishes `ghcr.io/<owner>/omni-market-compliance-service:{sha,latest}`. Run `uv lock` after changing dependencies, or `--locked` fails in CI.
 
-Config comes from env vars (see `.env.example`; `.env` is loaded if present): `PORT`, `LOG_LEVEL`, `OTEL_SERVICE_NAME`, `OTEL_COLLECTOR_URL`, `DATABASE_URL` (`compliance-db` on localhost:5433), `KAFKA_BROKERS`, `PRODUCT_CREATED_TOPIC`, `PRODUTO_ANALISADO_TOPIC`, `PRODUCT_CREATED_DLQ_TOPIC`, `PRICE_CEILING`, `DESCRIPTION_MIN_LENGTH`.
+Config comes from env vars (see `.env.example`; `.env` is loaded if present): `PORT`, `LOG_LEVEL`, `OTEL_SERVICE_NAME`, `OTEL_COLLECTOR_URL`, `DB_HOST` / `DB_PORT` / `DB_NAME` (`compliance-db` on localhost:5433), `KAFKA_BROKERS`, `PRODUCT_CREATED_TOPIC`, `PRODUTO_ANALISADO_TOPIC`, `PRODUCT_CREATED_DLQ_TOPIC`, `PRICE_CEILING`, `DESCRIPTION_MIN_LENGTH`.
+
+Database credentials come from Vault, not from env (`../docs/adr/0003-vault-para-secrets-das-aplicacoes.md`). `load_settings()` (`infra/config/vault.py`) logs in with `hvac` using the AppRole in `VAULT_ADDR` / `VAULT_ROLE_ID` / `VAULT_SECRET_ID` (copy `COMPLIANCE_VAULT_ROLE_ID` / `_SECRET_ID` from the root `.env`), reads `db_username` / `db_password` from `secret/compliance-service`, and builds `Settings`, whose `database_url` is assembled from them. `main.py` and the Alembic `env.py` both use it, so neither runs without Vault. Tests build `Settings(_env_file=None, db_user=..., db_password=...)` directly or pass a fake client to `load_settings`.
 
 ## Architecture: Hexagonal (Ports and Adapters)
 

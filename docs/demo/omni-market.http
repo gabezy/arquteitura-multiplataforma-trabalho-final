@@ -7,7 +7,8 @@
 @catalog = http://localhost:8082
 @kafkaUi = http://localhost:8090/api/clusters/omni-market
 @clientId = bff-gateway
-@clientSecret = bff-gateway-secret
+# O client secret é gerado pelo `make env`: copie o valor de BFF_CLIENT_SECRET do .env da raiz para cá.
+@clientSecret = COLE_AQUI_O_BFF_CLIENT_SECRET_DO_ENV
 
 ### Ato 1: token do admin (papéis admin e customer)
 # @name admin
