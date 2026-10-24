@@ -76,6 +76,24 @@ services:
       retries: 5
       start_period: 10s
 
+  billing-db:
+    image: postgres:18-alpine
+    container_name: billing-db
+    environment:
+      POSTGRES_DB: ${BILLING_DB_NAME:-billing}
+      POSTGRES_USER: ${BILLING_DB_USER:-billing}
+      POSTGRES_PASSWORD: ${BILLING_DB_PASSWORD:-billing}
+    ports:
+      - "5435:5432"
+    volumes:
+      - billing-db-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   kafka:
     image: apache/kafka:4.3.1
     container_name: kafka
@@ -249,6 +267,21 @@ services:
       kafka-init:
         condition: service_completed_successfully
 
+  billing-service:
+    build: ./billing-service
+    container_name: billing-service
+    environment:
+      DATABASE_URL: postgresql://${BILLING_DB_USER:-billing}:${BILLING_DB_PASSWORD:-billing}@billing-db:5432/${BILLING_DB_NAME:-billing}
+      KAFKA_BROKERS: kafka:19092
+      OTEL_COLLECTOR_URL: http://otel-collector:4318
+    ports:
+      - "8086:8086"
+    depends_on:
+      billing-db:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+
   bff-gateway:
     build: ./bff-gateway
     container_name: bff-gateway
@@ -272,6 +305,7 @@ volumes:
   catalog-db-data:
   compliance-db-data:
   order-db-data:
+  billing-db-data:
   kafka-data:
   grafana-data:
   loki-data:

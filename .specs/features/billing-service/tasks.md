@@ -308,9 +308,9 @@ T18 → T19 → T20 → T21 → T22 → T23
 
 **Done when**:
 
-- [ ] `docker compose up -d --build billing-db billing-service` brings both to healthy and `curl localhost:8086/health` answers `UP`
-- [ ] `docker buildx build --platform linux/amd64,linux/arm64 .` succeeds
-- [ ] Gate check passes: build gate
+- [x] `docker compose up -d --build billing-db billing-service` brings both to healthy and `curl localhost:8086/health` answers `UP`
+- [x] `docker buildx build --platform linux/amd64,linux/arm64 .` succeeds
+- [x] Gate check passes: build gate
 
 **Tests**: none
 **Gate**: build
