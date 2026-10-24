@@ -11,6 +11,7 @@ import {
     ListingDraft,
     MarketplacePort,
     PublishedListing,
+    StockUpdate,
 } from '../../core/marketplace/port/out/marketplace.port';
 import { MarketplaceHttp } from './marketplace-http.client';
 import { instantOf, MAX_PAGES, translateOrders, UntranslatableOrderError } from './order-translation';
@@ -43,6 +44,11 @@ const orderSchema = z.object({
 });
 
 const itemCreatedSchema = z.object({ item_id: z.number() });
+
+// Shopee answers a stock update with the models it changed and the ones it did not.
+const stockUpdatedSchema = z.object({
+    failure_list: z.array(z.object({ failed_reason: z.string().optional() })),
+});
 
 const orderListSchema = z.object({
     more: z.boolean(),
@@ -102,6 +108,24 @@ export class ShopeeMarketplace implements MarketplacePort {
         }
 
         return { externalListingId: String(created.data.item_id) };
+    }
+
+    // The catalog has one stock per SKU, so the listing has a single model, the 0 of an item without variations.
+    async updateStock({ externalListingId, stock }: StockUpdate): Promise<void> {
+        const { body } = await this.http.send({
+            method: 'POST',
+            path: '/api/v2/product/update_stock',
+            query: { shop_id: this.options.shopId },
+            body: { item_id: Number(externalListingId), stock_list: [{ model_id: 0, normal_stock: stock }] },
+        });
+
+        const updated = stockUpdatedSchema.safeParse(this.responseOf(body));
+        if (!updated.success) {
+            throw new MarketplaceRejectedError(`The stock was not updated: ${z.prettifyError(updated.error)}`, this.marketplace);
+        }
+        if (updated.data.failure_list.length > 0) {
+            throw new MarketplaceRejectedError(`The stock was refused: ${updated.data.failure_list[0].failed_reason ?? 'no reason given'}`, this.marketplace);
+        }
     }
 
     async fetchNewOrders(since: Date): Promise<CanonicalOrder[]> {

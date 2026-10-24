@@ -31,6 +31,14 @@ export interface PublishedListing {
     externalListingId: string;
 }
 
+export interface StockUpdate {
+    // The id the marketplace gave the listing, and the SKU, because Amazon addresses its listings by SKU.
+    externalListingId: string;
+    sku: string;
+    // The absolute stock to advertise, never a difference. Zero makes the listing unavailable.
+    stock: number;
+}
+
 export interface CancelOrderRequest {
     externalOrderId: string;
     reason?: string;
@@ -43,6 +51,9 @@ export interface MarketplacePort {
 
     // Lists the product. Asking again with the same draft must not list it twice.
     publishListing(draft: ListingDraft): Promise<PublishedListing>;
+
+    // Sets the stock of a published listing. Sending the same stock again changes nothing.
+    updateStock(update: StockUpdate): Promise<void>;
 
     // Paid orders not shipped yet, created since the given instant.
     fetchNewOrders(since: Date): Promise<CanonicalOrder[]>;

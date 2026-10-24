@@ -241,6 +241,69 @@ describe('AmazonMarketplace', () => {
     });
   });
 
+  describe('updateStock', () => {
+    const UPDATE = { externalListingId: 'B07T7C4QAF', sku: 'NB-001', stock: 1 };
+    const accepted = { status: 200, body: { sku: 'NB-001', status: 'ACCEPTED', submissionId: 's1', issues: [] } };
+
+    it('patches the availability of the listing by SKU, with the stock as the quantity', async () => {
+      send.mockResolvedValue(accepted);
+
+      await amazon.updateStock(UPDATE);
+
+      expect(send).toHaveBeenCalledTimes(1);
+      expect(send).toHaveBeenCalledWith({
+        method: 'PATCH',
+        path: '/listings/2021-08-01/items/A1B2C3D4E5/NB-001',
+        query: { marketplaceIds: MARKETPLACE_ID },
+        body: {
+          productType: 'PRODUCT',
+          patches: [{
+            op: 'replace',
+            path: '/attributes/fulfillment_availability',
+            value: [{ fulfillment_channel_code: 'DEFAULT', quantity: 1 }],
+          }],
+        },
+      });
+    });
+
+    it('sends a stock of zero as it is, to make the listing unavailable', async () => {
+      send.mockResolvedValue(accepted);
+
+      await amazon.updateStock({ ...UPDATE, stock: 0 });
+
+      expect(send.mock.calls[0][0].body.patches[0].value).toEqual([{ fulfillment_channel_code: 'DEFAULT', quantity: 0 }]);
+    });
+
+    it('escapes the SKU in the path', async () => {
+      send.mockResolvedValue(accepted);
+
+      await amazon.updateStock({ ...UPDATE, sku: 'A/B C' });
+
+      expect(send.mock.calls[0][0].path).toBe('/listings/2021-08-01/items/A1B2C3D4E5/A%2FB%20C');
+    });
+
+    it.each([
+      ['a change that was not accepted', { sku: 'NB-001', status: 'INVALID', issues: [] }],
+      ['an answer without the status', { sku: 'NB-001' }],
+      ['an answer that is not an object', 'lixo'],
+      ['an empty answer', null],
+    ])('refuses %s', async (_case, body) => {
+      send.mockResolvedValue({ status: 200, body });
+
+      const failure = await amazon.updateStock(UPDATE).catch((err: MarketplaceRejectedError) => err);
+
+      expect(failure).toBeInstanceOf(MarketplaceRejectedError);
+      expect((failure as Error).message).toContain('The stock was not accepted');
+    });
+
+    it('lets the failure of the call through', async () => {
+      const refusal = new MarketplaceRejectedError('HTTP 404: NotFound: listing not found', 'AMAZON');
+      send.mockRejectedValue(refusal);
+
+      await expect(amazon.updateStock(UPDATE)).rejects.toBe(refusal);
+    });
+  });
+
   describe('cancelOrder', () => {
     it('posts the cancellation of the order, with the reason', async () => {
       send.mockResolvedValue({ status: 200, body: {} });

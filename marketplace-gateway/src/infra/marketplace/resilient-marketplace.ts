@@ -12,6 +12,7 @@ import {
     ListingDraft,
     MarketplacePort,
     PublishedListing,
+    StockUpdate,
 } from '../../core/marketplace/port/out/marketplace.port';
 import { CircuitBreaker, CircuitBreakerOptions } from './circuit-breaker';
 
@@ -59,6 +60,10 @@ export class ResilientMarketplace implements MarketplacePort {
 
     publishListing(draft: ListingDraft): Promise<PublishedListing> {
         return this.execute('publishListing', () => this.inner.publishListing(draft));
+    }
+
+    updateStock(update: StockUpdate): Promise<void> {
+        return this.execute('updateStock', () => this.inner.updateStock(update));
     }
 
     fetchNewOrders(since: Date): Promise<CanonicalOrder[]> {

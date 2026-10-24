@@ -273,6 +273,76 @@ describe('ShopeeMarketplace', () => {
     });
   });
 
+  describe('updateStock', () => {
+    const UPDATE = { externalListingId: '412525791', sku: 'NB-001', stock: 1 };
+    const updated = (failures: unknown[] = []) => ({
+      status: 200,
+      body: { error: '', message: '', request_id: 'r1', response: { success_list: [{ model_id: 0, normal_stock: 1 }], failure_list: failures } },
+    });
+
+    it('updates the stock of the only model of the item, with the item id as a number', async () => {
+      send.mockResolvedValue(updated());
+
+      await shopee.updateStock(UPDATE);
+
+      expect(send).toHaveBeenCalledTimes(1);
+      expect(send).toHaveBeenCalledWith({
+        method: 'POST',
+        path: '/api/v2/product/update_stock',
+        query: { shop_id: SHOP_ID },
+        body: { item_id: 412525791, stock_list: [{ model_id: 0, normal_stock: 1 }] },
+      });
+    });
+
+    it('sends a stock of zero as it is, to make the item unavailable', async () => {
+      send.mockResolvedValue(updated());
+
+      await shopee.updateStock({ ...UPDATE, stock: 0 });
+
+      expect(send.mock.calls[0][0].body.stock_list).toEqual([{ model_id: 0, normal_stock: 0 }]);
+    });
+
+    it('treats the error inside the 200 as a refusal, with the code and the message of the marketplace', async () => {
+      send.mockResolvedValue({ status: 200, body: { error: 'error_item_not_found', message: 'Item not found', request_id: 'r1' } });
+
+      const failure = await shopee.updateStock(UPDATE).catch((err: MarketplaceRejectedError) => err);
+
+      expect(failure).toBeInstanceOf(MarketplaceRejectedError);
+      expect(failure).toMatchObject({ message: 'error_item_not_found: Item not found', marketplace: 'SHOPEE' });
+    });
+
+    it('treats a busy marketplace inside the 200 as unavailable', async () => {
+      send.mockResolvedValue({ status: 200, body: { error: 'error_busy', message: 'try later', request_id: 'r1' } });
+
+      await expect(shopee.updateStock(UPDATE)).rejects.toThrow(MarketplaceUnavailableError);
+    });
+
+    it('refuses an update that the marketplace lists as failed, with its reason', async () => {
+      send.mockResolvedValue(updated([{ model_id: 0, failed_reason: 'Item is deleted' }]));
+
+      const failure = await shopee.updateStock(UPDATE).catch((err: MarketplaceRejectedError) => err);
+
+      expect(failure).toBeInstanceOf(MarketplaceRejectedError);
+      expect(failure).toMatchObject({ message: 'The stock was refused: Item is deleted' });
+    });
+
+    it.each([
+      ['an answer without the list of failures', { error: '', message: '', response: {} }],
+      ['an answer without the envelope', { failure_list: [] }],
+    ])('refuses %s', async (_case, body) => {
+      send.mockResolvedValue({ status: 200, body });
+
+      await expect(shopee.updateStock(UPDATE)).rejects.toThrow(MarketplaceRejectedError);
+    });
+
+    it('lets the failure of the call through', async () => {
+      const outage = new MarketplaceUnavailableError('HTTP 503', 'SHOPEE');
+      send.mockRejectedValue(outage);
+
+      await expect(shopee.updateStock(UPDATE)).rejects.toBe(outage);
+    });
+  });
+
   describe('cancelOrder', () => {
     it('posts the cancellation of the order to the shop, with the reason', async () => {
       send.mockResolvedValue({ status: 200, body: { error: '', message: '', response: { update_time: 1 } } });

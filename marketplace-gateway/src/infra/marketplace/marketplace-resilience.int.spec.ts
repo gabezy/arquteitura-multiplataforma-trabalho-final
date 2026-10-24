@@ -16,6 +16,7 @@ const SINCE = new Date('2026-10-28T12:00:00.000Z');
 const logger = pino({ level: 'silent' });
 const DRAFT = { listingId: 'a3c1d5e2-7b4f-4c8a-9e10-2d3f4a5b6c7d', sku: 'NB-001', name: 'Notebook', description: 'Notebook 16GB RAM', price: 4500, stock: 2 };
 const COOLDOWN_MS = 300;
+const STOCK_UPDATE = { externalListingId: '412525791', sku: 'NB-001', stock: 1 };
 
 // The policy of the gateway (3 attempts, a circuit that opens at 3 failures in a row), with the waits cut short.
 const OPTIONS: ResilienceOptions = {
@@ -57,6 +58,12 @@ const PUBLISH_PATH: Record<SimulatedMarketplace, string> = {
   AMAZON: '/amazon/listings/2021-08-01/items/A1B2C3D4E5/NB-001',
   MERCADO_LIVRE: '/mercadolivre/items',
   SHOPEE: '/shopee/api/v2/product/add_item',
+};
+
+const STOCK_PATH: Record<SimulatedMarketplace, string> = {
+  AMAZON: '/amazon/listings/2021-08-01/items/A1B2C3D4E5/NB-001',
+  MERCADO_LIVRE: '/mercadolivre/items/412525791',
+  SHOPEE: '/shopee/api/v2/product/update_stock',
 };
 
 const CANCEL_PATH: Record<SimulatedMarketplace, string> = {
@@ -134,6 +141,25 @@ describe.each(['AMAZON', 'MERCADO_LIVRE', 'SHOPEE'] as const)('the resilience of
 
     expect(failure).toMatchObject({ message: 'HTTP 503', attempts: 3 });
     expect(await requestsTo(PUBLISH_PATH[marketplace])).toHaveLength(3);
+  });
+
+  it('updates the stock on the third attempt, sending the same stock every time (flaky)', async () => {
+    await simulateFailure(marketplace, 'flaky');
+
+    await expect(resilient(marketplace).updateStock(STOCK_UPDATE)).resolves.toBeUndefined();
+
+    const requests = await requestsTo(STOCK_PATH[marketplace]);
+    expect(requests).toHaveLength(3);
+    expect(new Set(requests.map(request => request.body)).size).toBe(1);
+  });
+
+  it('gives up updating the stock after 3 attempts when the marketplace is unavailable', async () => {
+    await simulateFailure(marketplace, 'unavailable');
+
+    const failure = await resilient(marketplace).updateStock(STOCK_UPDATE).catch((err: MarketplaceUnavailableError) => err);
+
+    expect(failure).toMatchObject({ message: 'HTTP 503', attempts: 3 });
+    expect(await requestsTo(STOCK_PATH[marketplace])).toHaveLength(3);
   });
 
   it('does not try again when the marketplace refuses the listing', async () => {

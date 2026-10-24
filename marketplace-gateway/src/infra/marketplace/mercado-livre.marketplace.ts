@@ -8,6 +8,7 @@ import {
     ListingDraft,
     MarketplacePort,
     PublishedListing,
+    StockUpdate,
 } from '../../core/marketplace/port/out/marketplace.port';
 import { MarketplaceHttp } from './marketplace-http.client';
 import { instantOf, MAX_PAGES, requireBrl, translateOrders, UntranslatableOrderError } from './order-translation';
@@ -92,6 +93,14 @@ export class MercadoLivreMarketplace implements MarketplacePort {
         }
 
         return { externalListingId: created.data.id };
+    }
+
+    async updateStock({ externalListingId, stock }: StockUpdate): Promise<void> {
+        await this.http.send({
+            method: 'PUT',
+            path: `/items/${encodeURIComponent(externalListingId)}`,
+            body: { available_quantity: stock },
+        });
     }
 
     async fetchNewOrders(since: Date): Promise<CanonicalOrder[]> {

@@ -1,5 +1,5 @@
 import pino from 'pino';
-import { MarketplaceRejectedError } from '../../core/marketplace/model/marketplace.errors';
+import { MarketplaceRejectedError, MarketplaceUnavailableError } from '../../core/marketplace/model/marketplace.errors';
 import { MarketplaceHttp } from './marketplace-http.client';
 import { describeMercadoLivreError, MercadoLivreMarketplace } from './mercado-livre.marketplace';
 
@@ -235,6 +235,43 @@ describe('MercadoLivreMarketplace', () => {
       send.mockRejectedValue(refusal);
 
       await expect(mercadoLivre.publishListing(DRAFT)).rejects.toBe(refusal);
+    });
+  });
+
+  describe('updateStock', () => {
+    const UPDATE = { externalListingId: 'MLB8685273650', sku: 'NB-001', stock: 1 };
+    const updated = { status: 200, body: { id: 'MLB8685273650', status: 'active', last_updated: '2026-10-28T13:05:02.000Z' } };
+
+    it('puts the available quantity on the item', async () => {
+      send.mockResolvedValue(updated);
+
+      await mercadoLivre.updateStock(UPDATE);
+
+      expect(send).toHaveBeenCalledTimes(1);
+      expect(send).toHaveBeenCalledWith({ method: 'PUT', path: '/items/MLB8685273650', body: { available_quantity: 1 } });
+    });
+
+    it('sends a stock of zero as it is, to make the item unavailable', async () => {
+      send.mockResolvedValue(updated);
+
+      await mercadoLivre.updateStock({ ...UPDATE, stock: 0 });
+
+      expect(send.mock.calls[0][0].body).toEqual({ available_quantity: 0 });
+    });
+
+    it('escapes the id in the path', async () => {
+      send.mockResolvedValue(updated);
+
+      await mercadoLivre.updateStock({ ...UPDATE, externalListingId: 'MLB 1/2' });
+
+      expect(send.mock.calls[0][0].path).toBe('/items/MLB%201%2F2');
+    });
+
+    it('lets the failure of the call through', async () => {
+      const outage = new MarketplaceUnavailableError('HTTP 503', 'MERCADO_LIVRE');
+      send.mockRejectedValue(outage);
+
+      await expect(mercadoLivre.updateStock(UPDATE)).rejects.toBe(outage);
     });
   });
 

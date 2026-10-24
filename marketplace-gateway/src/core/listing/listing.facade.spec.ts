@@ -50,6 +50,7 @@ class InMemoryListings implements ListingRepositoryPort {
 const portOf = (marketplace: Marketplace): jest.Mocked<MarketplacePort> => ({
     marketplace,
     publishListing: jest.fn(),
+    updateStock: jest.fn(),
     fetchNewOrders: jest.fn(),
     cancelOrder: jest.fn(),
 });
