@@ -1,0 +1,10 @@
+{
+  "id": "MLB{{randomValue length=10 type='NUMERIC'}}",
+  "title": "Anúncio simulado",
+  "seller_custom_field": "{{jsonPath request.body '$.seller_custom_field'}}",
+  "status": "active",
+  "currency_id": "BRL",
+  "price": {{jsonPath request.body '$.price'}},
+  "available_quantity": {{jsonPath request.body '$.available_quantity'}},
+  "permalink": "https://produto.mercadolivre.com.br/MLB-simulado"
+}

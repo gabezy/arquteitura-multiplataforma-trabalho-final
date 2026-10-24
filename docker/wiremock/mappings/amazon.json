@@ -1,0 +1,189 @@
+{
+  "mappings": [
+    {
+      "id": "aa000000-0000-4000-8000-000000000001",
+      "name": "amazon: modo UNAVAILABLE (503 em toda chamada)",
+      "priority": 1,
+      "scenarioName": "amazon-mode",
+      "requiredScenarioState": "UNAVAILABLE",
+      "request": { "urlPathPattern": "/amazon/.*" },
+      "response": {
+        "status": 503,
+        "headers": { "Content-Type": "application/json" },
+        "jsonBody": { "errors": [{ "code": "ServiceUnavailable", "message": "Simulated outage" }] }
+      }
+    },
+    {
+      "id": "aa000000-0000-4000-8000-000000000002",
+      "name": "amazon: modo THROTTLED (429 com Retry-After de 1 s)",
+      "priority": 1,
+      "scenarioName": "amazon-mode",
+      "requiredScenarioState": "THROTTLED",
+      "request": { "urlPathPattern": "/amazon/.*" },
+      "response": {
+        "status": 429,
+        "headers": { "Content-Type": "application/json", "Retry-After": "1" },
+        "jsonBody": { "errors": [{ "code": "QuotaExceeded", "message": "Simulated throttling" }] }
+      }
+    },
+    {
+      "id": "aa000000-0000-4000-8000-000000000003",
+      "name": "amazon: modo SLOW (responde 504 depois de 8 s, acima do timeout do gateway)",
+      "priority": 1,
+      "scenarioName": "amazon-mode",
+      "requiredScenarioState": "SLOW",
+      "request": { "urlPathPattern": "/amazon/.*" },
+      "response": {
+        "status": 504,
+        "fixedDelayMilliseconds": 8000,
+        "headers": { "Content-Type": "application/json" },
+        "jsonBody": { "errors": [{ "code": "GatewayTimeout", "message": "Simulated slow response" }] }
+      }
+    },
+    {
+      "id": "aa000000-0000-4000-8000-000000000004",
+      "name": "amazon: modo FLAKY, 1ª chamada falha (503) e passa para FLAKY_2",
+      "priority": 1,
+      "scenarioName": "amazon-mode",
+      "requiredScenarioState": "FLAKY_1",
+      "newScenarioState": "FLAKY_2",
+      "request": { "urlPathPattern": "/amazon/.*" },
+      "response": {
+        "status": 503,
+        "headers": { "Content-Type": "application/json" },
+        "jsonBody": { "errors": [{ "code": "ServiceUnavailable", "message": "Simulated intermittent failure" }] }
+      }
+    },
+    {
+      "id": "aa000000-0000-4000-8000-000000000005",
+      "name": "amazon: modo FLAKY, 2ª chamada falha (503) e volta ao normal (Started)",
+      "priority": 1,
+      "scenarioName": "amazon-mode",
+      "requiredScenarioState": "FLAKY_2",
+      "newScenarioState": "Started",
+      "request": { "urlPathPattern": "/amazon/.*" },
+      "response": {
+        "status": 503,
+        "headers": { "Content-Type": "application/json" },
+        "jsonBody": { "errors": [{ "code": "ServiceUnavailable", "message": "Simulated intermittent failure" }] }
+      }
+    },
+    {
+      "id": "aa000000-0000-4000-8000-000000000011",
+      "name": "amazon: recusa o anúncio com list_price menor ou igual a zero (400)",
+      "priority": 3,
+      "request": {
+        "method": "PUT",
+        "urlPathPattern": "/amazon/listings/2021-08-01/items/[^/]+/[^/]+",
+        "bodyPatterns": [{ "matchesJsonPath": "$.attributes.list_price[?(@.value <= 0)]" }]
+      },
+      "response": {
+        "status": 400,
+        "headers": { "Content-Type": "application/json" },
+        "jsonBody": { "errors": [{ "code": "InvalidInput", "message": "list_price must be greater than zero" }] }
+      }
+    },
+    {
+      "id": "aa000000-0000-4000-8000-000000000012",
+      "name": "amazon: recusa o cancelamento de pedido já enviado (id com SHIPPED, 409)",
+      "priority": 3,
+      "request": {
+        "method": "POST",
+        "urlPathPattern": "/amazon/orders/v0/orders/[^/]*SHIPPED[^/]*/cancellation"
+      },
+      "response": {
+        "status": 409,
+        "headers": { "Content-Type": "application/json" },
+        "jsonBody": { "errors": [{ "code": "InvalidInput", "message": "Order already shipped" }] }
+      }
+    },
+    {
+      "id": "aa000000-0000-4000-8000-000000000013",
+      "name": "amazon: pedido desconhecido no cancelamento (id com UNKNOWN, 404)",
+      "priority": 3,
+      "request": {
+        "method": "POST",
+        "urlPathPattern": "/amazon/orders/v0/orders/[^/]*UNKNOWN[^/]*/cancellation"
+      },
+      "response": {
+        "status": 404,
+        "headers": { "Content-Type": "application/json" },
+        "jsonBody": { "errors": [{ "code": "NotFound", "message": "Order not found" }] }
+      }
+    },
+    {
+      "id": "aa000000-0000-4000-8000-000000000021",
+      "name": "amazon: publica ou substitui o anúncio (PUT por SKU, idempotente)",
+      "priority": 5,
+      "request": {
+        "method": "PUT",
+        "urlPathPattern": "/amazon/listings/2021-08-01/items/[^/]+/[^/]+"
+      },
+      "response": {
+        "status": 200,
+        "headers": { "Content-Type": "application/json" },
+        "bodyFileName": "amazon/put-listing.json",
+        "transformers": ["response-template"]
+      }
+    },
+    {
+      "id": "aa000000-0000-4000-8000-000000000022",
+      "name": "amazon: atualiza estoque e preço do anúncio (PATCH em JSON Patch)",
+      "priority": 5,
+      "request": {
+        "method": "PATCH",
+        "urlPathPattern": "/amazon/listings/2021-08-01/items/[^/]+/[^/]+"
+      },
+      "response": {
+        "status": 200,
+        "headers": { "Content-Type": "application/json" },
+        "bodyFileName": "amazon/patch-listing.json",
+        "transformers": ["response-template"]
+      }
+    },
+    {
+      "id": "aa000000-0000-4000-8000-000000000023",
+      "name": "amazon: consulta o anúncio pelo SKU",
+      "priority": 5,
+      "request": {
+        "method": "GET",
+        "urlPathPattern": "/amazon/listings/2021-08-01/items/[^/]+/[^/]+"
+      },
+      "response": {
+        "status": 200,
+        "headers": { "Content-Type": "application/json" },
+        "bodyFileName": "amazon/get-listing.json",
+        "transformers": ["response-template"]
+      }
+    },
+    {
+      "id": "aa000000-0000-4000-8000-000000000024",
+      "name": "amazon: lista os pedidos novos (vazia; scripts/simulate-order.sh registra pedidos)",
+      "priority": 5,
+      "request": {
+        "method": "GET",
+        "urlPath": "/amazon/orders/v0/orders"
+      },
+      "response": {
+        "status": 200,
+        "headers": { "Content-Type": "application/json" },
+        "jsonBody": { "payload": { "Orders": [], "NextToken": null } }
+      }
+    },
+    {
+      "id": "aa000000-0000-4000-8000-000000000025",
+      "name": "amazon: cancela o pedido",
+      "priority": 5,
+      "request": {
+        "method": "POST",
+        "urlPathPattern": "/amazon/orders/v0/orders/[^/]+/cancellation"
+      },
+      "response": {
+        "status": 200,
+        "headers": { "Content-Type": "application/json" },
+        "bodyFileName": "amazon/cancel-order.json",
+        "transformers": ["response-template"]
+      }
+    }
+  ]
+}

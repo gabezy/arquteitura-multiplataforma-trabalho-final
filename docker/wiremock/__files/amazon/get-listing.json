@@ -1,0 +1,11 @@
+{
+  "sku": "{{request.pathSegments.[5]}}",
+  "summaries": [
+    {
+      "asin": "B0SIMULATED",
+      "itemName": "Anúncio simulado",
+      "status": ["BUYABLE"]
+    }
+  ],
+  "issues": []
+}
