@@ -3,10 +3,10 @@ COMPOSE := docker compose -f docker-compose.yaml
 APPS := bff-gateway catalog-service compliance-service order-service
 
 .DEFAULT_GOAL := help
-.PHONY: help up up-infra down clean restart ps logs topics
+.PHONY: help up up-infra down clean restart ps logs topics e2e
 
 help: ## lista os comandos disponíveis
-	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2}'
+	@grep -E '^[a-zA-Z0-9_-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2}'
 
 up: ## sobe tudo: infra, observabilidade, WireMock e aplicações (com build)
 	$(COMPOSE) up -d --build
@@ -30,3 +30,6 @@ logs: ## segue os logs (ex.: make logs s=kafka)
 
 topics: ## cria os tópicos novos do Kafka (create-topics.sh)
 	$(COMPOSE) up -d kafka-init
+
+e2e: ## roda o teste ponta a ponta (scripts/e2e-smoke.sh)
+	bash scripts/e2e-smoke.sh

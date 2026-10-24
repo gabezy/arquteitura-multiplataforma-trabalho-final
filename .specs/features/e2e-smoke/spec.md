@@ -156,7 +156,7 @@ The demo script (#27) proves the flow by hand, and nothing re-checks it when a s
 
 | Requirement ID | Story | Phase | Status |
 | --- | --- | --- | --- |
-| E2E-01 | P1 Run: `make e2e` runs the script | Execute | Pending |
+| E2E-01 | P1 Run: `make e2e` runs the script | Execute | Implementing |
 | E2E-02 | P1 Run: `docker compose up -d --build` | Execute | Implementing |
 | E2E-03 | P1 Run: `E2E_SKIP_UP=1` skips the up | Execute | Implementing |
 | E2E-04 | P1 Run: waits for the five apps healthy | Execute | Implementing |
@@ -177,8 +177,8 @@ The demo script (#27) proves the flow by hand, and nothing re-checks it when a s
 | E2E-19 | P1 Pending: exit 0 without strict | Execute | Implementing |
 | E2E-20 | P1 Pending: exit 1 with `E2E_STRICT=1` | Execute | Implementing |
 | E2E-21 | P1 Pending: summary line | Execute | Implementing |
-| E2E-22 | P2 Docs: README section | Execute | Pending |
-| E2E-23 | P2 Docs: `e2e` in `make help` | Execute | Pending |
+| E2E-22 | P2 Docs: README section | Execute | Implementing |
+| E2E-23 | P2 Docs: `e2e` in `make help` | Execute | Implementing |
 
 **Coverage:** 23 total, 23 mapped to Execute, 0 unmapped
 

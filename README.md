@@ -99,6 +99,23 @@ curl -s -H "Authorization: Bearer $TOKEN" -F file=@catalog-import.xlsx http://lo
 curl -s http://localhost:8082/products/sku/<sku>   # status da análise feita pelo compliance
 ```
 
+## Teste ponta a ponta
+
+`make e2e` (ou `bash scripts/e2e-smoke.sh`) sobe o ambiente e verifica o fluxo pelas APIs: autenticação no BFF, importação de uma planilha gerada na hora, resultado do compliance e reserva e devolução de estoque. Cada etapa imprime `[OK]`, `[FALHA]` ou `[PENDENTE]`, e uma falha encerra o teste com código 1 e o motivo.
+
+- Precisa só de `bash`, `curl` e Docker. A planilha é gerada num container Python descartável, com SKUs únicos por execução, então o teste pode rodar várias vezes no mesmo ambiente.
+- Não apaga containers, volumes nem dados.
+- As etapas de anúncio, pedido vindo do marketplace, confirmação do pedido e cobrança aparecem como `[PENDENTE]` até os serviços existirem (#20, #21, #22, #23).
+
+| Variável | Padrão | Efeito |
+| --- | --- | --- |
+| `E2E_SKIP_UP` | — | `1` não roda `docker compose up` (ambiente já no ar) |
+| `E2E_STRICT` | — | `1` faz as etapas pendentes falharem o teste (entrega final) |
+| `E2E_TIMEOUT` | `300` | segundos de espera até os serviços ficarem `healthy` |
+| `BFF_PORT` | `8080` | porta do BFF, a mesma variável do compose |
+
+`bash scripts/e2e-smoke.test.sh` testa o próprio teste: roda os cenários da spec (`.specs/features/e2e-smoke/spec.md`) contra o ambiente no ar, tirando um serviço por vez da rede do compose e restaurando no fim.
+
 ## Fluxo de eventos
 
 1. `catalog-service` cria o produto e publica `catalog.product.created.v1`.

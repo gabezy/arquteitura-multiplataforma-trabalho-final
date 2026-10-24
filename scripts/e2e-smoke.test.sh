@@ -37,6 +37,20 @@ restore() {
 }
 trap restore EXIT
 
+# make from the host, or from a throwaway container where make is missing (e.g. Git Bash).
+make_out() {
+  if command -v make > /dev/null; then
+    make "$@"
+  else
+    MSYS_NO_PATHCONV=1 docker run --rm -v "$(pwd -W 2> /dev/null || pwd):/w" -w /w alpine:3.20 \
+      sh -c "apk add -q make > /dev/null 2>&1; make $*"
+  fi
+}
+
+# E2E-01, E2E-23
+check "make e2e runs scripts/e2e-smoke.sh (E2E-01)" '[ "$(make_out -n e2e)" = "bash scripts/e2e-smoke.sh" ]'
+check "make help lists e2e (E2E-23)" 'make_out help | grep -q "e2e.*roda o teste ponta a ponta"'
+
 volumes_before=$(docker volume ls -q | sort)
 
 # E2E-02, E2E-04..E2E-08, E2E-11
