@@ -2,14 +2,31 @@ import { STATUS_CODES } from 'node:http';
 import { ErrorRequestHandler, Request, Response } from 'express';
 import { Logger } from 'pino';
 import { ConflictError, DomainError, NotFoundError, ValidationError } from '../../core/shared/domain/domain.error';
+import { RequestValidationError } from './validate';
 
+const BAD_REQUEST = 400;
+const UNPROCESSABLE_ENTITY = 422;
 const INTERNAL_SERVER_ERROR = 500;
 
 export function errorHandler(logger: Logger): ErrorRequestHandler {
   return (err, req, res, _next) => {
+    if (err instanceof RequestValidationError) {
+      logger.warn({ issues: err.issues, method: req.method, path: req.path }, err.message);
+      sendProblem(req, res, UNPROCESSABLE_ENTITY, err.message, { errors: err.issues });
+      return;
+    }
+
     if (err instanceof DomainError) {
       logger.warn({ err, method: req.method, path: req.path }, err.message);
       sendProblem(req, res, statusOf(err), err.message);
+      return;
+    }
+
+    // A '%' that does not start an escape sequence in the path: Express fails with a URIError that carries
+    // the status 400 but is not marked safe to show, because its message quotes the request.
+    if (err instanceof URIError) {
+      logger.warn({ status: BAD_REQUEST, errType: err.name, method: req.method, path: req.path }, 'Client error');
+      sendProblem(req, res, BAD_REQUEST, 'The request URL is malformed.');
       return;
     }
 
@@ -48,12 +65,19 @@ function clientErrorStatusOf(err: unknown): number | undefined {
   return undefined;
 }
 
-function sendProblem(req: Request, res: Response, status: number, detail?: string): void {
+function sendProblem(
+  req: Request,
+  res: Response,
+  status: number,
+  detail?: string,
+  extensions: Record<string, unknown> = {},
+): void {
   res.status(status).type('application/problem+json').json({
     type: 'about:blank',
     title: STATUS_CODES[status],
     status,
     detail,
     instance: req.originalUrl,
+    ...extensions,
   });
 }

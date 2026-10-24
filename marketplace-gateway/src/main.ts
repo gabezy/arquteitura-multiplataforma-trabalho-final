@@ -6,6 +6,7 @@ import { createDatabaseProbe } from './infra/persistence/database-probe';
 import { configureKafka } from './infra/messaging/kafka.config';
 import { OutboxRelay } from './infra/messaging/outbox-relay';
 import { createMarketplaceRegistry } from './infra/marketplace/marketplaces.factory';
+import { createListingModule } from './infra/listing.factory';
 import { createOrderModule } from './infra/order.factory';
 
 const RELAY_INTERVAL_MS = 1000;
@@ -14,11 +15,25 @@ async function start(): Promise<void> {
   const config = loadConfig();
   const logger = createLogger(config.logLevel);
   const db = createDatabaseConnection(config.databaseUrl, logger);
-  const { producer, orderCancelledConsumer: orderCancelledKafkaConsumer } = configureKafka(config.kafkaBrokers);
+  const {
+    producer,
+    catalogProductConsumer: catalogProductKafkaConsumer,
+    orderCancelledConsumer: orderCancelledKafkaConsumer,
+  } = configureKafka(config.kafkaBrokers);
   const relay = new OutboxRelay(db, producer);
+  const marketplaces = createMarketplaceRegistry(config.marketplaces, logger);
+  const { listingController, catalogProductConsumer } = createListingModule({
+    db,
+    marketplaces,
+    catalog: { baseUrl: config.catalog.serviceUrl, timeoutMs: config.catalog.timeoutMs },
+    producer,
+    catalogProductKafkaConsumer,
+    catalogProductTopics: { approvedTopic: config.catalogProductApprovedTopic, deadLetterTopic: config.catalogProductDeadLetterTopic },
+    logger,
+  });
   const { orderPollers, orderCancelledConsumer } = createOrderModule({
     db,
-    marketplaces: createMarketplaceRegistry(config.marketplaces, logger),
+    marketplaces,
     producer,
     orderCancelledKafkaConsumer,
     orderCancelledTopics: { topic: config.orderCancelledTopic, deadLetterTopic: config.orderCancelledDeadLetterTopic },
@@ -27,6 +42,7 @@ async function start(): Promise<void> {
   });
 
   await producer.connect();
+  await catalogProductConsumer.start();
   await orderCancelledConsumer.start();
 
   relay.start({
@@ -35,13 +51,14 @@ async function start(): Promise<void> {
   });
   orderPollers.start();
 
-  const server = createApp({ logger, checkDatabase: createDatabaseProbe(db) }).listen(config.port, () => {
+  const server = createApp({ logger, checkDatabase: createDatabaseProbe(db), listingController }).listen(config.port, () => {
     logger.info({ port: config.port }, `${config.serviceName} listening`);
   });
 
   const shutdown = async (signal: string): Promise<void> => {
     logger.info({ signal }, `${config.serviceName} shutting down`);
     server.close();
+    await catalogProductKafkaConsumer.disconnect();
     await orderCancelledKafkaConsumer.disconnect();
     await orderPollers.stop();
     await relay.stop();

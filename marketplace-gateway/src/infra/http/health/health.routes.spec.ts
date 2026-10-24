@@ -1,6 +1,7 @@
 import pino from 'pino';
 import request from 'supertest';
 import { createApp } from '../app';
+import { ListingController } from '../listing/listing.controller';
 
 interface LogLine {
   level: number;
@@ -12,7 +13,8 @@ describe('GET /health', () => {
   const lines: LogLine[] = [];
   const logger = pino({ level: 'info' }, { write: (line: string) => lines.push(JSON.parse(line)) });
   const checkDatabase = jest.fn<Promise<void>, []>();
-  const app = createApp({ logger, checkDatabase });
+  const listingController = new ListingController({ find: jest.fn(), findById: jest.fn() });
+  const app = createApp({ logger, checkDatabase, listingController });
 
   beforeEach(() => {
     lines.length = 0;
