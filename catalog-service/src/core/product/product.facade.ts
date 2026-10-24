@@ -3,13 +3,14 @@ import { Quantity } from "../shared/domain/quantity.vo";
 import { ProductEntity } from "./model/product.entity";
 import { DuplicateSkuError, ProductNotFoundError } from "./model/product.errors";
 import { Sku } from "./model/sku.vo";
+import { ChangePricePort, ChangePricePortInput } from "./port/in/change-price.port";
 import { CompleteProductAnalysisPort, CompleteProductAnalysisPortInput } from "./port/in/complete-product-analysis.port";
 import { AddProductPort, AddProductPortInput, AddProductPortOutput } from "./port/in/create-product.port";
 import { FindProductPort, FindProductPortInput, ProductOutput } from "./port/in/find-product.port";
 import { ImportProduct, ImportProductsPort, ImportProductsPortInput } from "./port/in/import-products.port";
 import { ProductRepositoryPort } from "./port/out/product.repository";
 
-export class ProductFacade implements FindProductPort, ImportProductsPort, AddProductPort, CompleteProductAnalysisPort {
+export class ProductFacade implements FindProductPort, ImportProductsPort, AddProductPort, CompleteProductAnalysisPort, ChangePricePort {
 
     constructor(private readonly productRepository: ProductRepositoryPort) {}
 
@@ -85,6 +86,18 @@ export class ProductFacade implements FindProductPort, ImportProductsPort, AddPr
         if (taken.length > 0) {
             throw new DuplicateSkuError(taken.map(sku => sku.value));
         }
+    }
+
+    async changePrice(input: ChangePricePortInput): Promise<void> {
+        const product = await this.productRepository.findBySku(new Sku(input.sku));
+
+        if (!product) {
+            throw new ProductNotFoundError(input.sku);
+        }
+
+        product.changePrice(new Price(input.price));
+
+        await this.productRepository.save(product);
     }
 
     async completeAnalysis(input: CompleteProductAnalysisPortInput): Promise<void> {

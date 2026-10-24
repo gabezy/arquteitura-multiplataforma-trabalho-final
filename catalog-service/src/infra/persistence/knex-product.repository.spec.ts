@@ -128,6 +128,57 @@ describe("KnexProductRepository", () => {
     });
   });
 
+  describe("price", () => {
+    it("updates the price and writes the price-changed event to the outbox", async () => {
+      const product = newProduct({ price: new Price(4500) });
+      await repository.save(product);
+
+      product.changePrice(new Price(4999.9));
+      await repository.save(product);
+
+      expect((await repository.findBySku(product.sku))?.price.value).toBe(4999.9);
+      const rows = await db("outbox").where({ event_type: "catalog.product.price-changed.v1" });
+      expect(rows).toHaveLength(1);
+      expect(JSON.parse(rows[0].payload)).toEqual({
+        productId: product.id.value,
+        sku: product.sku.value,
+        price: 4999.9,
+      });
+    });
+
+    it("writes no price event when the price does not change", async () => {
+      const product = newProduct({ price: new Price(4500) });
+      await repository.save(product);
+
+      product.changePrice(new Price(4500));
+      await repository.save(product);
+
+      expect(await db("outbox").where({ event_type: "catalog.product.price-changed.v1" }).count({ total: "*" }).first()).toEqual({ total: 0 });
+      expect((await repository.findBySku(product.sku))?.price.value).toBe(4500);
+    });
+
+    it("does not change the price when the outbox write fails", async () => {
+      const product = newProduct({ price: new Price(4500) });
+      await repository.save(product);
+      product.changePrice(new Price(4999.9));
+
+      await db.raw(`
+        CREATE TRIGGER reject_price_outbox BEFORE INSERT ON outbox
+        WHEN NEW.event_type = 'catalog.product.price-changed.v1'
+        BEGIN SELECT RAISE(ABORT, 'broken outbox'); END
+      `);
+
+      try {
+        await expect(repository.save(product)).rejects.toThrow();
+      } finally {
+        await db.raw("DROP TRIGGER reject_price_outbox");
+      }
+
+      expect((await repository.findBySku(product.sku))?.price.value).toBe(4500);
+      expect(await db("outbox").where({ event_type: "catalog.product.price-changed.v1" }).count({ total: "*" }).first()).toEqual({ total: 0 });
+    });
+  });
+
   describe("saveAll", () => {
     it("persists every product", async () => {
       const notebook = newProduct();
