@@ -37,10 +37,10 @@ describe('migrations', () => {
     await testDatabase?.destroy();
   });
 
-  it('creates the outbox and processed_events tables, then applies nothing on a second run', async () => {
+  it('creates the tables of the service, then applies nothing on a second run', async () => {
     const first = capturingLogger();
     expect(await runMigrations(db, first.logger)).toBe(true);
-    expect(first.lines.map(line => line.msg)).toEqual(['Applied 2 migration(s)']);
+    expect(first.lines.map(line => line.msg)).toEqual(['Applied 4 migration(s)']);
 
     expect(await columnsOf(db, 'outbox')).toEqual([
       { column_name: 'sequence', data_type: 'bigint', is_nullable: 'NO', column_default: expect.stringContaining('nextval') },
@@ -65,12 +65,33 @@ describe('migrations', () => {
     );
     expect(primaryKey.rows).toEqual([{ attname: 'event_id' }]);
 
+    expect(await columnsOf(db, 'marketplace_orders')).toEqual([
+      { column_name: 'marketplace', data_type: 'text', is_nullable: 'NO', column_default: null },
+      { column_name: 'external_order_id', data_type: 'text', is_nullable: 'NO', column_default: null },
+      { column_name: 'items', data_type: 'jsonb', is_nullable: 'NO', column_default: null },
+      { column_name: 'total', data_type: 'numeric', is_nullable: 'NO', column_default: null },
+      { column_name: 'ordered_at', data_type: 'timestamp with time zone', is_nullable: 'NO', column_default: null },
+      { column_name: 'received_at', data_type: 'timestamp with time zone', is_nullable: 'NO', column_default: 'now()' },
+    ]);
+    const orderKey = await db.raw(
+      `select a.attname from pg_index i
+         join pg_attribute a on a.attrelid = i.indrelid and a.attnum = any(i.indkey)
+        where i.indrelid = 'marketplace_orders'::regclass and i.indisprimary`,
+    );
+    expect(orderKey.rows.map((row: { attname: string }) => row.attname).sort()).toEqual(['external_order_id', 'marketplace']);
+    expect(await columnsOf(db, 'order_cursors')).toEqual([
+      { column_name: 'marketplace', data_type: 'text', is_nullable: 'NO', column_default: null },
+      { column_name: 'last_polled_at', data_type: 'timestamp with time zone', is_nullable: 'NO', column_default: null },
+    ]);
+
     const second = capturingLogger();
     expect(await runMigrations(db, second.logger)).toBe(true);
     expect(second.lines.map(line => line.msg)).toEqual(['Database already up to date']);
     expect(await db('knex_migrations').pluck('name')).toEqual([
       '20261024120000_create_outbox_table',
       '20261024120100_create_processed_events_table',
+      '20261024130000_create_marketplace_orders_table',
+      '20261024130100_create_order_cursors_table',
     ]);
   });
 
