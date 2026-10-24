@@ -9,10 +9,10 @@ O catalog-service grava o preço só na criação do produto. Sem alterar o pre�
 
 ## Goals
 
-- [ ] Alterar o preço de um produto existente por uma rota do catalog-service.
-- [ ] Publicar `catalog.product.price-changed.v1` na mesma transação que grava o preço.
-- [ ] Repetir o preço vigente sem alterar o produto nem publicar evento.
-- [ ] Entregar ao marketplace-gateway `productId`, `sku` e o preço absoluto, sem consulta ao catalog.
+- [x] Alterar o preço de um produto existente por uma rota do catalog-service.
+- [x] Publicar `catalog.product.price-changed.v1` na mesma transação que grava o preço.
+- [x] Repetir o preço vigente sem alterar o produto nem publicar evento.
+- [x] Entregar ao marketplace-gateway `productId`, `sku` e o preço absoluto, sem consulta ao catalog.
 
 ## Out of Scope
 
@@ -100,21 +100,21 @@ Caminhos relativos a `catalog-service/src/`. `infra/persistence/knex-product.rep
 
 | Requirement ID | Story | Phase | Status | Evidência |
 | --- | --- | --- | --- | --- |
-| CATPRC-01 | P1: Alterar o preço | - | Implementing | `core/product/product.facade.spec.ts`, `infra/http/app.spec.ts` |
-| CATPRC-02 | P1: Alterar o preço | - | Implementing | `core/product/product.facade.spec.ts`, `infra/persistence/knex-product.repository.spec.ts` |
-| CATPRC-03 | P1: Alterar o preço | - | Implementing | `core/product/model/product.entity.spec.ts`, `infra/persistence/knex-product.repository.spec.ts` |
-| CATPRC-04 | P1: Alterar o preço | - | Implementing | `infra/persistence/knex-product.repository.spec.ts` |
-| CATPRC-05 | P1: Alterar o preço | - | Implementing | `core/product/product.facade.spec.ts`, `infra/http/app.spec.ts` |
-| CATPRC-06 | P1: Alterar o preço | - | Implementing | `core/shared/domain/price.vo.spec.ts`, `core/product/product.facade.spec.ts`, `infra/http/app.spec.ts` |
-| CATPRC-07 | P1: Alterar o preço | - | Implementing | `core/product/model/product.entity.spec.ts`, `core/product/product.facade.spec.ts` |
-| CATPRC-08 | P1: Alterar o preço | - | Implementing | `core/product/model/product.entity.spec.ts`, `infra/persistence/knex-product.repository.spec.ts` |
-| CATPRC-09 | P1: Publicar o contrato | - | Implementing | `infra/messaging/product.integration-events.spec.ts` |
-| CATPRC-10 | P1: Publicar o contrato | - | Implementing | `infra/messaging/product.integration-events.spec.ts` |
-| CATPRC-11 | P1: Publicar o contrato | - | Implementing | `docker/kafka/create-topics.sh` |
-| CATPRC-12 | P1: Publicar o contrato | - | Implementing | `docs/eventos.md` |
-| CATPRC-13 | Edge case: corpo sem preço | - | Implementing | `infra/http/app.spec.ts` |
-| CATPRC-14 | Edge case: campos extras | - | Implementing | `infra/http/app.spec.ts` |
-| CATPRC-15 | Edge case: caixa do SKU | - | Implementing | `core/product/product.facade.spec.ts` |
+| CATPRC-01 | P1: Alterar o preço | - | Verified | `core/product/product.facade.spec.ts`, `infra/http/app.spec.ts` |
+| CATPRC-02 | P1: Alterar o preço | - | Verified | `core/product/product.facade.spec.ts`, `infra/persistence/knex-product.repository.spec.ts` |
+| CATPRC-03 | P1: Alterar o preço | - | Verified | `core/product/model/product.entity.spec.ts`, `infra/persistence/knex-product.repository.spec.ts` |
+| CATPRC-04 | P1: Alterar o preço | - | Verified | `infra/persistence/knex-product.repository.spec.ts` |
+| CATPRC-05 | P1: Alterar o preço | - | Verified | `core/product/product.facade.spec.ts`, `infra/http/app.spec.ts` |
+| CATPRC-06 | P1: Alterar o preço | - | Verified | `core/shared/domain/price.vo.spec.ts`, `core/product/product.facade.spec.ts`, `infra/http/app.spec.ts` |
+| CATPRC-07 | P1: Alterar o preço | - | Verified | `core/product/model/product.entity.spec.ts`, `core/product/product.facade.spec.ts` |
+| CATPRC-08 | P1: Alterar o preço | - | Verified | `core/product/model/product.entity.spec.ts`, `infra/persistence/knex-product.repository.spec.ts` |
+| CATPRC-09 | P1: Publicar o contrato | - | Verified | `infra/messaging/product.integration-events.spec.ts` |
+| CATPRC-10 | P1: Publicar o contrato | - | Verified | `infra/messaging/product.integration-events.spec.ts` |
+| CATPRC-11 | P1: Publicar o contrato | - | Verified | `docker/kafka/create-topics.sh` |
+| CATPRC-12 | P1: Publicar o contrato | - | Verified | `docs/eventos.md` |
+| CATPRC-13 | Edge case: corpo sem preço | - | Verified | `infra/http/app.spec.ts` |
+| CATPRC-14 | Edge case: campos extras | - | Verified | `infra/http/app.spec.ts` |
+| CATPRC-15 | Edge case: caixa do SKU | - | Verified | `core/product/product.facade.spec.ts` |
 
 **Coverage:** 15 total, 15 mapped to tests, 0 unmapped.
 
@@ -122,6 +122,6 @@ Caminhos relativos a `catalog-service/src/`. `infra/persistence/knex-product.rep
 
 ## Success Criteria
 
-- [ ] Um `PATCH` muda o preço da consulta e gera um `catalog.product.price-changed.v1` no Kafka.
-- [ ] Repetir o mesmo preço, ou enviar um preço inválido, não gera evento.
+- [x] Um `PATCH` muda o preço da consulta e gera um `catalog.product.price-changed.v1` no Kafka.
+- [x] Repetir o mesmo preço, ou enviar um preço inválido, não gera evento.
 - [ ] `npm test` e `npm run typecheck` passam, e o workflow `catalog-service` fica verde no PR.
