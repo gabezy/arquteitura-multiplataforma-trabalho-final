@@ -32,6 +32,14 @@ spring:
 catalog-service:
     url: ${CATALOG_SERVICE_URL:http://localhost:8082}
 
+order-service:
+  url: ${ORDER_SERVICE_URL:http://order-service:8084}
+
+app:
+  gateways:
+    # mock | rest. Env var: APP_GATEWAYS_<DOMAIN>, e.g. APP_GATEWAYS_ORDER=mock
+    order: rest
+
 management:
   tracing:
     sampling:

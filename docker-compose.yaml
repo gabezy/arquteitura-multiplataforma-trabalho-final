@@ -379,6 +379,7 @@ services:
       VAULT_ROLE_ID: ${BFF_VAULT_ROLE_ID:?run make env}
       VAULT_SECRET_ID: ${BFF_VAULT_SECRET_ID:?run make env}
       OTEL_COLLECTOR_URL: http://otel-collector:4318
+      ORDER_SERVICE_URL: http://order-service:8084
     ports:
       - "${BFF_PORT:-8080}:8080"
     depends_on:
