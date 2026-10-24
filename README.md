@@ -87,6 +87,19 @@ curl -s -X POST http://localhost:8085/realms/omni-market/protocol/openid-connect
   -d username=admin -d password=admin
 ```
 
+Clients do realm:
+
+| Client | Tipo | Uso |
+| --- | --- | --- |
+| `bff-gateway` | confidencial (secret `BFF_CLIENT_SECRET`) | backend e testes com `curl` (password grant, authorization code) |
+| `omni-market-web` | público, sem secret | front-end (SPA): authorization code com PKCE S256, redirect `http://localhost:4200/*` |
+
+Authorization code pelo `omni-market-web` (Insomnia/Postman: OAuth 2.0, "Authorization Code" com PKCE `SHA-256`, sem client secret):
+
+- Authorization URL: `http://localhost:8085/realms/omni-market/protocol/openid-connect/auth`
+- Token URL: `http://localhost:8085/realms/omni-market/protocol/openid-connect/token`
+- Redirect URL: `http://localhost:4200/callback` (qualquer caminho em `localhost:4200`)
+
 O realm é importado durante a inicialização do Keycloak. Para reaplicar alterações, consulte as instruções de reinicialização do caminho escolhido: [`kind`](docs/kubernetes-kind.md) ou [Docker Compose opcional](#alternativa-opcional-docker-compose).
 
 O roteiro completo da demo, com coleção de requisições e planilha de exemplo, está em [`docs/demo/`](docs/demo/README.md). Fluxo mínimo pelo BFF (usa `jq`):
