@@ -96,7 +96,7 @@ Se uma porta do host já estiver ocupada por outro projeto, troque pelas variáv
 BFF_PORT=8081 GRAFANA_PORT=3001 make up
 ```
 
-Fluxo ponta a ponta pelo BFF (usa `jq`):
+O roteiro completo da demo, com coleção de requisições e planilha de exemplo, está em [`docs/demo/`](docs/demo/README.md). Fluxo mínimo pelo BFF (usa `jq`):
 
 ```bash
 set -a; . ./.env; set +a
@@ -128,6 +128,7 @@ Os eventos usam CloudEvents (binary mode), e cada consumidor tem a sua DLQ. Todo
 ## Documentação
 
 - `docs/adr/` — decisões de arquitetura
+- `docs/demo/` — roteiro da demo ponta a ponta
 - `docs/eventos.md` — catálogo de eventos e contratos entre os serviços
 - `docs/superpowers/specs/` — especificações de design
 
