@@ -19,7 +19,7 @@ export interface ReceiveOrderProps {
     orderedAt: Date;
 }
 
-interface OrderProps {
+export interface OrderProps {
     marketplace: Marketplace;
     externalOrderId: string;
     status: OrderStatus;
@@ -72,6 +72,11 @@ export class Order extends AggregateRoot<Id> {
         order.record(new OrderPlaced(order.id.value, order.marketplace, order.externalOrderId, order.items));
 
         return order;
+    }
+
+    // Rebuilds a stored order; records no event.
+    static restore(id: string, props: OrderProps): Order {
+        return new Order(new Id(id), props);
     }
 
     get status(): OrderStatus {

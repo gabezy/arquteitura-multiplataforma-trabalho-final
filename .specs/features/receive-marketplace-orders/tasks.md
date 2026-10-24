@@ -192,19 +192,21 @@ T7 → T8
 
 **Done when**:
 
-- [ ] `findById` returns the order with all fields and items in line order; an unknown id returns `null`
-- [ ] `list` with no filter returns newest first, with `id` descending as tiebreaker for equal `created_at`
-- [ ] Filter by `marketplace`, by `status` and by both returns only matching orders
-- [ ] `limit` and `offset` page through the result; an offset past the end returns an empty list
-- [ ] Gate check passes: `cd order-service && npm run typecheck && npm test`
-- [ ] Test count: at least 6 new tests pass
+- [x] `findById` returns the order with all fields and items in line order; an unknown id returns `null`
+- [x] `list` with no filter returns newest first, with `id` descending as tiebreaker for equal `created_at`
+- [x] Filter by `marketplace`, by `status` and by both returns only matching orders
+- [x] `limit` and `offset` page through the result; an offset past the end returns an empty list
+- [x] Gate check passes: `cd order-service && npm run typecheck && npm test`
+- [x] Test count: 7 new tests pass (`knex-order.repository.spec.ts`); 122 in total
 
 **Tests**: integration
 **Gate**: full
 
 **Commit**: `feat(order): adiciona a consulta de pedidos no repositório`
 
-**Status**: Pending
+**Status**: ✅ Complete
+
+**Deviations**: adds `Order.restore` to `core/order/model/order.entity.ts`, which the read side needs to rebuild an order without recording an event (covered by `knex-order.repository.spec.ts`, `findById` returns no domain events).
 
 ---
 

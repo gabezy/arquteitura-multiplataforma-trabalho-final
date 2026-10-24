@@ -199,10 +199,10 @@ The marketplace-gateway (#22) already polls the marketplaces and publishes `mark
 | ORDER-15 | P1: DLQ (AC 4) | T5 | In Tasks |
 | ORDER-16 | P1: DLQ (AC 5) | T5 | In Tasks |
 | ORDER-17 | P1: DLQ (AC 6) | T5 | In Tasks |
-| ORDER-18 | P1: API (AC 1) | T4, T6 | In Tasks |
+| ORDER-18 | P1: API (AC 1) | T4, T6 | Implementing |
 | ORDER-19 | P1: API (AC 2) | T6 | In Tasks |
-| ORDER-20 | P1: API (AC 3) | T4, T6 | In Tasks |
-| ORDER-21 | P1: API (AC 4) | T4, T6 | In Tasks |
+| ORDER-20 | P1: API (AC 3) | T4, T6 | Implementing |
+| ORDER-21 | P1: API (AC 4) | T4, T6 | Implementing |
 | ORDER-22 | P1: API (AC 5) | T6 | In Tasks |
 | ORDER-23 | P1: API (AC 6) | T2, T4, T6 | Implementing |
 | ORDER-24 | P1: API (AC 7) | T6 | In Tasks |

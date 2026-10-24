@@ -144,4 +144,92 @@ describe('KnexOrderRepository', () => {
       expect(await count(db, 'outbox')).toBe(0);
     });
   });
+
+  describe('findById', () => {
+    it('returns the stored order with all its fields and its items in line order', async () => {
+      const order = receive();
+      await repository.saveReceived(order);
+
+      const found = await repository.findById(order.id.value);
+
+      expect(found).not.toBeNull();
+      expect(found!.id.value).toBe(order.id.value);
+      expect(found!.marketplace).toBe('AMAZON');
+      expect(found!.externalOrderId).toBe('AMZ-1000002');
+      expect(found!.status).toBe('RECEIVED');
+      expect(found!.cancellationReason).toBeNull();
+      expect(found!.total.toReais()).toBe(18689.9);
+      expect(found!.orderedAt).toEqual(ORDERED_AT);
+      expect(found!.createdAt).toEqual(order.createdAt);
+      expect(found!.updatedAt).toEqual(order.updatedAt);
+      expect(found!.items.map(({ sku, quantity, unitPrice }) => ({ sku, quantity, unitPrice: unitPrice.toReais() }))).toEqual([
+        { sku: 'OXI-001', quantity: 1, unitPrice: 189.9 },
+        { sku: 'MON-002', quantity: 1, unitPrice: 18500 },
+        { sku: 'BRINDE-01', quantity: 1, unitPrice: 0 },
+      ]);
+      expect(found!.pullDomainEvents()).toEqual([]);
+    });
+
+    it('returns null for an unknown id', async () => {
+      expect(await repository.findById('6f1c2b8e-0000-4000-8000-000000000009')).toBeNull();
+    });
+  });
+
+  describe('list', () => {
+    const at = (iso: string) => new Date(iso);
+
+    // Stored through SQL so created_at and the ids are fixed: AMAZON/RECEIVED at 10h, SHOPEE/CANCELLED at 11h
+    // and two at 12h (MERCADO_LIVRE/RECEIVED with id ...0a, AMAZON/PAID with id ...0b).
+    beforeEach(async () => {
+      const row = (id: string, marketplace: string, status: string, createdAt: string) => ({
+        id: `6f1c2b8e-0000-4000-8000-0000000000${id}`,
+        marketplace,
+        external_order_id: `EXT-${id}`,
+        status,
+        total: 10,
+        cancellation_reason: status === 'CANCELLED' ? 'OUT_OF_STOCK' : null,
+        ordered_at: at(createdAt),
+        created_at: at(createdAt),
+        updated_at: at(createdAt),
+      });
+      const orders = [
+        row('01', 'AMAZON', 'RECEIVED', '2026-10-28T10:00:00Z'),
+        row('02', 'SHOPEE', 'CANCELLED', '2026-10-28T11:00:00Z'),
+        row('0a', 'MERCADO_LIVRE', 'RECEIVED', '2026-10-28T12:00:00Z'),
+        row('0b', 'AMAZON', 'PAID', '2026-10-28T12:00:00Z'),
+      ];
+      await db('orders').insert(orders);
+      await db('order_items').insert(orders.map(({ id }) => ({ order_id: id, line: 1, sku: 'NB-001', quantity: 1, unit_price: 10 })));
+    });
+
+    const ids = (orders: Order[]) => orders.map(order => order.id.value.slice(-2));
+
+    it('returns the newest first, with the id descending for the same creation time', async () => {
+      expect(ids(await repository.list({}, { limit: 20, offset: 0 }))).toEqual(['0b', '0a', '02', '01']);
+    });
+
+    it('returns only the orders of the marketplace, of the status, or of both', async () => {
+      expect(ids(await repository.list({ marketplace: 'AMAZON' }, { limit: 20, offset: 0 }))).toEqual(['0b', '01']);
+      expect(ids(await repository.list({ status: 'RECEIVED' }, { limit: 20, offset: 0 }))).toEqual(['0a', '01']);
+      expect(ids(await repository.list({ marketplace: 'AMAZON', status: 'PAID' }, { limit: 20, offset: 0 }))).toEqual(['0b']);
+    });
+
+    it('reads the cancellation reason and the items of each order', async () => {
+      const [cancelled] = await repository.list({ status: 'CANCELLED' }, { limit: 20, offset: 0 });
+
+      expect(cancelled.cancellationReason).toBe('OUT_OF_STOCK');
+      expect(cancelled.items.map(({ sku, quantity, unitPrice }) => ({ sku, quantity, unitPrice: unitPrice.toReais() }))).toEqual([
+        { sku: 'NB-001', quantity: 1, unitPrice: 10 },
+      ]);
+    });
+
+    it('pages through the orders with limit and offset', async () => {
+      expect(ids(await repository.list({}, { limit: 2, offset: 0 }))).toEqual(['0b', '0a']);
+      expect(ids(await repository.list({}, { limit: 2, offset: 2 }))).toEqual(['02', '01']);
+    });
+
+    it('returns an empty list for an offset past the last order', async () => {
+      expect(await repository.list({}, { limit: 20, offset: 4 })).toEqual([]);
+    });
+  });
 });
