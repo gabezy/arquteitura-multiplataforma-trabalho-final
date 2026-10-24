@@ -360,9 +360,9 @@ T18 → T19 → T20 → T21 → T22 → T23
 
 **Done when**:
 
-- [ ] Commands, environment variables, architecture and testing rules documented
-- [ ] `diff .specs/features/billing-service/spec.md docs/specs/billing-service/spec.md` is empty
-- [ ] Gate check passes: docs gate
+- [x] Commands, environment variables, architecture and testing rules documented
+- [x] `diff .specs/features/billing-service/spec.md docs/specs/billing-service/spec.md` is empty
+- [x] Gate check passes: docs gate
 
 **Tests**: none
 **Gate**: docs
