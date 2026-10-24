@@ -423,6 +423,24 @@ O valor depende do escopo da ADR #11. Se a cobrança for a comissão do Omni Mar
 - Com `confirmed`, o order-service pode marcar o pedido como pago. A decisão é da #20.
 - DLQ do consumidor no order: `order.billing-payment.dlq`.
 
+---
+
+## Dead letter topics
+
+| DLQ | Consumer group | Tópicos de origem | Estado |
+|---|---|---|---|
+| `compliance.product-created.dlq` | `compliance-service` | `catalog.product.created.v1` | Implementado |
+| `catalog.product-analysis.dlq` | `catalog-service-group` | `produto.analisado.v1` | Implementado |
+| `catalog.order-stock.dlq` | `catalog-service-order-stock` | `order.order.placed.v1`, `order.order.cancelled.v1` | Implementado |
+| `order.marketplace-order.dlq` | order-service | `marketplace.order.received.v1` | Proposto |
+| `order.stock-response.dlq` | order-service | `catalog.stock.reserved.v1`, `catalog.stock.insufficient.v1` | Proposto |
+| `order.billing-payment.dlq` | order-service | `billing.payment.*` | Proposto |
+| `marketplace.catalog-product.dlq` | marketplace-gateway | `catalog.product.approved.v1`, `catalog.product.stock-changed.v1` | Proposto |
+| `marketplace.order-cancelled.dlq` | marketplace-gateway | `order.order.cancelled.v1` | Proposto |
+| `billing.order-confirmed.dlq` | billing-service | `order.order.confirmed.v1` | Proposto |
+
+Os nomes das DLQs propostas seguem o padrão das existentes. Se um serviço novo usar um consumer group por tópico, ele terá uma DLQ por tópico.
+
 ## Como adicionar ou mudar um evento
 
 1. Abrir um PR alterando este arquivo, com a ficha do evento no estado **Proposto**, e marcar os donos do produtor e dos consumidores.
