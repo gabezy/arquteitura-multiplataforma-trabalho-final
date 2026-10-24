@@ -177,10 +177,10 @@ The order-service, billing-service and marketplace-gateway need their own databa
 | PLAT-08 | P1: Topics - `make topics` is idempotent | T3 | Implementing |
 | PLAT-09 | P1: Topics - `docs/eventos.md` lists nothing already created | T1 | Implementing |
 | PLAT-10 | P1: CI - each workflow calls its stack's reusable workflow | T4 | Implementing |
-| PLAT-11 | P1: CI - push to `order-service/` runs only its CI | Tasks | Pending |
-| PLAT-12 | P1: CI - push to `billing-service/` runs only its CI | Tasks | Pending |
-| PLAT-13 | P1: CI - push to `marketplace-gateway/` runs only its CI | Tasks | Pending |
-| PLAT-14 | P1: CI - change to `_node-service.yml` runs every caller | Tasks | Pending |
+| PLAT-11 | P1: CI - push to `order-service/` runs only its CI | T5 | Implementing |
+| PLAT-12 | P1: CI - push to `billing-service/` runs only its CI | T5 | Implementing |
+| PLAT-13 | P1: CI - push to `marketplace-gateway/` runs only its CI | T5 | Implementing |
+| PLAT-14 | P1: CI - change to `_node-service.yml` runs every caller | T5 | Implementing |
 | PLAT-15 | P2: Ports - 8084/8086/8087 published | T2 | Implementing |
 | PLAT-16 | P2: Ports - 8085 only for Keycloak | T2 | Implementing |
 | PLAT-17 | P2: Ports - README services table | Tasks | Pending |

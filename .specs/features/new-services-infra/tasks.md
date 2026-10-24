@@ -232,15 +232,34 @@ T7
 
 **Done when**:
 
-- [ ] `order-service`-only commit: runs list only the `order-service` workflow (PLAT-11)
-- [ ] `billing-service`-only commit: runs list only the `billing-service` workflow (PLAT-12)
-- [ ] `marketplace-gateway`-only commit: runs list only the `marketplace-gateway` workflow (PLAT-13)
-- [ ] `_node-service.yml`-only commit: runs list `catalog-service`, `order-service` and `marketplace-gateway` (PLAT-14); if no such commit exists, record that and use the static `paths` check of T4 as the evidence
-- [ ] No test commit is pushed to collect evidence (pushing needs an explicit go-ahead)
-- [ ] Evidence recorded below and PLAT-11..14 marked `Implementing`
+- [x] `order-service`-only commit: runs list only the `order-service` workflow (PLAT-11)
+- [x] `billing-service`-only commit: runs list only the `billing-service` workflow (PLAT-12)
+- [x] `marketplace-gateway`-only commit: runs list only the `marketplace-gateway` workflow (PLAT-13)
+- [x] `_node-service.yml`-only commit: runs list `catalog-service`, `order-service` and `marketplace-gateway` (PLAT-14); if no such commit exists, record that and use the static `paths` check of T4 as the evidence
+- [x] No test commit is pushed to collect evidence (pushing needs an explicit go-ahead)
+- [x] Evidence recorded below and PLAT-11..14 marked `Implementing`
 
 **Tests**: none (GitHub Actions evidence)
 **Gate**: CI
+
+**Evidence (2026-10-24):**
+
+Source: the 110 `push` runs of `gh api repos/gabezy/arquteitura-multiplataforma-trabalho-final/actions/runs?event=push`, grouped by `head_sha`. The files come from `gh api .../commits/<sha>`, and the push range from `gh api .../activity` (`before`) plus `gh api .../compare/<before>...<after>`. `git fetch` has no SSH access here, so the GitHub API was used.
+
+- PLAT-11: `62d1d8c4` (`feature/20-pedidos-do-order-service`, 1 commit, only `order-service/**`) → workflows run: `order-service` only.
+- PLAT-12: `6be4e60a` (`feature/32-pagamento-psp`, only `billing-service/**`) → `billing-service` only.
+- PLAT-13: `b171a982` (`feature/33-sincronizar-estoque`, `marketplace-gateway/CLAUDE.md` + `README.md`, which no filter matches) → `marketplace-gateway` only. Same for `7e662302`.
+- Other single-service commits behave the same way: `0dcfe805`, `a77cf3a3`, `703dd42a` → `catalog-service` only; `7fb8c4d0`, `490d66ff`, `6d1796d2` → `bff-gateway` only.
+- Runs with more workflows than the commit's own files: in each case the push range touched those paths, so the filters behaved as intended.
+  - `b5e2bd3e`: `branch_creation`, compared with the default branch.
+  - `843e3e97`: 2 commits touching `bff-gateway` and `catalog-service`.
+  - `8cd380d8`: 10 commits.
+  - `226602b0`: 151 commits touching every service.
+  - `b9e89c4c` and `ecec1e79`: they changed `scripts/simulate-order.sh` and `scripts/simulate-failure.sh`, which are in the `marketplace-gateway` filter.
+- PLAT-14: no pushed commit changes only `.github/workflows/_node-service.yml`. As the task allows, the evidence is the static check of T4: `_node-service.yml` is in the `paths` of `catalog-service.yml`, `order-service.yml` and `marketplace-gateway.yml`, and of no other workflow.
+- No test commit was pushed.
+
+**Status**: ✅ Complete
 
 ---
 
