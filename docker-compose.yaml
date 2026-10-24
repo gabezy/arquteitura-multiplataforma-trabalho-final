@@ -259,6 +259,7 @@ services:
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWKSETURI: http://keycloak:8080/realms/omni-market/protocol/openid-connect/certs
       CATALOG_SERVICE_URL: http://catalog-service:8082
       OTEL_COLLECTOR_URL: http://otel-collector:4318
+      ORDER_SERVICE_URL: http://order-service:8084
     ports:
       - "${BFF_PORT:-8080}:8080"
     depends_on:
