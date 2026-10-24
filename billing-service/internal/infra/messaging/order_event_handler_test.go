@@ -1,11 +1,13 @@
 package messaging_test
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io"
 	"log/slog"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/gabezy/arquteitura-multiplataforma-trabalho-final/billing-service/internal/core/invoice/model"
@@ -63,10 +65,11 @@ func withHeader(message messaging.Message, key, value string) messaging.Message 
 }
 
 type fakeFacade struct {
-	issued      []model.OrderData
-	cancelled   []in.CancelInvoiceCommand
-	issueResult error
-	cancelError error
+	issued        []model.OrderData
+	cancelled     []in.CancelInvoiceCommand
+	issueResult   error
+	cancelError   error
+	cancelOutcome in.CancelOutcome // Cancelled when empty
 }
 
 func (f *fakeFacade) IssueInvoice(_ context.Context, order model.OrderData) (in.IssueOutcome, error) {
@@ -76,6 +79,9 @@ func (f *fakeFacade) IssueInvoice(_ context.Context, order model.OrderData) (in.
 
 func (f *fakeFacade) CancelInvoice(_ context.Context, command in.CancelInvoiceCommand) (in.CancelOutcome, error) {
 	f.cancelled = append(f.cancelled, command)
+	if f.cancelOutcome != "" {
+		return f.cancelOutcome, f.cancelError
+	}
 	return in.Cancelled, f.cancelError
 }
 
@@ -123,11 +129,13 @@ type handlerFixture struct {
 	transactor *rollbackTransactor
 }
 
-func newHandlerFixture() handlerFixture {
+func newHandlerFixture() handlerFixture { return newLoggingHandlerFixture(io.Discard) }
+
+func newLoggingHandlerFixture(logs io.Writer) handlerFixture {
 	f := handlerFixture{facade: &fakeFacade{}, inbox: newFakeInbox()}
 	f.transactor = &rollbackTransactor{inbox: f.inbox}
 	f.handler = messaging.NewOrderEventHandler(f.facade, f.facade, f.inbox, f.transactor, messaging.OrderTopics{Confirmed: confirmedTopic, Cancelled: cancelledTopic},
-		slog.New(slog.NewTextHandler(io.Discard, nil)))
+		slog.New(slog.NewTextHandler(logs, nil)))
 	return f
 }
 
@@ -361,5 +369,44 @@ func TestHandleRunsTheFacadeInsideOneTransaction(t *testing.T) {
 
 	if f.transactor.opens != 1 {
 		t.Fatalf("transactions opened = %d, want 1: the inbox mark and the facade share it", f.transactor.opens)
+	}
+}
+
+// INV-11: the cancellation of an order whose invoice is already paid is logged as a warning, because there is no
+// refund; any other outcome is an ordinary info line.
+func TestHandlerWarnsWhenAnOrderIsCancelledAfterItsInvoiceWasPaid(t *testing.T) {
+	tests := []struct {
+		name      string
+		outcome   in.CancelOutcome
+		wantLevel string
+		notLevel  string
+	}{
+		{"paid", in.KeptPaid, "level=WARN", "level=INFO"},
+		{"cancelled", in.Cancelled, "level=INFO", "level=WARN"},
+		{"unchanged", in.Unchanged, "level=INFO", "level=WARN"},
+		{"recorded", in.Recorded, "level=INFO", "level=WARN"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var logs bytes.Buffer
+			f := newLoggingHandlerFixture(&logs)
+			f.facade.cancelOutcome = tt.outcome
+
+			err := f.handler.Handle(context.Background(), cancelledMessage(`{"orderId":"`+orderID+`","reason":"PAYMENT_FAILED"}`))
+
+			if err != nil {
+				t.Fatalf("Handle() error = %v, want nil", err)
+			}
+			if !strings.Contains(logs.String(), tt.wantLevel) || strings.Contains(logs.String(), tt.notLevel) {
+				t.Fatalf("log %q, want %s and not %s", logs.String(), tt.wantLevel, tt.notLevel)
+			}
+			if tt.outcome == in.KeptPaid {
+				for _, want := range []string{"orderId=" + orderID, "eventId=evt-2", "reason=PAYMENT_FAILED", "no refund"} {
+					if !strings.Contains(logs.String(), want) {
+						t.Errorf("log %q does not carry %q", logs.String(), want)
+					}
+				}
+			}
+		})
 	}
 }

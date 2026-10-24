@@ -70,7 +70,15 @@ Também dá para publicar pelo Kafka UI (http://localhost:8090), em *Topics → 
    invoices $ORDER      # continua uma fatura só, PAID
    ```
 
-4. **Mensagem inválida**: o total não bate com os itens, então a mensagem vai para a DLQ com o motivo.
+4. **Cancelamento depois do pagamento**: o pedido do passo 1 é cancelado quando a fatura já está paga. Não há estorno, então a fatura continua `PAID` e o billing registra um aviso no log.
+
+   ```bash
+   order_event order.order.cancelled.v1 evt-c1 $ORDER '{"orderId":"'$ORDER'","reason":"CUSTOMER_REQUEST"}'
+   sleep 3; invoices $ORDER      # continua PAID
+   docker logs billing-service 2>&1 | grep 'no refund'
+   ```
+
+5. **Mensagem inválida**: o total não bate com os itens, então a mensagem vai para a DLQ com o motivo.
 
    ```bash
    BAD=6f1c2b8e-0000-4000-8000-000000000003
@@ -79,7 +87,7 @@ Também dá para publicar pelo Kafka UI (http://localhost:8090), em *Topics → 
      --from-beginning --timeout-ms 5000 --property print.headers=true --property print.key=true
    ```
 
-5. **Cancelamento antes da confirmação**: o pedido chegou cancelado primeiro (o Kafka não ordena entre tópicos), então a confirmação que vem depois não gera fatura.
+6. **Cancelamento antes da confirmação**: o pedido chegou cancelado primeiro (o Kafka não ordena entre tópicos), então a confirmação que vem depois não gera fatura.
 
    ```bash
    LATE=6f1c2b8e-0000-4000-8000-000000000004
@@ -88,7 +96,7 @@ Também dá para publicar pelo Kafka UI (http://localhost:8090), em *Topics → 
    invoices $LATE       # nenhuma fatura
    ```
 
-6. **PSP fora do ar**: com o stub de queda carregado, o PSP responde `503`. A fatura não falha: fica `ISSUED`, o billing tenta de novo com espera crescente, e depois de 5 tentativas seguidas com falha o circuito abre por 30 s e o billing nem chama o PSP. Enquanto a fatura não é paga, o cancelamento do pedido ainda a cancela.
+7. **PSP fora do ar**: com o stub de queda carregado, o PSP responde `503`. A fatura não falha: fica `ISSUED`, o billing tenta de novo com espera crescente, e depois de 5 tentativas seguidas com falha o circuito abre por 30 s e o billing nem chama o PSP. Enquanto a fatura não é paga, o cancelamento do pedido ainda a cancela.
 
    ```bash
    curl -s -X POST localhost:8089/__admin/mappings -H 'Content-Type: application/json' -d @docker/wiremock/scenarios/psp-outage.json
@@ -112,7 +120,7 @@ Também dá para publicar pelo Kafka UI (http://localhost:8090), em *Topics → 
    sleep 60; invoices $WAIT      # PAID
    ```
 
-7. **Webhook perdido**: se o PSP não consegue chamar o webhook, a fatura fica `PAYMENT_PENDING`. A conciliação consulta o PSP a cada 30 s pelas cobranças pendentes há mais de 60 s e aplica o resultado, como o webhook faria.
+8. **Webhook perdido**: se o PSP não consegue chamar o webhook, a fatura fica `PAYMENT_PENDING`. A conciliação consulta o PSP a cada 30 s pelas cobranças pendentes há mais de 60 s e aplica o resultado, como o webhook faria.
 
    ```bash
    PSP_CALLBACK_URL=http://localhost:9/webhooks/psp docker compose up -d billing-service   # um endereço que ninguém atende
@@ -143,4 +151,4 @@ topic billing.payment.failed.v1
 - Falha do PSP (timeout de 3 s, conexão recusada, `5xx` ou `429`) é tentada até 3 vezes, com 200 ms e depois 400 ms de espera. Se todas falham, a fatura continua `ISSUED` e a próxima tentativa é daqui a min(2^tentativas, 60) s. Cinco tentativas seguidas com falha abrem o circuito por 30 s.
 - Só a recusa do PSP (`422` na criação ou `FAILED` no webhook) leva a fatura a `PAYMENT_FAILED`.
 - O webhook `POST /webhooks/psp` exige `X-PSP-Token`, é idempotente (o mesmo resultado de novo é `204` e não publica nada) e responde `409` ao resultado que contradiz a fatura.
-- Fatura `PAID`, `PAYMENT_FAILED` ou `CANCELLED` não muda com um cancelamento (não há estorno).
+- Fatura `PAID`, `PAYMENT_FAILED` ou `CANCELLED` não muda com um cancelamento (não há estorno). Para a `PAID` o billing registra um aviso no log.
