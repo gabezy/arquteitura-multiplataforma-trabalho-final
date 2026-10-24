@@ -256,9 +256,9 @@ T18 → T19 → T20 → T21 → T22 → T23
 
 **Done when**:
 
-- [ ] Appended events are published in order with key, topic and `ce_*` headers, then marked
-- [ ] A producer failure leaves the rows pending; an unmapped event fails the append
-- [ ] Gate check passes: full gate; test count ≥ 5
+- [x] Appended events are published in order with key, topic and `ce_*` headers, then marked
+- [x] A producer failure leaves the rows pending; an unmapped event fails the append
+- [x] Gate check passes: full gate; test count ≥ 5
 
 **Tests**: integration
 **Gate**: full

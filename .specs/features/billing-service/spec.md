@@ -212,7 +212,7 @@ Every ambiguity is resolved or recorded here - nothing is left silently unclear.
 | BOOT-07 | P1: Service bootstrap | Tasks T9 | In Tasks |
 | BOOT-08 | P1: Service bootstrap | Tasks T10 | In Tasks |
 | BOOT-09 | P1: Service bootstrap | Tasks T4 | Implementing |
-| BOOT-10 | P1: Service bootstrap | Tasks T7 | In Tasks |
+| BOOT-10 | P1: Service bootstrap | Tasks T7 | Implementing |
 | INV-01 | P1: Invoice from the confirmed order | Tasks T12, T13 | In Tasks |
 | INV-02 | P1: Invoice from the confirmed order | Tasks T12 | In Tasks |
 | INV-03 | P1: Invoice from the confirmed order | Tasks T14, T15 | In Tasks |
