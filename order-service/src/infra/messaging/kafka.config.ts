@@ -1,4 +1,9 @@
-import { Consumer, Kafka, Producer } from "kafkajs";
+import { CompressionCodecs, CompressionTypes, Consumer, Kafka, Producer } from "kafkajs";
+import SnappyCodec from "kafkajs-snappy";
+
+// The billing-service (franz-go) compresses its batches with Snappy by default, and kafkajs only ships GZIP:
+// without this codec the consumer of billing.payment.* crashes on the first message.
+CompressionCodecs[CompressionTypes.Snappy] = SnappyCodec;
 
 export interface KafkaClients {
     producer: Producer;
