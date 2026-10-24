@@ -160,17 +160,20 @@ describe('OrderOutcomeConsumer', () => {
 
     describe('skips with a warning, without the dead letter topic, an outcome the order does not take', () => {
         it.each([
-            ['contradicts the order', new OrderStateConflictError(ORDER_ID, 'CANCELLED (OUT_OF_STOCK)', 'be confirmed')],
-            ['names no order', new OrderNotFoundError(ORDER_ID)],
-        ])('when it %s', async (_, error) => {
-            stockPort.applyStockReserved.mockRejectedValue(error);
+            ['contradicts the order', RESERVED, RESERVED_BODY, () => stockPort.applyStockReserved, new OrderStateConflictError(ORDER_ID, 'CANCELLED (OUT_OF_STOCK)', 'be confirmed')],
+            ['names no order', RESERVED, RESERVED_BODY, () => stockPort.applyStockReserved, new OrderNotFoundError(ORDER_ID)],
+            ['contradicts the order', PAID, PAID_BODY, () => paymentPort.applyPaymentConfirmed, new OrderStateConflictError(ORDER_ID, 'RECEIVED', 'be paid')],
+            ['contradicts the order', FAILED, FAILED_BODY, () => paymentPort.applyPaymentFailed, new OrderStateConflictError(ORDER_ID, 'PAID', 'be cancelled for a failed payment')],
+            ['names no order', FAILED, FAILED_BODY, () => paymentPort.applyPaymentFailed, new OrderNotFoundError(ORDER_ID)],
+        ])('when it %s (%s)', async (_, topic, body, port, error) => {
+            port().mockRejectedValue(error);
 
-            await handle(message(RESERVED, RESERVED_BODY));
+            await handle(message(topic, body));
 
             expect(producer.send).not.toHaveBeenCalled();
-            expect(inbox.markProcessed).toHaveBeenCalledWith('event-1', RESERVED);
+            expect(inbox.markProcessed).toHaveBeenCalledWith('event-1', topic);
             expect(warn).toHaveBeenCalledWith(
-                expect.objectContaining({ topic: RESERVED, orderId: ORDER_ID, reason: error.message }),
+                expect.objectContaining({ topic, orderId: ORDER_ID, reason: error.message }),
                 'Order outcome skipped',
             );
         });

@@ -39,7 +39,7 @@ Every ambiguity is resolved or recorded here - nothing is left silently unclear.
 | Order id | A new UUID generated when the order is persisted | The marketplace message has no internal id | n |
 | Idempotency of the intake | The unique pair `marketplace` + `external_order_id` | `docs/eventos.md`: "o order-service ignora um marketplace + externalOrderId que já existe, mesmo vindo com outro ce_id" | y |
 | Idempotency of the outcomes | By the state of the order: the same outcome again changes nothing; a contradicting one, or one for an unknown order, is logged as `warn` and skipped, never sent to the dead letter; the `ce_id` goes to `processed_events` after the outcome is applied or skipped | User decision of 2026-10-24 (Rodrigo): the message is valid, only the order moved on, so a dead letter would hold nothing to fix; the dead letter stays for messages out of contract. Marking after applying is safe because a redelivered outcome changes nothing | y |
-| Input bounds | 1 to 100 items; quantity 1 to 10 000; unit price 0.01 to 1 000 000.00 with at most two decimals; the total must equal the sum of quantity × unit price; SKU and external order id with 1 to 100 characters | The billing-service sends to its dead letter the orders outside these bounds, so the order-service rejects them first, before the catalog reserves stock for an order that could never be charged. The length of the identifiers keeps the unique index and the events within what Postgres and Kafka accept: a value that broke them would fail on every redelivery | n |
+| Input bounds | 1 to 100 items; quantity 1 to 10 000; unit price 0.01 to 1 000 000.00 with at most two decimals; the total of the order is the sum of quantity × unit price, and a declared total that differs is logged as `warn` and ignored; SKU with 1 to 64 characters and external order id with 1 to 100 (`docs/eventos.md`) | The billing-service sends to its dead letter the orders outside these bounds, so the order-service rejects them first, before the catalog reserves stock for an order that could never be charged. The length of the identifiers keeps the unique index and the events within what Postgres and Kafka accept: a value that broke them would fail on every redelivery | n |
 | Money | Integer cents inside the service; JSON numbers with at most two decimals on the wire and in the API | Same choice as the billing-service; avoids float rounding in totals and reports | n |
 | `createdAt` of an order | The `orderedAt` of the marketplace message (the date of the sale); `updatedAt` is the last change in this service | The report is by date of sale; the demo simulators date their orders | n |
 | SKU | Kept as received, trimmed | The catalog already treats `nb-001` and `NB-001` as the same SKU | n |
@@ -64,7 +64,8 @@ Every ambiguity is resolved or recorded here - nothing is left silently unclear.
 1. WHEN a `marketplace.order.received.v1` message with a valid body arrives THEN the order-service SHALL persist a `RECEIVED` order with a new id and publish `order.order.placed.v1` with its id, marketplace, external order id and items, in the same transaction. (ORD-01)
 2. WHEN a message arrives for a marketplace and external order id that already have an order THEN the order-service SHALL keep that order and publish nothing, whatever the `ce_id` of the message. (ORD-02)
 3. IF two messages for the same marketplace and external order id are processed at the same time THEN the unique pair SHALL keep a single order, and the losing transaction SHALL be retried and find it. (ORD-03)
-4. IF a message lacks a required CloudEvents header (`ce_specversion`, `ce_id`, `ce_source` or `ce_type`), is not valid JSON, has an unknown marketplace, an external order id or a SKU that is blank or longer than 100 characters, no items or more than 100, a quantity outside 1 to 10 000, a unit price outside 0.01 to 1 000 000.00 or with more than two decimals, a total that differs from the sum of quantity × unit price or an `orderedAt` that is not an ISO-8601 time THEN the order-service SHALL publish it to `order.marketplace-order.dlq` with the `dlq-*` headers and commit its offset. (ORD-04)
+4. IF a message lacks a required CloudEvents header (`ce_specversion` 1.0, `ce_id`, `ce_source` `/marketplace-gateway`, `ce_type` equal to the topic, `ce_subject` equal to `<marketplace>:<externalOrderId>`, `ce_time`, `content-type` `application/json`), is not valid JSON, has an unknown marketplace, an external order id that is blank or longer than 100 characters, a SKU that is blank or longer than 64 characters, no items or more than 100, a quantity outside 1 to 10 000, a unit price outside 0.01 to 1 000 000.00 or with more than two decimals, or an `orderedAt` that is not an ISO-8601 time THEN the order-service SHALL publish it to `order.marketplace-order.dlq` with the `dlq-*` headers and commit its offset. (ORD-04)
+6. WHEN the declared `total` differs from the sum of quantity × unit price THEN the order-service SHALL keep the sum of the items as the total of the order and log a `warn` with the marketplace, the external order id and both totals. (ORD-06)
 5. IF persisting the order fails for a transient reason THEN the order-service SHALL leave the offset uncommitted so the message is delivered again, and publish nothing. (ORD-05)
 
 **Independent Test**: Publish a `marketplace.order.received.v1` twice; one order exists and one `order.order.placed.v1` is on the topic.
@@ -149,7 +150,7 @@ Every ambiguity is resolved or recorded here - nothing is left silently unclear.
 ## Edge Cases
 
 - IF `catalog.stock.reserved.v1` arrives for an order that is still being created THEN it cannot: `placed` is published after the order commits, so the answer always finds the order.
-- IF a payment event arrives for an order that is `RECEIVED` THEN it SHALL go to the dead letter (the billing-service charges only confirmed orders).
+- IF a payment event arrives for an order that is `RECEIVED` THEN the order-service SHALL change nothing and log a `warn` without the dead letter (PAY-04; the billing-service charges only confirmed orders).
 - WHEN the unit price carries float noise (a number with more than two decimals) THEN the message SHALL go to the dead letter instead of being rounded.
 - WHEN an order has several lines of the same SKU THEN the order SHALL keep the lines as received; the catalog adds them up.
 - WHILE the catalog is down the order-service SHALL keep receiving orders: they wait as `RECEIVED` (ADR-0004).
@@ -165,6 +166,7 @@ Every ambiguity is resolved or recorded here - nothing is left silently unclear.
 | ORD-03 | P1: Receive the marketplace order | Tasks T4 | Implementing |
 | ORD-04 | P1: Receive the marketplace order | Tasks T2, T7 | Implementing |
 | ORD-05 | P1: Receive the marketplace order | Tasks T7 | In Tasks |
+| ORD-06 | P1: Receive the marketplace order | Task T7 | Implementing |
 | STK-01 | P1: Follow the stock answer | Tasks T2, T3, T5, T7 | Implementing |
 | STK-02 | P1: Follow the stock answer | Tasks T2, T3, T5, T7 | Implementing |
 | STK-03 | P1: Follow the stock answer | Tasks T2, T3 | Implementing |

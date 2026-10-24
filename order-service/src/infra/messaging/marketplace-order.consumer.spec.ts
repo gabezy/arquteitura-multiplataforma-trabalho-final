@@ -1,3 +1,6 @@
+import { context, propagation, trace } from '@opentelemetry/api';
+import { AsyncLocalStorageContextManager } from '@opentelemetry/context-async-hooks';
+import { W3CTraceContextPropagator } from '@opentelemetry/core';
 import { Consumer, EachMessagePayload, IHeaders, Producer } from 'kafkajs';
 import pino from 'pino';
 import { ReceiveOrderPort } from '../../core/order/port/in/receive-order.port';
@@ -6,6 +9,7 @@ import { MarketplaceOrderConsumer } from './marketplace-order.consumer';
 
 const TOPIC = 'marketplace.order.received.v1';
 const DEAD_LETTER_TOPIC = 'order.marketplace-order.dlq';
+const TRACE_ID = '0af7651916cd43dd8448eb211c80319c';
 const BODY = {
     marketplace: 'MERCADO_LIVRE',
     externalOrderId: 'ML-2000001',
@@ -56,6 +60,16 @@ describe('MarketplaceOrderConsumer', () => {
         await eachMessage(payload);
     };
 
+    beforeAll(() => {
+        context.setGlobalContextManager(new AsyncLocalStorageContextManager().enable());
+        propagation.setGlobalPropagator(new W3CTraceContextPropagator());
+    });
+
+    afterAll(() => {
+        context.disable();
+        propagation.disable();
+    });
+
     beforeEach(() => {
         jest.resetAllMocks();
         inbox.hasProcessed.mockResolvedValue(false);
@@ -78,10 +92,26 @@ describe('MarketplaceOrderConsumer', () => {
     });
 
     it('ignores the marketplace total and lets the item sum win', async () => {
+        const warn = jest.spyOn(logger, 'warn');
+
         await handle(message({ ...BODY, total: 10 }));
 
         expect(receiveOrder.receive).toHaveBeenCalledWith(expect.objectContaining({ total: 0.3 }));
         expect(producer.send).not.toHaveBeenCalled();
+        expect(warn).toHaveBeenCalledWith(
+            { marketplace: 'MERCADO_LIVRE', externalOrderId: 'ML-2000001', declaredTotal: 10, total: 0.3 },
+            'Declared total differs from the items; using the items',
+        );
+        warn.mockRestore();
+    });
+
+    it('logs no warning when the declared total matches the items', async () => {
+        const warn = jest.spyOn(logger, 'warn');
+
+        await handle(message(BODY));
+
+        expect(warn).not.toHaveBeenCalled();
+        warn.mockRestore();
     });
 
     it('skips an event id already recorded in the inbox', async () => {
@@ -102,6 +132,12 @@ describe('MarketplaceOrderConsumer', () => {
         ['excess quantity', { ...BODY, items: [{ ...BODY.items[0], quantity: 10_001 }] }, /quantity/],
         ['excess item count', { ...BODY, items: Array.from({ length: 101 }, () => BODY.items[0]) }, /items/],
         ['NUL in SKU', { ...BODY, items: [{ ...BODY.items[0], sku: 'NB-\u000001' }] }, /sku/],
+        ['blank SKU', { ...BODY, items: [{ ...BODY.items[0], sku: '   ' }] }, /sku/],
+        ['SKU longer than 64 characters', { ...BODY, items: [{ ...BODY.items[0], sku: 'S'.repeat(65) }] }, /sku/],
+        ['blank external order id', { ...BODY, externalOrderId: '   ' }, /externalOrderId/],
+        ['external order id longer than 100 characters', { ...BODY, externalOrderId: 'E'.repeat(101) }, /externalOrderId/],
+        ['unit price with more than two decimals', { ...BODY, items: [{ ...BODY.items[0], unitPrice: 0.123 }] }, /decimal/i],
+        ['orderedAt that is not ISO-8601', { ...BODY, orderedAt: 'ontem' }, /orderedAt/],
     ])('sends %s to the dead letter topic', async (_name, value, reason) => {
         const payload = message(value);
         await handle(payload);
@@ -119,6 +155,47 @@ describe('MarketplaceOrderConsumer', () => {
             })],
         }));
         expect(inbox.markProcessed).toHaveBeenCalledWith('event-1', TOPIC);
+    });
+
+    it('accepts a SKU of exactly 64 characters', async () => {
+        await handle(message({ ...BODY, items: [{ ...BODY.items[0], sku: 'S'.repeat(64) }] }));
+
+        expect(receiveOrder.receive).toHaveBeenCalledWith(expect.objectContaining({ items: [expect.objectContaining({ sku: 'S'.repeat(64) })] }));
+        expect(producer.send).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        ['ce_specversion is missing', { ce_specversion: undefined }, 'ce_specversion'],
+        ['ce_type is another topic', { ce_type: 'catalog.stock.reserved.v1' }, 'ce_type'],
+        ['ce_subject names another order', { ce_subject: 'MERCADO_LIVRE:ML-9999999' }, 'ce_subject'],
+    ])('sends a message whose %s to the dead letter topic', async (_name, overrides, reason) => {
+        await handle(message(BODY, headers(BODY, overrides)));
+
+        expect(receiveOrder.receive).not.toHaveBeenCalled();
+        expect(producer.send.mock.calls[0][0].topic).toBe(DEAD_LETTER_TOPIC);
+        expect(producer.send.mock.calls[0][0].messages[0].headers['dlq-reason']).toContain(reason);
+        expect(inbox.markProcessed).toHaveBeenCalledWith('event-1', TOPIC);
+    });
+
+    it('sends a message without ce_id to the dead letter topic without touching the inbox', async () => {
+        await handle(message(BODY, headers(BODY, { ce_id: undefined })));
+
+        expect(receiveOrder.receive).not.toHaveBeenCalled();
+        expect(producer.send.mock.calls[0][0].messages[0].headers['dlq-reason']).toContain('ce_id');
+        expect(inbox.hasProcessed).not.toHaveBeenCalled();
+        expect(inbox.markProcessed).not.toHaveBeenCalled();
+    });
+
+    it('receives the order inside the trace of the message', async () => {
+        let traceId: string | undefined;
+        receiveOrder.receive.mockImplementation(async () => {
+            traceId = trace.getSpanContext(context.active())?.traceId;
+            return { orderId: '6f1c2b8e-0000-4000-8000-000000000001', created: true };
+        });
+
+        await handle(message(BODY, headers(BODY, { traceparent: `00-${TRACE_ID}-b7ad6b7169203331-01` })));
+
+        expect(traceId).toBe(TRACE_ID);
     });
 
     it('sends a message with invalid CloudEvents headers to the dead letter topic', async () => {
