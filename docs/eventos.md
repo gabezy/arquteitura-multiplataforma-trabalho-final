@@ -435,7 +435,7 @@ Ainda não há consumidor: a fatura é consultada pela API do billing (#34).
 | `invoiceId` | string (UUID) | ambos |
 | `orderId` | string (UUID) | ambos |
 | `amount` | number | ambos |
-| `pspTransactionId` | string | `confirmed` e `failed`: id da cobrança no PSP |
+| `pspTransactionId` | string | `confirmed`: id da cobrança no PSP; `failed`: o mesmo id, ausente quando o PSP recusou ao criar a cobrança (`422`) |
 | `paidAt` | string (ISO-8601) | `confirmed` |
 | `reason` | string | `failed`: código devolvido pelo PSP (ex.: `INSUFFICIENT_FUNDS`, `AMOUNT_NOT_ALLOWED`) |
 | `failedAt` | string (ISO-8601) | `failed` |
