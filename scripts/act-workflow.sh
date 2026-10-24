@@ -1,11 +1,17 @@
 #!/usr/bin/env sh
 set -eu
 
+WORKFLOW_FILE="${1:?usage: scripts/act-workflow.sh deploy.yaml|destroy.yaml}"
+case "$WORKFLOW_FILE" in
+  deploy.yaml|destroy.yaml) ;;
+  *) echo "Unsupported workflow: $WORKFLOW_FILE" >&2; exit 1 ;;
+esac
+
 KUBECONFIG_DIR="${KUBECONFIG_DIR:-${HOME}/.kube}"
 mkdir -p "$KUBECONFIG_DIR"
 
 if [ "$(uname -s)" != "Linux" ]; then
-  echo "scripts/act-kind-deploy.sh is supported on Linux and WSL2 hosts." >&2
+  echo "scripts/act-workflow.sh is supported on Linux and WSL2 hosts." >&2
   exit 1
 fi
 
@@ -39,5 +45,5 @@ CONTAINER_OPTIONS="--network=host -v ${KUBECONFIG_DIR}:/root/.kube:rw -v ${DOCKE
 "$ACT_BIN" --bind \
   --container-daemon-socket /var/run/docker.sock \
   --container-options "$CONTAINER_OPTIONS" \
-  --workflows .github/workflows/deploy.yaml \
+  --workflows ".github/workflows/$WORKFLOW_FILE" \
   workflow_dispatch

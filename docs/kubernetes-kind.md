@@ -18,12 +18,12 @@ Para subir diretamente, sem `act`, instale `kubectl` e Helm no host e use `make 
 
 ## Executar o workflow com act
 
-O comando abaixo chama explicitamente `act --workflows .github/workflows/deploy.yaml workflow_dispatch`, portanto executa esse arquivo e o job `deploy-local`. No GitHub, o mesmo workflow manual pode ser iniciado em **Actions → deploy → Run workflow**. Ele constrói e publica as imagens e provisiona a aplicação no cluster kind pelo Helm. `act` roda localmente as etapas do workflow em um container Docker; o runner local não é idêntico à VM hospedada pelo GitHub ([uso do act](https://nektosact.com/usage/), [limitações das imagens runner](https://nektosact.com/usage/runners.html)).
+O alvo `make act-deploy` chama `act --workflows .github/workflows/deploy.yaml workflow_dispatch` e executa o job `deploy-local`. Para remover o cluster e o registry, use `make act-destroy`, que executa o workflow `destroy.yaml`. No GitHub, os workflows podem ser iniciados manualmente em **Actions → deploy/destroy → Run workflow**. O deploy constrói e publica as imagens e provisiona a aplicação no cluster kind pelo Helm. `act` roda localmente as etapas do workflow em um container Docker; o runner local não é idêntico à VM hospedada pelo GitHub ([uso do act](https://nektosact.com/usage/), [limitações das imagens runner](https://nektosact.com/usage/runners.html)).
 
 ```bash
 make act-install # opcional: instala/atualiza act em ~/.local/bin
 make act-list
-make act-kind-deploy
+make act-deploy
 ```
 
 O `act` baixa a imagem do runner configurada em `.actrc` se ela ainda não estiver no cache do Docker. O wrapper monta no runner local o socket do Docker, o diretório de kubeconfig e o Docker CLI. Ele usa a rede do host para que o runner alcance a API do cluster local. Não envie kubeconfig ou `.env` para o GitHub.

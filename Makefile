@@ -8,7 +8,7 @@ HELM := $(shell command -v helm 2>/dev/null)
 K8S_CONTEXT := kind-omni-market
 
 .DEFAULT_GOAL := help
-.PHONY: help env up up-infra down clean restart ps logs topics vault kind-install k8s-up k8s-registry k8s-build k8s-push k8s-load k8s-config k8s-deploy k8s-status k8s-down act-install act-list act-kind-deploy
+.PHONY: help env up up-infra down clean restart ps logs topics vault kind-install k8s-up k8s-registry k8s-build k8s-push k8s-load k8s-config k8s-deploy k8s-status k8s-down act-install act-list act-deploy act-destroy
 
 help: ## lista os comandos disponíveis
 	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2}'
@@ -111,5 +111,8 @@ act-list: ## lista workflows que act pode executar localmente
 	@test -x "$(ACT)" || { echo "act is required; run make act-install" >&2; exit 1; }
 	$(ACT) --list
 
-act-kind-deploy: ## executa localmente com act o workflow de deploy no kind
-	sh scripts/act-kind-deploy.sh
+act-deploy: ## executa localmente com act o workflow de deploy
+	sh scripts/act-workflow.sh deploy.yaml
+
+act-destroy: ## executa localmente com act o workflow de destroy
+	sh scripts/act-workflow.sh destroy.yaml

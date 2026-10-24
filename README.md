@@ -38,23 +38,13 @@ Cada serviço tem build próprio e um `CLAUDE.md` com comandos e arquitetura. To
 
 ## Ambiente local com kind
 
-O caminho padrão para desenvolvimento e demonstração é `make act-kind-deploy`. Esse comando chama [act](https://nektosact.com/installation/) para executar explicitamente o workflow [`deploy`](.github/workflows/deploy.yaml), acionado pelo evento `workflow_dispatch`. O workflow prepara o ambiente, cria o cluster kind e o registry, constrói e publica as imagens, instala a stack com Helm e verifica os recursos.
+O caminho padrão para desenvolvimento e demonstração é `make act-deploy`. Esse comando chama [act](https://nektosact.com/installation/) para executar explicitamente o workflow [`deploy`](.github/workflows/deploy.yaml), acionado pelo evento `workflow_dispatch`. O workflow prepara o ambiente, cria o cluster kind e o registry, constrói e publica as imagens, instala a stack com Helm e verifica os recursos.
 
 ```bash
 make act-install       # opcional: instala/atualiza act em ~/.local/bin
-make act-kind-deploy   # executa localmente o workflow e implanta no kind
+make act-deploy        # executa localmente o workflow e implanta no kind
+make act-destroy       # remove o cluster e o registry locais
 make act-list          # lista os workflows disponíveis
-```
-
-Para remover o cluster e o registry locais, execute o workflow [`destroy`](.github/workflows/destroy.yaml) com `act`, montando o Docker do host:
-
-```bash
-DOCKER_BIN="$(command -v docker)"
-act --bind \
-  --container-daemon-socket /var/run/docker.sock \
-  --container-options "--network=host -v ${HOME}/.kube:/root/.kube:rw -v ${DOCKER_BIN}:/usr/local/bin/docker:ro" \
-  --workflows .github/workflows/destroy.yaml \
-  workflow_dispatch
 ```
 
 No GitHub, os workflows também podem ser iniciados manualmente em **Actions → deploy/destroy → Run workflow**. Os runners hospedados pelo GitHub são temporários e separados entre execuções; para criar e depois remover um cluster Docker persistente da sua máquina, execute ambos localmente com `act`.
