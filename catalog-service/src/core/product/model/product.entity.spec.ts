@@ -7,6 +7,7 @@ import { AnalysisAlreadyCompletedError, InsufficientStockError, InvalidProductEr
 import { ProductCreated } from "./product-created.event";
 import { ProductAnalysisApproved, ProductAnalysisRejected } from "./product-analysis.events";
 import { ProductStockChanged } from "./product-stock-changed.event";
+import { ProductPriceChanged } from "./product-price-changed.event";
 import { Sku } from "./sku.vo";
 
 const newProductProps = (overrides: Partial<NewProductProps> = {}): NewProductProps => ({
@@ -238,6 +239,46 @@ describe("ProductEntity", () => {
       );
       expect(() => product.removeStock(new Quantity(11))).toThrow(InsufficientStockError);
       expect(product.stock.value).toBe(10);
+    });
+  });
+
+  describe("changePrice", () => {
+    it("records the new absolute price", () => {
+      const product = productWithStock(10);
+      product.pullDomainEvents();
+
+      product.changePrice(new Price(4999.9));
+
+      const events = product.pullDomainEvents();
+      expect(events).toHaveLength(1);
+      expect(events[0]).toBeInstanceOf(ProductPriceChanged);
+      expect(events[0]).toMatchObject({ aggregateId: product.id.value, sku: "NB-001", price: 4999.9 });
+    });
+
+    it("changes the price to the given value", () => {
+      const product = productWithStock(10);
+
+      product.changePrice(new Price(4999.9));
+
+      expect(product.price.value).toBe(4999.9);
+    });
+
+    it("accepts zero", () => {
+      const product = productWithStock(10);
+
+      product.changePrice(new Price(0));
+
+      expect(product.price.value).toBe(0);
+    });
+
+    it("records nothing when the price is already the current one", () => {
+      const product = productWithStock(10);
+      product.pullDomainEvents();
+
+      product.changePrice(new Price(4500));
+
+      expect(product.price.value).toBe(4500);
+      expect(product.pullDomainEvents()).toEqual([]);
     });
   });
 
