@@ -200,7 +200,7 @@ Every ambiguity is resolved or recorded here - nothing is left silently unclear.
 
 | Requirement ID | Story | Phase | Status |
 | --- | --- | --- | --- |
-| DOC-01 | P1: Billing scope and contracts recorded | Tasks T1 | In Tasks |
+| DOC-01 | P1: Billing scope and contracts recorded | Tasks T1 | Implementing |
 | DOC-02 | P1: Billing scope and contracts recorded | Tasks T2 | In Tasks |
 | DOC-03 | P1: Billing scope and contracts recorded | Tasks T2 | In Tasks |
 | BOOT-01 | P1: Service bootstrap | Tasks T6 | In Tasks |

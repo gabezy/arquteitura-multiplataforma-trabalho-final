@@ -96,10 +96,10 @@ T18 → T19 → T20 → T21 → T22 → T23
 
 **Done when**:
 
-- [ ] Status `Proposto`, date, author, context bullets with project facts
-- [ ] Four alternatives (order + commission, order only, commission from the store, monthly fee) with trade-offs
-- [ ] At least one honest negative consequence and two references with author and source
-- [ ] Gate check passes: docs gate
+- [x] Status `Proposto`, date, author, context bullets with project facts
+- [x] Four alternatives (order + commission, order only, commission from the store, monthly fee) with trade-offs
+- [x] At least one honest negative consequence and two references with author and source
+- [x] Gate check passes: docs gate
 
 **Tests**: none
 **Gate**: docs
