@@ -189,7 +189,7 @@ The order-service, billing-service and marketplace-gateway need their own databa
 | PLAT-19 | P2: C4 - `billing-service` technology | T7 | Implementing |
 | PLAT-20 | P2: C4 - `marketplace-gateway` technology | T7 | Implementing |
 | PLAT-21 | P2: C4 - `billing-db` and `marketplace-db` descriptions | T7 | Implementing |
-| PLAT-22 | P2: C4 - no `a definir` left in `.drawio` or PNG | T7 | Implementing (PNG export pending) |
+| PLAT-22 | P2: C4 - no `a definir` left in `.drawio` or PNG | T7 | Implementing |
 
 **ID format:** `PLAT-NN` (platform).
 

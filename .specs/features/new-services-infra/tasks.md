@@ -10,7 +10,7 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 
 **Spec**: `.specs/features/new-services-infra/spec.md`
 **Design**: skipped - no architectural decision; the infra follows ADR-0001 and the patterns already on `dev`
-**Status**: In Progress
+**Status**: Done (pending re-verification)
 
 **Nature of the tasks:** the infra of #14 is already on `dev`. Most tasks verify a group of requirements and record the evidence (command and output) under the task. They change files only when the check finds a gap. Each task ends in one commit with the traceability update, plus the fix when there is one.
 
@@ -342,7 +342,7 @@ Source: the 110 `push` runs of `gh api repos/gabezy/arquteitura-multiplataforma-
 - [x] `billing-service` shows `Go 1.27, net/http` and `marketplace-gateway` shows `Node.js 22, TypeScript, Express 5` (PLAT-19, PLAT-20)
 - [x] `billing-db` and `marketplace-db` show the descriptions of PLAT-21
 - [x] `grep -ci 'a definir'` on the `.drawio` prints `0` (PLAT-22)
-- [ ] The re-exported PNG shows the four new labels; the PNG export is done by a person with draw.io desktop, since the CLI is not installed (PLAT-22)
+- [x] The re-exported PNG shows the four new labels; the PNG export is done by a person with draw.io desktop, since the CLI is not installed (PLAT-22)
 - [x] The `.drawio` still opens in draw.io with no other change to the diagram
 - [x] PLAT-19..22 marked `Implementing`
 
@@ -356,6 +356,6 @@ Source: the 110 `push` runs of `gh api repos/gabezy/arquteitura-multiplataforma-
 - C4 gate → `OK` (exact labels, added after Verifier fix 3).
 - `xml.dom.minidom.parse` on the `.drawio` → parses with no error.
 - Executed before T6, so the spec copy made in T6 includes this task's status.
-- **Pending (human):** open the `.drawio` in draw.io desktop and export the `C4 - Container` page over `docs/c4/Omni Market - C4 Model Contexto-C4 - Container.drawio.png`. The PNG still shows the old labels (PLAT-22, PNG half).
+- PNG exported from the committed `.drawio` with headless draw.io (`docker run rlespinasse/drawio-export:v4.47.0 -f png --width 3674`), page `C4 - Container` → 3674 × 3151 px (was 3674 × 3154). Checked by eye: `billing-service` `[Container: Go 1.27, net/http]`, `marketplace-gateway` `[Container: Node.js 22, TypeScript, Express 5]`, `billing-db` `Faturas, pagamentos, outbox e inbox`, `marketplace-db` `Anúncios, pedidos recebidos, cursores de polling, outbox e inbox`; no "a definir" left. The layout matches the old PNG (PLAT-22, PNG half). The context PNG was not touched.
 
-**Status**: ⚠️ Partial (PNG export pending)
+**Status**: ✅ Complete
