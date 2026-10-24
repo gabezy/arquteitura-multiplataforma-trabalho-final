@@ -43,6 +43,8 @@ Realm changes go in `docker/keycloak/realms/omni-market-realm.json`. `--import-r
 
 **Kafka** (4.x, KRaft, single broker): apps on the host use `localhost:9092`, containers use `kafka:19092`. Kafka UI runs on http://localhost:8090.
 
+Event contracts (topics, keys, payloads, DLQs, conventions) and the REST calls between services are in `docs/eventos.md`. A new or changed event is agreed there first, with the producer and consumer owners, before the code.
+
 Topics are created by the one-shot `kafka-init` service, which runs `docker/kafka/create-topics.sh` once the broker is healthy. A service that publishes or consumes a new topic adds it to that script. The script is idempotent (`--if-not-exists`), so `docker compose up -d kafka-init` applies new topics without touching existing ones.
 
 **Postgres**: one container per service. `catalog-db` on localhost:5432 (`catalog`/`catalog`), `compliance-db` on localhost:5433 (`compliance`/`compliance`), `order-db` on localhost:5434 (`orders`/`orders`).
