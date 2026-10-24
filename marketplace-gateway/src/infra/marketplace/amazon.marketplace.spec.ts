@@ -15,6 +15,15 @@ const amazonOrder = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
+const DRAFT = {
+  listingId: 'a3c1d5e2-7b4f-4c8a-9e10-2d3f4a5b6c7d',
+  sku: 'NB-001',
+  name: 'Notebook',
+  description: 'Notebook 16GB RAM',
+  price: 4500,
+  stock: 2,
+};
+
 const page = (orders: unknown[], nextToken: string | null = null) => ({ payload: { Orders: orders, NextToken: nextToken } });
 
 describe('AmazonMarketplace', () => {
@@ -32,7 +41,7 @@ describe('AmazonMarketplace', () => {
   beforeEach(() => {
     lines.length = 0;
     send = jest.fn();
-    amazon = new AmazonMarketplace({ send } as MarketplaceHttp, { marketplaceId: MARKETPLACE_ID }, logger);
+    amazon = new AmazonMarketplace({ send } as MarketplaceHttp, { sellerId: 'A1B2C3D4E5', marketplaceId: MARKETPLACE_ID }, logger);
   });
 
   it('is the AMAZON marketplace', () => {
@@ -167,6 +176,68 @@ describe('AmazonMarketplace', () => {
       expect(failure).toBeInstanceOf(MarketplaceRejectedError);
       expect(failure).toMatchObject({ marketplace: 'AMAZON' });
       expect((failure as Error).message).toContain('Unexpected order listing');
+    });
+  });
+
+  describe('publishListing', () => {
+    const accepted = { status: 200, body: { sku: 'NB-001', status: 'ACCEPTED', submissionId: 's1', asin: 'B07T7C4QAF', issues: [] } };
+
+    it('puts the listing by SKU, with the id of the listing as the idempotency key', async () => {
+      send.mockResolvedValue(accepted);
+
+      await amazon.publishListing(DRAFT);
+
+      expect(send).toHaveBeenCalledTimes(1);
+      expect(send).toHaveBeenCalledWith({
+        method: 'PUT',
+        path: '/listings/2021-08-01/items/A1B2C3D4E5/NB-001',
+        query: { marketplaceIds: MARKETPLACE_ID },
+        headers: { 'idempotency-key': 'a3c1d5e2-7b4f-4c8a-9e10-2d3f4a5b6c7d' },
+        body: {
+          productType: 'PRODUCT',
+          attributes: {
+            item_name: [{ value: 'Notebook' }],
+            product_description: [{ value: 'Notebook 16GB RAM' }],
+            list_price: [{ currency: 'BRL', value: 4500 }],
+            fulfillment_availability: [{ fulfillment_channel_code: 'DEFAULT', quantity: 2 }],
+          },
+        },
+      });
+    });
+
+    it('gives the ASIN as the id of the listing', async () => {
+      send.mockResolvedValue(accepted);
+
+      await expect(amazon.publishListing(DRAFT)).resolves.toEqual({ externalListingId: 'B07T7C4QAF' });
+    });
+
+    it('escapes the SKU in the path', async () => {
+      send.mockResolvedValue(accepted);
+
+      await amazon.publishListing({ ...DRAFT, sku: 'A/B C' });
+
+      expect(send.mock.calls[0][0].path).toBe('/listings/2021-08-01/items/A1B2C3D4E5/A%2FB%20C');
+    });
+
+    it.each([
+      ['a listing that was not accepted', { sku: 'NB-001', status: 'INVALID', asin: 'B0X', issues: [] }],
+      ['an answer without the ASIN', { sku: 'NB-001', status: 'ACCEPTED' }],
+      ['an answer that is not an object', 'lixo'],
+      ['an empty answer', null],
+    ])('refuses %s', async (_case, body) => {
+      send.mockResolvedValue({ status: 200, body });
+
+      const failure = await amazon.publishListing(DRAFT).catch((err: MarketplaceRejectedError) => err);
+
+      expect(failure).toBeInstanceOf(MarketplaceRejectedError);
+      expect((failure as Error).message).toContain('The listing was not accepted');
+    });
+
+    it('lets the failure of the call through', async () => {
+      const refusal = new MarketplaceRejectedError('HTTP 400: InvalidInput: list_price must be greater than zero', 'AMAZON');
+      send.mockRejectedValue(refusal);
+
+      await expect(amazon.publishListing(DRAFT)).rejects.toBe(refusal);
     });
   });
 

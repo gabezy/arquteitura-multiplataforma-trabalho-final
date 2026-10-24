@@ -2,12 +2,23 @@ import { Logger } from 'pino';
 import { z } from 'zod';
 import { Marketplace } from '../../core/marketplace/model/marketplace';
 import { MarketplaceRejectedError } from '../../core/marketplace/model/marketplace.errors';
-import { CancelOrderRequest, CanonicalOrder, MarketplacePort } from '../../core/marketplace/port/out/marketplace.port';
+import {
+    CancelOrderRequest,
+    CanonicalOrder,
+    ListingDraft,
+    MarketplacePort,
+    PublishedListing,
+} from '../../core/marketplace/port/out/marketplace.port';
 import { MarketplaceHttp } from './marketplace-http.client';
 import { instantOf, MAX_PAGES, requireBrl, translateOrders, UntranslatableOrderError } from './order-translation';
 
 const PAID = 'paid';
 const PAGE_SIZE = 50;
+// The title of a listing has at most 60 characters. The catalog has no category, so every listing goes in this one.
+const MAX_TITLE_LENGTH = 60;
+const DEFAULT_CATEGORY_ID = 'MLB1648';
+
+const listingCreatedSchema = z.object({ id: z.string().min(1) });
 
 const orderSchema = z.object({
     id: z.union([z.number(), z.string()]),
@@ -55,6 +66,33 @@ export class MercadoLivreMarketplace implements MarketplacePort {
         private readonly options: MercadoLivreOptions,
         private readonly logger: Logger,
     ) {}
+
+    async publishListing(draft: ListingDraft): Promise<PublishedListing> {
+        const { body } = await this.http.send({
+            method: 'POST',
+            path: '/items',
+            headers: { 'idempotency-key': draft.listingId },
+            body: {
+                title: draft.name.slice(0, MAX_TITLE_LENGTH),
+                category_id: DEFAULT_CATEGORY_ID,
+                price: draft.price,
+                currency_id: 'BRL',
+                available_quantity: draft.stock,
+                buying_mode: 'buy_it_now',
+                listing_type_id: 'gold_special',
+                condition: 'new',
+                description: { plain_text: draft.description },
+                seller_custom_field: draft.sku,
+            },
+        });
+
+        const created = listingCreatedSchema.safeParse(body);
+        if (!created.success) {
+            throw new MarketplaceRejectedError(`The listing was not created: ${z.prettifyError(created.error)}`, this.marketplace);
+        }
+
+        return { externalListingId: created.data.id };
+    }
 
     async fetchNewOrders(since: Date): Promise<CanonicalOrder[]> {
         const orders: CanonicalOrder[] = [];

@@ -45,8 +45,8 @@ const canonical = (externalOrderId: string, overrides: Partial<CanonicalOrder> =
 });
 
 describe('OrderFacade', () => {
-  const amazon: jest.Mocked<MarketplacePort> = { marketplace: 'AMAZON', fetchNewOrders: jest.fn(), cancelOrder: jest.fn() };
-  const shopee: jest.Mocked<MarketplacePort> = { marketplace: 'SHOPEE', fetchNewOrders: jest.fn(), cancelOrder: jest.fn() };
+  const amazon: jest.Mocked<MarketplacePort> = { marketplace: 'AMAZON', publishListing: jest.fn(), fetchNewOrders: jest.fn(), cancelOrder: jest.fn() };
+  const shopee: jest.Mocked<MarketplacePort> = { marketplace: 'SHOPEE', publishListing: jest.fn(), fetchNewOrders: jest.fn(), cancelOrder: jest.fn() };
   let orders: InMemoryOrders;
   let cursors: InMemoryCursors;
   let facade: OrderFacade;

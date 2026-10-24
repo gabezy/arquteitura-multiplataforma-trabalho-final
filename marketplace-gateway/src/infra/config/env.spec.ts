@@ -10,7 +10,7 @@ describe('loadConfig', () => {
       databaseUrl: 'postgresql://marketplace:marketplace@localhost:5436/marketplace',
       kafkaBrokers: ['localhost:9092'],
       marketplaces: {
-        amazon: { baseUrl: 'http://localhost:8089/amazon', marketplaceId: 'A2Q3Y263D00KWC' },
+        amazon: { baseUrl: 'http://localhost:8089/amazon', sellerId: 'A1B2C3D4E5', marketplaceId: 'A2Q3Y263D00KWC' },
         mercadoLivre: { baseUrl: 'http://localhost:8089/mercadolivre', sellerId: '2000' },
         shopee: { baseUrl: 'http://localhost:8089/shopee', shopId: '1001' },
         httpTimeoutMs: 3000,
@@ -20,7 +20,10 @@ describe('loadConfig', () => {
         breakerFailureThreshold: 5,
         breakerCooldownMs: 30_000,
       },
+      catalog: { serviceUrl: 'http://localhost:8082', timeoutMs: 3000 },
       orderPolling: { intervalMs: 5000, overlapMs: 60_000, initialLookbackMs: 86_400_000 },
+      catalogProductApprovedTopic: 'catalog.product.approved.v1',
+      catalogProductDeadLetterTopic: 'marketplace.catalog-product.dlq',
       orderCancelledTopic: 'order.order.cancelled.v1',
       orderCancelledDeadLetterTopic: 'marketplace.order-cancelled.dlq',
     });
@@ -35,6 +38,7 @@ describe('loadConfig', () => {
       DATABASE_URL: 'postgresql://user:password@marketplace-db:5432/marketplace',
       KAFKA_BROKERS: 'kafka:19092',
       AMAZON_BASE_URL: 'http://wiremock:8080/amazon',
+      AMAZON_SELLER_ID: 'ASELLER',
       AMAZON_MARKETPLACE_ID: 'ATVPDKIKX0DER',
       MERCADO_LIVRE_BASE_URL: 'http://wiremock:8080/mercadolivre',
       MERCADO_LIVRE_SELLER_ID: '3000',
@@ -46,9 +50,13 @@ describe('loadConfig', () => {
       MARKETPLACE_BACKOFF_MAX_MS: '800',
       MARKETPLACE_BREAKER_FAILURES: '2',
       MARKETPLACE_BREAKER_COOLDOWN_MS: '10000',
+      CATALOG_SERVICE_URL: 'http://catalog-service:8082',
+      CATALOG_TIMEOUT_MS: '1200',
       ORDER_POLL_INTERVAL_MS: '1000',
       ORDER_POLL_OVERLAP_MS: '5000',
       ORDER_POLL_LOOKBACK_MS: '3600000',
+      CATALOG_PRODUCT_APPROVED_TOPIC: 'approved',
+      CATALOG_PRODUCT_DLQ_TOPIC: 'approved.dlq',
       ORDER_CANCELLED_TOPIC: 'cancelled',
       ORDER_CANCELLED_DLQ_TOPIC: 'cancelled.dlq',
     });
@@ -61,7 +69,7 @@ describe('loadConfig', () => {
       databaseUrl: 'postgresql://user:password@marketplace-db:5432/marketplace',
       kafkaBrokers: ['kafka:19092'],
       marketplaces: {
-        amazon: { baseUrl: 'http://wiremock:8080/amazon', marketplaceId: 'ATVPDKIKX0DER' },
+        amazon: { baseUrl: 'http://wiremock:8080/amazon', sellerId: 'ASELLER', marketplaceId: 'ATVPDKIKX0DER' },
         mercadoLivre: { baseUrl: 'http://wiremock:8080/mercadolivre', sellerId: '3000' },
         shopee: { baseUrl: 'http://wiremock:8080/shopee', shopId: '2002' },
         httpTimeoutMs: 1500,
@@ -71,7 +79,10 @@ describe('loadConfig', () => {
         breakerFailureThreshold: 2,
         breakerCooldownMs: 10_000,
       },
+      catalog: { serviceUrl: 'http://catalog-service:8082', timeoutMs: 1200 },
       orderPolling: { intervalMs: 1000, overlapMs: 5000, initialLookbackMs: 3_600_000 },
+      catalogProductApprovedTopic: 'approved',
+      catalogProductDeadLetterTopic: 'approved.dlq',
       orderCancelledTopic: 'cancelled',
       orderCancelledDeadLetterTopic: 'cancelled.dlq',
     });
@@ -99,6 +110,7 @@ describe('loadConfig', () => {
     'MARKETPLACE_BACKOFF_MAX_MS',
     'MARKETPLACE_BREAKER_FAILURES',
     'MARKETPLACE_BREAKER_COOLDOWN_MS',
+    'CATALOG_TIMEOUT_MS',
     'ORDER_POLL_INTERVAL_MS',
     'ORDER_POLL_OVERLAP_MS',
     'ORDER_POLL_LOOKBACK_MS',
@@ -112,7 +124,7 @@ describe('loadConfig', () => {
     });
   });
 
-  it.each(['AMAZON_BASE_URL', 'MERCADO_LIVRE_BASE_URL', 'SHOPEE_BASE_URL'])('rejects a %s that is not a URL', name => {
+  it.each(['AMAZON_BASE_URL', 'MERCADO_LIVRE_BASE_URL', 'SHOPEE_BASE_URL', 'CATALOG_SERVICE_URL'])('rejects a %s that is not a URL', name => {
     expect(() => loadConfig({ [name]: 'wiremock/amazon' })).toThrow(`Invalid ${name}: wiremock/amazon`);
   });
 });

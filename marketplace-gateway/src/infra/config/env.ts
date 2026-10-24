@@ -1,5 +1,5 @@
 export interface MarketplacesConfig {
-  amazon: { baseUrl: string; marketplaceId: string };
+  amazon: { baseUrl: string; sellerId: string; marketplaceId: string };
   mercadoLivre: { baseUrl: string; sellerId: string };
   shopee: { baseUrl: string; shopId: string };
   httpTimeoutMs: number;
@@ -8,6 +8,11 @@ export interface MarketplacesConfig {
   backoffMaxMs: number;
   breakerFailureThreshold: number;
   breakerCooldownMs: number;
+}
+
+export interface CatalogConfig {
+  serviceUrl: string;
+  timeoutMs: number;
 }
 
 export interface OrderPollingConfig {
@@ -24,7 +29,10 @@ export interface AppConfig {
   databaseUrl: string;
   kafkaBrokers: string[];
   marketplaces: MarketplacesConfig;
+  catalog: CatalogConfig;
   orderPolling: OrderPollingConfig;
+  catalogProductApprovedTopic: string;
+  catalogProductDeadLetterTopic: string;
   orderCancelledTopic: string;
   orderCancelledDeadLetterTopic: string;
 }
@@ -42,6 +50,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     marketplaces: {
       amazon: {
         baseUrl: parseUrl(env, 'AMAZON_BASE_URL', 'http://localhost:8089/amazon'),
+        sellerId: env.AMAZON_SELLER_ID ?? 'A1B2C3D4E5',
         marketplaceId: env.AMAZON_MARKETPLACE_ID ?? 'A2Q3Y263D00KWC',
       },
       mercadoLivre: {
@@ -59,11 +68,17 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       breakerFailureThreshold: parsePositiveInt(env, 'MARKETPLACE_BREAKER_FAILURES', 5),
       breakerCooldownMs: parsePositiveInt(env, 'MARKETPLACE_BREAKER_COOLDOWN_MS', 30_000),
     },
+    catalog: {
+      serviceUrl: parseUrl(env, 'CATALOG_SERVICE_URL', 'http://localhost:8082'),
+      timeoutMs: parsePositiveInt(env, 'CATALOG_TIMEOUT_MS', 3000),
+    },
     orderPolling: {
       intervalMs: parsePositiveInt(env, 'ORDER_POLL_INTERVAL_MS', 5000),
       overlapMs: parsePositiveInt(env, 'ORDER_POLL_OVERLAP_MS', 60_000),
       initialLookbackMs: parsePositiveInt(env, 'ORDER_POLL_LOOKBACK_MS', 86_400_000),
     },
+    catalogProductApprovedTopic: env.CATALOG_PRODUCT_APPROVED_TOPIC ?? 'catalog.product.approved.v1',
+    catalogProductDeadLetterTopic: env.CATALOG_PRODUCT_DLQ_TOPIC ?? 'marketplace.catalog-product.dlq',
     orderCancelledTopic: env.ORDER_CANCELLED_TOPIC ?? 'order.order.cancelled.v1',
     orderCancelledDeadLetterTopic: env.ORDER_CANCELLED_DLQ_TOPIC ?? 'marketplace.order-cancelled.dlq',
   };

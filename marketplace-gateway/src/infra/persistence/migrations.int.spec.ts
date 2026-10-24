@@ -40,7 +40,7 @@ describe('migrations', () => {
   it('creates the tables of the service, then applies nothing on a second run', async () => {
     const first = capturingLogger();
     expect(await runMigrations(db, first.logger)).toBe(true);
-    expect(first.lines.map(line => line.msg)).toEqual(['Applied 4 migration(s)']);
+    expect(first.lines.map(line => line.msg)).toEqual(['Applied 5 migration(s)']);
 
     expect(await columnsOf(db, 'outbox')).toEqual([
       { column_name: 'sequence', data_type: 'bigint', is_nullable: 'NO', column_default: expect.stringContaining('nextval') },
@@ -84,6 +84,27 @@ describe('migrations', () => {
       { column_name: 'last_polled_at', data_type: 'timestamp with time zone', is_nullable: 'NO', column_default: null },
     ]);
 
+    expect(await columnsOf(db, 'listings')).toEqual([
+      { column_name: 'id', data_type: 'uuid', is_nullable: 'NO', column_default: null },
+      { column_name: 'product_id', data_type: 'uuid', is_nullable: 'NO', column_default: null },
+      { column_name: 'sku', data_type: 'text', is_nullable: 'NO', column_default: null },
+      { column_name: 'marketplace', data_type: 'text', is_nullable: 'NO', column_default: null },
+      { column_name: 'status', data_type: 'text', is_nullable: 'NO', column_default: null },
+      { column_name: 'external_listing_id', data_type: 'text', is_nullable: 'YES', column_default: null },
+      { column_name: 'price', data_type: 'numeric', is_nullable: 'NO', column_default: null },
+      { column_name: 'stock', data_type: 'integer', is_nullable: 'NO', column_default: null },
+      { column_name: 'failure_reason', data_type: 'text', is_nullable: 'YES', column_default: null },
+      { column_name: 'attempts', data_type: 'integer', is_nullable: 'NO', column_default: '0' },
+      { column_name: 'created_at', data_type: 'timestamp with time zone', is_nullable: 'NO', column_default: 'now()' },
+      { column_name: 'updated_at', data_type: 'timestamp with time zone', is_nullable: 'NO', column_default: null },
+    ]);
+    const listingUniqueness = await db.raw(
+      `select a.attname from pg_index i
+         join pg_attribute a on a.attrelid = i.indrelid and a.attnum = any(i.indkey)
+        where i.indrelid = 'listings'::regclass and i.indisunique and not i.indisprimary`,
+    );
+    expect(listingUniqueness.rows.map((row: { attname: string }) => row.attname).sort()).toEqual(['marketplace', 'sku']);
+
     const second = capturingLogger();
     expect(await runMigrations(db, second.logger)).toBe(true);
     expect(second.lines.map(line => line.msg)).toEqual(['Database already up to date']);
@@ -92,6 +113,7 @@ describe('migrations', () => {
       '20261024120100_create_processed_events_table',
       '20261024130000_create_marketplace_orders_table',
       '20261024130100_create_order_cursors_table',
+      '20261024140000_create_listings_table',
     ]);
   });
 

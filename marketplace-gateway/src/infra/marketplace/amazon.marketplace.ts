@@ -2,7 +2,13 @@ import { Logger } from 'pino';
 import { z } from 'zod';
 import { Marketplace } from '../../core/marketplace/model/marketplace';
 import { MarketplaceRejectedError } from '../../core/marketplace/model/marketplace.errors';
-import { CancelOrderRequest, CanonicalOrder, MarketplacePort } from '../../core/marketplace/port/out/marketplace.port';
+import {
+    CancelOrderRequest,
+    CanonicalOrder,
+    ListingDraft,
+    MarketplacePort,
+    PublishedListing,
+} from '../../core/marketplace/port/out/marketplace.port';
 import { MarketplaceHttp } from './marketplace-http.client';
 import {
     amountOf,
@@ -37,9 +43,16 @@ const pageSchema = z.object({
     }),
 });
 
+// What the marketplace answers to a listing it accepted: the ASIN is the id of the listing.
+const listingAcceptedSchema = z.object({
+    status: z.literal('ACCEPTED'),
+    asin: z.string().min(1),
+});
+
 type AmazonOrder = z.infer<typeof orderSchema>;
 
 export interface AmazonOptions {
+    sellerId: string;
     marketplaceId: string;
 }
 
@@ -59,6 +72,32 @@ export class AmazonMarketplace implements MarketplacePort {
         private readonly options: AmazonOptions,
         private readonly logger: Logger,
     ) {}
+
+    // A PUT by SKU: sending the same listing again replaces it instead of creating another.
+    async publishListing(draft: ListingDraft): Promise<PublishedListing> {
+        const { body } = await this.http.send({
+            method: 'PUT',
+            path: `/listings/2021-08-01/items/${encodeURIComponent(this.options.sellerId)}/${encodeURIComponent(draft.sku)}`,
+            query: { marketplaceIds: this.options.marketplaceId },
+            headers: { 'idempotency-key': draft.listingId },
+            body: {
+                productType: 'PRODUCT',
+                attributes: {
+                    item_name: [{ value: draft.name }],
+                    product_description: [{ value: draft.description }],
+                    list_price: [{ currency: 'BRL', value: draft.price }],
+                    fulfillment_availability: [{ fulfillment_channel_code: 'DEFAULT', quantity: draft.stock }],
+                },
+            },
+        });
+
+        const accepted = listingAcceptedSchema.safeParse(body);
+        if (!accepted.success) {
+            throw new MarketplaceRejectedError(`The listing was not accepted: ${z.prettifyError(accepted.error)}`, this.marketplace);
+        }
+
+        return { externalListingId: accepted.data.asin };
+    }
 
     async fetchNewOrders(since: Date): Promise<CanonicalOrder[]> {
         const orders: CanonicalOrder[] = [];

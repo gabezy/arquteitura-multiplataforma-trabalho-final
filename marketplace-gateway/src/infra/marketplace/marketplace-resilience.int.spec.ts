@@ -14,6 +14,7 @@ import { describeShopeeError, ShopeeMarketplace } from './shopee.marketplace';
 
 const SINCE = new Date('2026-10-28T12:00:00.000Z');
 const logger = pino({ level: 'silent' });
+const DRAFT = { listingId: 'a3c1d5e2-7b4f-4c8a-9e10-2d3f4a5b6c7d', sku: 'NB-001', name: 'Notebook', description: 'Notebook 16GB RAM', price: 4500, stock: 2 };
 const COOLDOWN_MS = 300;
 
 // The policy of the gateway (3 attempts, a circuit that opens at 3 failures in a row), with the waits cut short.
@@ -29,7 +30,7 @@ const adapterFor = (marketplace: SimulatedMarketplace, timeoutMs: number): Marke
   const baseUrl = simulatorBaseUrl(marketplace);
   switch (marketplace) {
     case 'AMAZON':
-      return new AmazonMarketplace(new MarketplaceHttpClient('AMAZON', { baseUrl, timeoutMs, describeError: describeAmazonError }), { marketplaceId: 'A2Q3Y263D00KWC' }, logger);
+      return new AmazonMarketplace(new MarketplaceHttpClient('AMAZON', { baseUrl, timeoutMs, describeError: describeAmazonError }), { sellerId: 'A1B2C3D4E5', marketplaceId: 'A2Q3Y263D00KWC' }, logger);
     case 'MERCADO_LIVRE':
       return new MercadoLivreMarketplace(new MarketplaceHttpClient('MERCADO_LIVRE', { baseUrl, timeoutMs, describeError: describeMercadoLivreError }), { sellerId: '2000' }, logger);
     case 'SHOPEE':
@@ -50,6 +51,12 @@ const SHIPPED_ID: Record<SimulatedMarketplace, string> = {
   AMAZON: '701-SHIPPED-1',
   MERCADO_LIVRE: '2000-SHIPPED',
   SHOPEE: 'SHP-SHIPPED-1',
+};
+
+const PUBLISH_PATH: Record<SimulatedMarketplace, string> = {
+  AMAZON: '/amazon/listings/2021-08-01/items/A1B2C3D4E5/NB-001',
+  MERCADO_LIVRE: '/mercadolivre/items',
+  SHOPEE: '/shopee/api/v2/product/add_item',
 };
 
 const CANCEL_PATH: Record<SimulatedMarketplace, string> = {
@@ -107,6 +114,34 @@ describe.each(['AMAZON', 'MERCADO_LIVRE', 'SHOPEE'] as const)('the resilience of
 
     expect(failure).toMatchObject({ message: `${marketplace} did not answer within 200 ms`, attempts: 3 });
     expect(await callsToMarketplace()).toBe(3);
+  });
+
+  it('publishes a listing on the third attempt, sending the same idempotency key every time (flaky)', async () => {
+    await simulateFailure(marketplace, 'flaky');
+
+    const { externalListingId } = await resilient(marketplace).publishListing(DRAFT);
+
+    expect(externalListingId).not.toBe('');
+    const requests = await requestsTo(PUBLISH_PATH[marketplace]);
+    expect(requests).toHaveLength(3);
+    expect(requests.map(request => request.headers['idempotency-key'])).toEqual([DRAFT.listingId, DRAFT.listingId, DRAFT.listingId]);
+  });
+
+  it('gives up publishing after 3 attempts when the marketplace is unavailable', async () => {
+    await simulateFailure(marketplace, 'unavailable');
+
+    const failure = await resilient(marketplace).publishListing(DRAFT).catch((err: MarketplaceUnavailableError) => err);
+
+    expect(failure).toMatchObject({ message: 'HTTP 503', attempts: 3 });
+    expect(await requestsTo(PUBLISH_PATH[marketplace])).toHaveLength(3);
+  });
+
+  it('does not try again when the marketplace refuses the listing', async () => {
+    const failure = await resilient(marketplace).publishListing({ ...DRAFT, price: 0 }).catch((err: MarketplaceRejectedError) => err);
+
+    expect(failure).toBeInstanceOf(MarketplaceRejectedError);
+    expect(failure).toMatchObject({ attempts: 1 });
+    expect(await requestsTo(PUBLISH_PATH[marketplace])).toHaveLength(1);
   });
 
   it('does not try again when the marketplace refuses the call', async () => {

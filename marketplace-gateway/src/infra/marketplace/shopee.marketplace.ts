@@ -5,12 +5,20 @@ import {
     MarketplaceRejectedError,
     MarketplaceUnavailableError,
 } from '../../core/marketplace/model/marketplace.errors';
-import { CancelOrderRequest, CanonicalOrder, MarketplacePort } from '../../core/marketplace/port/out/marketplace.port';
+import {
+    CancelOrderRequest,
+    CanonicalOrder,
+    ListingDraft,
+    MarketplacePort,
+    PublishedListing,
+} from '../../core/marketplace/port/out/marketplace.port';
 import { MarketplaceHttp } from './marketplace-http.client';
 import { instantOf, MAX_PAGES, translateOrders, UntranslatableOrderError } from './order-translation';
 
 const READY_TO_SHIP = 'READY_TO_SHIP';
 const PAGE_SIZE = 100;
+// The catalog has no category, so every listing goes in this one.
+const DEFAULT_CATEGORY_ID = 100001;
 // Shopee refuses an order listing that spans more than 15 days.
 const MAX_WINDOW_SECONDS = 15 * 24 * 60 * 60;
 // Errors inside a 200 that say the marketplace is busy, not that the call is wrong.
@@ -33,6 +41,8 @@ const orderSchema = z.object({
         model_discounted_price: z.number(),
     })),
 });
+
+const itemCreatedSchema = z.object({ item_id: z.number() });
 
 const orderListSchema = z.object({
     more: z.boolean(),
@@ -68,6 +78,31 @@ export class ShopeeMarketplace implements MarketplacePort {
         private readonly logger: Logger,
         private readonly now: () => Date = () => new Date(),
     ) {}
+
+    async publishListing(draft: ListingDraft): Promise<PublishedListing> {
+        const { body } = await this.http.send({
+            method: 'POST',
+            path: '/api/v2/product/add_item',
+            query: { shop_id: this.options.shopId },
+            headers: { 'idempotency-key': draft.listingId },
+            body: {
+                item_name: draft.name,
+                description: draft.description,
+                original_price: draft.price,
+                normal_stock: draft.stock,
+                item_sku: draft.sku,
+                category_id: DEFAULT_CATEGORY_ID,
+            },
+        });
+
+        // The error of a refusal comes inside the 200: responseOf turns it into the exception.
+        const created = itemCreatedSchema.safeParse(this.responseOf(body));
+        if (!created.success) {
+            throw new MarketplaceRejectedError(`The listing was not created: ${z.prettifyError(created.error)}`, this.marketplace);
+        }
+
+        return { externalListingId: String(created.data.item_id) };
+    }
 
     async fetchNewOrders(since: Date): Promise<CanonicalOrder[]> {
         const timeTo = Math.floor(this.now().getTime() / 1000);

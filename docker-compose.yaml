@@ -394,6 +394,8 @@ services:
       AMAZON_BASE_URL: http://wiremock:8080/amazon
       MERCADO_LIVRE_BASE_URL: http://wiremock:8080/mercadolivre
       SHOPEE_BASE_URL: http://wiremock:8080/shopee
+      # The data of an approved product is read from the catalog when its listings are published (ADR-0011).
+      CATALOG_SERVICE_URL: http://catalog-service:8082
     ports:
       - "8087:8087"
     depends_on:
@@ -402,6 +404,8 @@ services:
       kafka-init:
         condition: service_completed_successfully
       wiremock:
+        condition: service_started
+      catalog-service:
         condition: service_started
 
   bff-gateway:

@@ -20,6 +20,15 @@ import { describeShopeeError, ShopeeMarketplace } from './shopee.marketplace';
 const SINCE = new Date('2026-10-28T12:00:00.000Z');
 const logger = pino({ level: 'silent' });
 
+const DRAFT = {
+  listingId: 'a3c1d5e2-7b4f-4c8a-9e10-2d3f4a5b6c7d',
+  sku: 'NB-001',
+  name: 'Notebook',
+  description: 'Notebook 16GB RAM',
+  price: 4500,
+  stock: 2,
+};
+
 interface Subject {
   marketplace: SimulatedMarketplace;
   adapter: (timeoutMs: number) => MarketplacePort;
@@ -28,6 +37,7 @@ interface Subject {
   ids: { order: string; shipped: string; unknown: string };
   cancel: { method: string; path: (id: string) => string; body: (id: string) => unknown };
   refusals: { shipped: string; unknown: string };
+  publish: { method: string; path: string; externalListingId: RegExp; body: (draft: typeof DRAFT) => unknown; priceRefusal: string };
 }
 
 const subjects: Subject[] = [
@@ -36,7 +46,7 @@ const subjects: Subject[] = [
     adapter: timeoutMs =>
       new AmazonMarketplace(
         new MarketplaceHttpClient('AMAZON', { baseUrl: simulatorBaseUrl('AMAZON'), timeoutMs, describeError: describeAmazonError }),
-        { marketplaceId: 'A2Q3Y263D00KWC' },
+        { sellerId: 'A1B2C3D4E5', marketplaceId: 'A2Q3Y263D00KWC' },
         logger,
       ),
     ordersPath: '/amazon/orders/v0/orders',
@@ -48,6 +58,21 @@ const subjects: Subject[] = [
       body: () => ({ cancelReason: 'OUT_OF_STOCK' }),
     },
     refusals: { shipped: 'HTTP 409: InvalidInput: Order already shipped', unknown: 'HTTP 404: NotFound: Order not found' },
+    publish: {
+      method: 'PUT',
+      path: '/amazon/listings/2021-08-01/items/A1B2C3D4E5/NB-001',
+      externalListingId: /^B0[A-Z0-9]{8}$/,
+      body: draft => ({
+        productType: 'PRODUCT',
+        attributes: {
+          item_name: [{ value: draft.name }],
+          product_description: [{ value: draft.description }],
+          list_price: [{ currency: 'BRL', value: draft.price }],
+          fulfillment_availability: [{ fulfillment_channel_code: 'DEFAULT', quantity: draft.stock }],
+        },
+      }),
+      priceRefusal: 'HTTP 400: InvalidInput: list_price must be greater than zero',
+    },
   },
   {
     marketplace: 'MERCADO_LIVRE',
@@ -66,6 +91,24 @@ const subjects: Subject[] = [
       body: () => ({ status: 'cancelled', reason: 'OUT_OF_STOCK' }),
     },
     refusals: { shipped: 'HTTP 409: Order cannot be cancelled', unknown: 'HTTP 404: Order not found' },
+    publish: {
+      method: 'POST',
+      path: '/mercadolivre/items',
+      externalListingId: /^MLB\d{10}$/,
+      body: draft => ({
+        title: draft.name,
+        category_id: 'MLB1648',
+        price: draft.price,
+        currency_id: 'BRL',
+        available_quantity: draft.stock,
+        buying_mode: 'buy_it_now',
+        listing_type_id: 'gold_special',
+        condition: 'new',
+        description: { plain_text: draft.description },
+        seller_custom_field: draft.sku,
+      }),
+      priceRefusal: 'HTTP 400: Validation error: Item price invalid',
+    },
   },
   {
     marketplace: 'SHOPEE',
@@ -84,6 +127,20 @@ const subjects: Subject[] = [
       body: id => ({ order_sn: id, cancel_reason: 'OUT_OF_STOCK' }),
     },
     refusals: { shipped: 'error_cannot_cancel: Order already shipped', unknown: 'error_not_found: Order not found' },
+    publish: {
+      method: 'POST',
+      path: '/shopee/api/v2/product/add_item',
+      externalListingId: /^\d{9}$/,
+      body: draft => ({
+        item_name: draft.name,
+        description: draft.description,
+        original_price: draft.price,
+        normal_stock: draft.stock,
+        item_sku: draft.sku,
+        category_id: 100001,
+      }),
+      priceRefusal: 'error_param: original_price must be greater than 0',
+    },
   },
 ];
 
@@ -92,6 +149,37 @@ describe.each(subjects)('the $marketplace adapter against its simulator', subjec
   const adapter = subject.adapter(2000);
 
   beforeEach(resetWiremock);
+
+  describe('publishing a listing', () => {
+    it('gives the id the marketplace generated for the listing', async () => {
+      const { externalListingId } = await adapter.publishListing(DRAFT);
+
+      expect(externalListingId).toMatch(subject.publish.externalListingId);
+    });
+
+    it('sends the data of the product in the format of the marketplace, with the id of the listing as the idempotency key', async () => {
+      await adapter.publishListing(DRAFT);
+
+      const [request, ...others] = await requestsTo(subject.publish.path);
+      expect(others).toEqual([]);
+      expect(request.method).toBe(subject.publish.method);
+      expect(request.headers).toMatchObject({ 'idempotency-key': DRAFT.listingId });
+      expect(JSON.parse(request.body)).toEqual(subject.publish.body(DRAFT));
+    });
+
+    it('is refused when the price is zero, with the reason of the marketplace', async () => {
+      const failure = await adapter.publishListing({ ...DRAFT, price: 0 }).catch((err: MarketplaceRejectedError) => err);
+
+      expect(failure).toBeInstanceOf(MarketplaceRejectedError);
+      expect((failure as Error).message).toBe(subject.publish.priceRefusal);
+    });
+
+    it('is unavailable when the marketplace answers 503', async () => {
+      await simulateFailure(marketplace, 'unavailable');
+
+      await expect(adapter.publishListing(DRAFT)).rejects.toThrow(MarketplaceUnavailableError);
+    });
+  });
 
   describe('fetching new orders', () => {
     it('finds none while nobody simulated an order', async () => {

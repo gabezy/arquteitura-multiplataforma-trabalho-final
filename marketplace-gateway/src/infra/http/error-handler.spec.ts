@@ -2,7 +2,9 @@ import express, { Express } from 'express';
 import pino from 'pino';
 import request from 'supertest';
 import { errorHandler } from './error-handler';
+import { z } from 'zod';
 import { ConflictError, NotFoundError, ValidationError } from '../../core/shared/domain/domain.error';
+import { RequestValidationError } from './validate';
 
 const appThrowing = (error: unknown): Express => {
   const app = express();
@@ -29,6 +31,37 @@ describe('errorHandler', () => {
       title,
       status,
       detail: error.message,
+      instance: '/boom',
+    });
+  });
+
+  it('maps a request whose values break the contract to 422, listing each issue', async () => {
+    const { error } = z.object({ limit: z.number() }).safeParse({ limit: 'x' });
+
+    const response = await request(appThrowing(new RequestValidationError(error as z.ZodError))).post('/boom');
+
+    expect(response.status).toBe(422);
+    expect(response.headers['content-type']).toContain('application/problem+json');
+    expect(response.body).toEqual({
+      type: 'about:blank',
+      title: 'Unprocessable Entity',
+      status: 422,
+      detail: 'Request validation failed.',
+      instance: '/boom',
+      errors: [{ path: 'limit', message: expect.any(String) }],
+    });
+  });
+
+  it('maps a malformed URL to 400, without repeating it', async () => {
+    const response = await request(appThrowing(new URIError("Failed to decode param '%E0%A4%A'"))).post('/boom');
+
+    expect(response.status).toBe(400);
+    expect(response.headers['content-type']).toContain('application/problem+json');
+    expect(response.body).toEqual({
+      type: 'about:blank',
+      title: 'Bad Request',
+      status: 400,
+      detail: 'The request URL is malformed.',
       instance: '/boom',
     });
   });

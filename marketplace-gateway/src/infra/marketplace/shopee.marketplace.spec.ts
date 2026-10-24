@@ -20,6 +20,15 @@ const shopeeOrder = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
+const DRAFT = {
+  listingId: 'a3c1d5e2-7b4f-4c8a-9e10-2d3f4a5b6c7d',
+  sku: 'NB-001',
+  name: 'Notebook',
+  description: 'Notebook 16GB RAM',
+  price: 4500.5,
+  stock: 2,
+};
+
 const answer = (orders: unknown[], more = false, nextCursor = '') => ({
   error: '',
   message: '',
@@ -197,6 +206,70 @@ describe('ShopeeMarketplace', () => {
       const failure = await shopee.fetchNewOrders(SINCE).catch((err: MarketplaceUnavailableError) => err);
 
       expect(failure).toBeInstanceOf(MarketplaceUnavailableError);
+    });
+  });
+
+  describe('publishListing', () => {
+    const created = { status: 200, body: { error: '', message: '', request_id: 'r1', response: { item_id: 412525791 } } };
+
+    it('adds the item to the shop, with the SKU as the item SKU and the id of the listing as the idempotency key', async () => {
+      send.mockResolvedValue(created);
+
+      await shopee.publishListing(DRAFT);
+
+      expect(send).toHaveBeenCalledTimes(1);
+      expect(send).toHaveBeenCalledWith({
+        method: 'POST',
+        path: '/api/v2/product/add_item',
+        query: { shop_id: SHOP_ID },
+        headers: { 'idempotency-key': 'a3c1d5e2-7b4f-4c8a-9e10-2d3f4a5b6c7d' },
+        body: {
+          item_name: 'Notebook',
+          description: 'Notebook 16GB RAM',
+          original_price: 4500.5,
+          normal_stock: 2,
+          item_sku: 'NB-001',
+          category_id: 100001,
+        },
+      });
+    });
+
+    it('gives the item id, as text, as the id of the listing', async () => {
+      send.mockResolvedValue(created);
+
+      await expect(shopee.publishListing(DRAFT)).resolves.toEqual({ externalListingId: '412525791' });
+    });
+
+    it('treats the error inside the 200 as a refusal, with the code and the message of the marketplace', async () => {
+      send.mockResolvedValue({ status: 200, body: { error: 'error_param', message: 'original_price must be greater than 0', request_id: 'r1', response: {} } });
+
+      const failure = await shopee.publishListing(DRAFT).catch((err: MarketplaceRejectedError) => err);
+
+      expect(failure).toBeInstanceOf(MarketplaceRejectedError);
+      expect(failure).toMatchObject({ message: 'error_param: original_price must be greater than 0', marketplace: 'SHOPEE' });
+    });
+
+    it('treats a busy marketplace inside the 200 as unavailable', async () => {
+      send.mockResolvedValue({ status: 200, body: { error: 'error_busy', message: 'try later', request_id: 'r1' } });
+
+      await expect(shopee.publishListing(DRAFT)).rejects.toThrow(MarketplaceUnavailableError);
+    });
+
+    it.each([
+      ['an answer without the item id', { error: '', message: '', response: {} }],
+      ['an item id that is text', { error: '', message: '', response: { item_id: 'abc' } }],
+      ['an answer without the envelope', { item_id: 1 }],
+    ])('refuses %s', async (_case, body) => {
+      send.mockResolvedValue({ status: 200, body });
+
+      await expect(shopee.publishListing(DRAFT)).rejects.toThrow(MarketplaceRejectedError);
+    });
+
+    it('lets the failure of the call through', async () => {
+      const outage = new MarketplaceUnavailableError('HTTP 503', 'SHOPEE');
+      send.mockRejectedValue(outage);
+
+      await expect(shopee.publishListing(DRAFT)).rejects.toBe(outage);
     });
   });
 
