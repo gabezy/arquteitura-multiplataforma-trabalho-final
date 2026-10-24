@@ -53,6 +53,7 @@ class OrderRoutesRestModeTest {
             }""";
 
     private static final AtomicReference<String> RECEIVED_USER_ID = new AtomicReference<>();
+    private static final AtomicReference<String> RECEIVED_TRACEPARENT = new AtomicReference<>();
     private static final AtomicReference<String> RECEIVED_QUERY = new AtomicReference<>();
     private static final HttpServer ORDER_SERVICE = startOrderService();
 
@@ -80,6 +81,14 @@ class OrderRoutesRestModeTest {
 
         assertThat(RECEIVED_USER_ID.get()).isEqualTo("user-123");
         assertThat(RECEIVED_QUERY.get()).isEqualTo("marketplace=AMAZON&limit=5&offset=0");
+    }
+
+    @Test
+    void propagatesTheTraceToTheOrderService() throws Exception {
+        mockMvc.perform(get("/orders").with(jwt().authorities(new SimpleGrantedAuthority("ROLE_csm"))))
+                .andExpect(status().isOk());
+
+        assertThat(RECEIVED_TRACEPARENT.get()).matches("00-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}");
     }
 
     @Test
@@ -117,6 +126,7 @@ class OrderRoutesRestModeTest {
 
     private static void answer(HttpExchange exchange) throws IOException {
         RECEIVED_USER_ID.set(exchange.getRequestHeaders().getFirst("X-User-Id"));
+        RECEIVED_TRACEPARENT.set(exchange.getRequestHeaders().getFirst("traceparent"));
         RECEIVED_QUERY.set(exchange.getRequestURI().getRawQuery());
         String path = exchange.getRequestURI().getPath();
         if (path.endsWith(UNKNOWN_ID)) {
