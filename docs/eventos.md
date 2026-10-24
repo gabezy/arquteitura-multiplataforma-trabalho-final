@@ -37,17 +37,17 @@ Cada contrato tem um estado:
 | [`catalog.product.approved.v1`](#catalogproductapprovedv1) | catalog-service | marketplace-gateway (#21) | `productId` | Provisório |
 | [`catalog.product.rejected.v1`](#catalogproductrejectedv1) | catalog-service | nenhum | `productId` | Implementado |
 | [`catalog.product.stock-changed.v1`](#catalogproductstock-changedv1) | catalog-service | marketplace-gateway (#33) | `productId` | Provisório |
-| [`catalog.stock.reserved.v1`](#catalogstockreservedv1) | catalog-service | order-service (#20, #29) | `orderId` | Provisório |
-| [`catalog.stock.insufficient.v1`](#catalogstockinsufficientv1) | catalog-service | order-service (#20, #29) | `orderId` | Provisório |
-| [`order.order.placed.v1`](#orderorderplacedv1) | order-service (#20) | catalog-service | `orderId` | Provisório |
-| [`order.order.confirmed.v1`](#orderorderconfirmedv1) | order-service (#20) | billing-service (#23) | `orderId` | Proposto |
-| [`order.order.cancelled.v1`](#orderordercancelledv1) | order-service (#20) | catalog-service, marketplace-gateway, billing-service (#23) | `orderId` | Provisório |
+| [`catalog.stock.reserved.v1`](#catalogstockreservedv1) | catalog-service | order-service (#20, #29) | `orderId` | Implementado |
+| [`catalog.stock.insufficient.v1`](#catalogstockinsufficientv1) | catalog-service | order-service (#20, #29) | `orderId` | Implementado |
+| [`order.order.placed.v1`](#orderorderplacedv1) | order-service (#20) | catalog-service | `orderId` | Implementado |
+| [`order.order.confirmed.v1`](#orderorderconfirmedv1) | order-service (#20) | billing-service (#23) | `orderId` | Implementado |
+| [`order.order.cancelled.v1`](#orderordercancelledv1) | order-service (#20) | catalog-service, marketplace-gateway, billing-service (#23) | `orderId` | Implementado |
 | [`marketplace.order.received.v1`](#marketplaceorderreceivedv1) | marketplace-gateway (#22) | order-service (#20) | `<marketplace>:<externalOrderId>` | Implementado |
 | [`marketplace.listing.published.v1`](#marketplacelistingpublishedv1-e-marketplacelistingfailedv1) | marketplace-gateway (#21) | nenhum (consulta pela API, #35) | `productId` | Proposto |
 | [`marketplace.listing.failed.v1`](#marketplacelistingpublishedv1-e-marketplacelistingfailedv1) | marketplace-gateway (#21) | nenhum (consulta pela API, #35) | `productId` | Proposto |
 | [`billing.invoice.issued.v1`](#billinginvoiceissuedv1) | billing-service (#23) | nenhum | `invoiceId` | Proposto |
-| [`billing.payment.confirmed.v1`](#billingpaymentconfirmedv1-e-billingpaymentfailedv1) | billing-service (#32) | order-service | `invoiceId` | Proposto |
-| [`billing.payment.failed.v1`](#billingpaymentconfirmedv1-e-billingpaymentfailedv1) | billing-service (#32) | order-service | `invoiceId` | Proposto |
+| [`billing.payment.confirmed.v1`](#billingpaymentconfirmedv1-e-billingpaymentfailedv1) | billing-service (#32) | order-service | `invoiceId` | Implementado |
+| [`billing.payment.failed.v1`](#billingpaymentconfirmedv1-e-billingpaymentfailedv1) | billing-service (#32) | order-service | `invoiceId` | Implementado |
 
 DLQs: ver [Dead letter topics](#dead-letter-topics).
 
@@ -210,7 +210,7 @@ Como o valor é absoluto, um consumidor que receba eventos repetidos converge pa
 
 ### `order.order.placed.v1`
 
-**Estado:** Provisório (o consumidor existe, o produtor vem na #20) · **Produtor:** order-service · **Consumidor:** catalog-service (group `catalog-service-order-stock`, DLQ `catalog.order-stock.dlq`)
+**Estado:** Implementado · **Produtor:** order-service · **Consumidor:** catalog-service (group `catalog-service-order-stock`, DLQ `catalog.order-stock.dlq`)
 
 Publicado quando o order-service persiste um pedido novo. Pede a reserva do estoque.
 
@@ -243,7 +243,7 @@ Publicado quando o order-service persiste um pedido novo. Pede a reserva do esto
 
 ### `order.order.cancelled.v1`
 
-**Estado:** Provisório (o consumidor do catalog existe, o produtor vem na #20) · **Produtor:** order-service · **Consumidores:** catalog-service (devolve o estoque), marketplace-gateway (cancela no marketplace, previsto) e billing-service (cancela a fatura que ainda não foi paga, #23)
+**Estado:** Implementado · **Produtor:** order-service · **Consumidores:** catalog-service (devolve o estoque), marketplace-gateway (cancela no marketplace) e billing-service (cancela a fatura que ainda não foi paga, #23)
 
 | Campo | Tipo | Regra | Estado |
 |---|---|---|---|
@@ -272,7 +272,7 @@ Publicado quando o order-service persiste um pedido novo. Pede a reserva do esto
 
 ### `catalog.stock.reserved.v1`
 
-**Estado:** Provisório (publicado, o consumidor vem na #20/#29) · **Produtor:** catalog-service · **Consumidor previsto:** order-service
+**Estado:** Implementado · **Produtor:** catalog-service · **Consumidor:** order-service (group `order-service-stock-response`, DLQ `order.stock-response.dlq`)
 
 O estoque de todos os itens do pedido foi baixado. Com ele, o order-service confirma o pedido e publica `order.order.confirmed.v1`.
 
@@ -287,7 +287,7 @@ O estoque de todos os itens do pedido foi baixado. Com ele, o order-service conf
 
 ### `catalog.stock.insufficient.v1`
 
-**Estado:** Provisório (publicado, o consumidor vem na #20/#29) · **Produtor:** catalog-service · **Consumidor previsto:** order-service
+**Estado:** Implementado · **Produtor:** catalog-service · **Consumidor:** order-service (group `order-service-stock-response`, DLQ `order.stock-response.dlq`)
 
 Algum item não tinha estoque, e nada foi baixado. O order-service cancela o pedido com `reason: OUT_OF_STOCK`.
 
@@ -302,6 +302,13 @@ Algum item não tinha estoque, e nada foi baixado. O order-service cancela o ped
   "items": [{ "sku": "NB-001", "requested": 2, "available": 1 }]
 }
 ```
+
+No order-service, as duas respostas seguem as mesmas regras:
+
+- `ce_source` é `/catalog-service` e `ce_subject` é o `orderId`.
+- A mesma resposta repetida não muda nada.
+- Uma resposta que contradiz o pedido (ex.: `insufficient` para um pedido `CONFIRMED`) ou que cita um pedido desconhecido vira `warn` e é ignorada, sem DLQ.
+- Só a mensagem fora do contrato vai para `order.stock-response.dlq`.
 
 ---
 
@@ -343,7 +350,7 @@ Pedido recebido de um marketplace, já traduzido para o formato canônico pela a
 
 ### `order.order.confirmed.v1`
 
-**Estado:** Proposto · **A aprovar:** @RodrigoPretes-257199 (produtor, #20) e @paulnune (consumidor, #23) · **Origem:** ADR-0004
+**Estado:** Implementado · **Produtor:** order-service (#20, #29) · **Consumidor:** billing-service (#23) · **Origem:** ADR-0004
 
 O estoque do pedido foi reservado (`catalog.stock.reserved.v1`), então o pedido está confirmado. É o gatilho da cobrança: o billing só cobra a partir dele.
 
@@ -429,7 +436,7 @@ Ainda não há consumidor: a fatura é consultada pela API do billing (#34).
 
 ### `billing.payment.confirmed.v1` e `billing.payment.failed.v1`
 
-**Estado:** Proposto · **A aprovar:** @RodrigoPretes-257199 (consumidor); @paulnune, o produtor (#32), aprova esta ficha · **Origem:** ADR-0005 e [contrato do PSP simulado](#contrato-do-psp-simulado)
+**Estado:** Implementado · **Produtor:** billing-service (#32) · **Consumidor:** order-service (#29, group `order-service-billing-payment`) · **Origem:** ADR-0005 e [contrato do PSP simulado](#contrato-do-psp-simulado)
 
 | Campo | Tipo | Evento |
 |---|---|---|
@@ -464,7 +471,8 @@ Ainda não há consumidor: a fatura é consultada pela API do billing (#34).
 
 - O billing publica `confirmed` ao receber o webhook `PAID`, e `failed` ao receber `FAILED` ou um `422` do PSP. Indisponibilidade do PSP (timeout, `5xx`, circuito aberto) não falha a fatura: o billing tenta de novo com espera crescente.
 - Com `failed`, o order-service cancela o pedido com `reason: PAYMENT_FAILED`. O catalog devolve o estoque, e o marketplace-gateway cancela no marketplace (ADR-0004).
-- Com `confirmed`, o order-service pode marcar o pedido como pago. A decisão é da #20.
+- Com `confirmed`, o order-service marca o pedido como `PAID`.
+- No order-service, `ce_source` é `/billing-service` e `ce_subject` é o `invoiceId`. Um resultado para um pedido que não está `CONFIRMED` (ou que já tem esse resultado) não muda nada; a contradição vira `warn`, sem DLQ.
 - DLQ do consumidor no order: `order.billing-payment.dlq`.
 
 ---
@@ -476,9 +484,9 @@ Ainda não há consumidor: a fatura é consultada pela API do billing (#34).
 | `compliance.product-created.dlq` | `compliance-service` | `catalog.product.created.v1` | Implementado |
 | `catalog.product-analysis.dlq` | `catalog-service-group` | `produto.analisado.v1` | Implementado |
 | `catalog.order-stock.dlq` | `catalog-service-order-stock` | `order.order.placed.v1`, `order.order.cancelled.v1` | Implementado |
-| `order.marketplace-order.dlq` | order-service | `marketplace.order.received.v1` | Implementado |
-| `order.stock-response.dlq` | order-service | `catalog.stock.reserved.v1`, `catalog.stock.insufficient.v1` | Proposto |
-| `order.billing-payment.dlq` | order-service | `billing.payment.*` | Proposto |
+| `order.marketplace-order.dlq` | `order-service-marketplace-orders` | `marketplace.order.received.v1` | Implementado |
+| `order.stock-response.dlq` | `order-service-stock-response` | `catalog.stock.reserved.v1`, `catalog.stock.insufficient.v1` | Implementado |
+| `order.billing-payment.dlq` | `order-service-billing-payment` | `billing.payment.confirmed.v1`, `billing.payment.failed.v1` | Implementado |
 | `marketplace.catalog-product.dlq` | marketplace-gateway | `catalog.product.approved.v1`, `catalog.product.stock-changed.v1` | Proposto |
 | `marketplace.order-cancelled.dlq` | marketplace-gateway | `order.order.cancelled.v1` | Proposto |
 | `billing.order-events.dlq` | `billing-service` | `order.order.confirmed.v1`, `order.order.cancelled.v1` | Proposto |

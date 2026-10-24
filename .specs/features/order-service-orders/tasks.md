@@ -317,7 +317,7 @@ T8 → T9 → T10
 
 **Done when**:
 
-- [x] One iPhone confirmed and paid, one cancelled for payment and one without stock cancelled, each with the events of the contract
+- [x] One iPhone confirmed and paid, one order cancelled for payment and one without stock cancelled, each with the events of the contract
 - [x] A repeated marketplace order leaves one order and one `placed`; late and contradicting outcomes change nothing and publish nothing
 - [x] The report of those orders counts the paid iPhone and no cancelled order
 - [x] Gate check passes: full gate; 2 tests in `order.flow.spec.ts`, 464 in total
@@ -330,7 +330,7 @@ T8 → T9 → T10
 
 **Status**: ✅ Complete
 
-**Deviations**: one order per outcome instead of the seven payment failures of the demo: each extra order repeats the same path. The test drives the real consumers (`createOrderModule` with fake Kafka clients) and reads orders and the report through the HTTP API, so the wiring of T8 is covered too. Two tests instead of three: the duplicate intake and the late outcomes share one.
+**Deviations**: the refused order has 2 monitors instead of the 7 iPhones of the demo, because the test publishes the payment result itself and the PSP threshold does not apply; the 7 iPhones run in the smoke of T10. The test drives the real consumers (`createOrderModule` with fake Kafka clients) and reads orders and the report through the HTTP API, so the wiring of T8 is covered too. Two tests instead of three: the duplicate intake and the late outcomes share one.
 ---
 
 
@@ -349,15 +349,21 @@ T8 → T9 → T10
 
 **Done when**:
 
-- [ ] The CLAUDE.md describes the aggregate, the consumers, the API and the settings
-- [ ] The states of the order events in the catalog say Implementado
-- [ ] Gate check passes: docs gate
+- [x] The CLAUDE.md describes the aggregate, the consumers, the API and the settings
+- [x] The states of the order events in the catalog say Implementado
+- [x] Gate check passes: docs gate
 
 **Tests**: none
 **Gate**: docs
 
 **Commit**: `docs(order): documenta o ciclo do pedido e a demo`
 
+
+**Status**: ✅ Complete
+
+**Smoke (2026-10-24, `make up`)**: 1 iPhone on Mercado Livre ended `PAID`; 7 iPhones on Shopee (R$ 105.000,00) ended `CANCELLED(PAYMENT_FAILED)` with the stock back from 2 to 9; 50 on Amazon ended `CANCELLED(OUT_OF_STOCK)`; the same sale 3 more times left one order; a late `reserved` and a contradicting `insufficient` changed nothing (one `warn`); `{}` went to `order.stock-response.dlq`; the outbox had 3 `placed`, 2 `confirmed`, 2 `cancelled`; `GET /orders` through the BFF answered 200 and the report counted only the paid order. The smoke found that the billing compresses with Snappy, fixed in `c1b5932`.
+
+**Deviations**: the README needed no change (it already lists the order-service); the demo script is `docs/demo-pedidos.md`.
 ---
 
 
