@@ -110,8 +110,8 @@ T18 → T19 → T20 → T21 → T22 → T23
 
 #### T2: Event catalog and PSP contract
 
-**What**: `docs/eventos.md` with the conventions of #8, the order events billing consumes (`order.order.confirmed.v1` as a proposal, `order.order.cancelled.v1`), the three billing events, the billing DLQ, and the PSP contract (charge, webhook, status query).
-**Where**: `docs/eventos.md`
+**What**: The billing contracts in the event catalog of #8 (`docs/eventos.md`, written by Natan in PR #52): the order events billing consumes (`order.order.confirmed.v1`, `order.order.cancelled.v1`), the three billing events, the billing DLQ, and the PSP contract (charge, webhook, status query). The billing sections were aligned to ADR-0005 in commits on that PR.
+**Where**: `docs/eventos.md` (branch of #8)
 **Depends on**: T1
 **Reuses**: contracts in `.specs/features/billing-service/design.md`, conventions listed in issue #8
 **Requirement**: DOC-02, DOC-03
@@ -389,7 +389,7 @@ T18 → T19 → T20 → T21 → T22 → T23
 **Done when**:
 
 - [ ] Total, commission (half-up, including the R$ 0,25 at 14% edge case) and net match the spec
-- [ ] Bounds of items, marketplace and currency raise `ValidationError`
+- [ ] Bounds of items, marketplace and a declared total that differs from the sum of the items raise `ValidationError`
 - [ ] Cancel changes `ISSUED` and `PAYMENT_PENDING` only
 - [ ] Gate check passes: quick gate; test count ≥ 15
 

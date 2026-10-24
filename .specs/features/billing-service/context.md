@@ -34,7 +34,7 @@ Everything below the three decisions above: contracts, rates, thresholds, resili
 
 ### Declined / Undiscussed Gray Areas → Assumptions
 
-- Contract of `order.order.confirmed.v1` and marketplace values: proposed by billing, to be accepted by the order-service owner (#20).
+- Contract of `order.order.confirmed.v1` and marketplace values: defined in the event catalog of #8 (PR #52), to be accepted by the order-service owner (#20).
 - Commission rates, rounding, PSP refusal threshold and resilience parameters: simulation values, overridable by environment variables where they matter.
 - Cancellation ordering (cancel before confirm) and cancellation of a paid invoice: handled as in the spec's Assumptions table.
 

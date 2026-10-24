@@ -188,7 +188,7 @@ outbox(sequence bigserial pk, event_id uuid unique, aggregate_type text, aggrega
 processed_events(event_id text pk, event_type text, processed_at timestamptz)
 
 -- 0002 (#23)
-invoices(id uuid pk, order_id uuid unique, external_order_id text, marketplace text, currency char(3),
+invoices(id uuid pk, order_id uuid unique, external_order_id text, marketplace text,
          total_cents bigint, commission_rate_bps int, commission_cents bigint, net_cents bigint,
          status text, issued_at timestamptz, cancelled_at timestamptz, cancellation_reason text,
          updated_at timestamptz, version int)
@@ -196,13 +196,13 @@ invoice_items(invoice_id uuid fk, line smallint, sku text, quantity int, unit_pr
 order_cancellations(order_id uuid pk, reason text, cancelled_at timestamptz)
 
 -- 0003 (#32, expand only)
-invoices + psp_charge_id text (unique when not null), failure_reason text, payment_attempts int default 0,
+invoices + psp_transaction_id text (unique when not null), failure_reason text, payment_attempts int default 0,
            next_payment_attempt_at timestamptz, payment_requested_at timestamptz, paid_at timestamptz, failed_at timestamptz
 ```
 
 An `ISSUED` invoice with a null `next_payment_attempt_at` is due immediately.
 
-### Consumed events (proposed to the order-service, see `docs/eventos.md`)
+### Consumed events (defined in the event catalog of #8, `docs/eventos.md`)
 
 `order.order.confirmed.v1`, key `orderId`:
 
@@ -211,8 +211,8 @@ An `ISSUED` invoice with a null `next_payment_attempt_at` is due immediately.
   "orderId": "6f1c2b8e-0000-4000-8000-000000000001",
   "marketplace": "MERCADO_LIVRE",
   "externalOrderId": "ML-2000001",
-  "currency": "BRL",
   "items": [{ "sku": "231", "quantity": 1, "unitPrice": 15000.00 }],
+  "total": 15000.00,
   "confirmedAt": "2026-10-24T12:00:00Z"
 }
 ```
@@ -224,12 +224,12 @@ An `ISSUED` invoice with a null `next_payment_attempt_at` is due immediately.
 ```json
 // billing.invoice.issued.v1
 { "invoiceId": "...", "orderId": "...", "externalOrderId": "ML-2000001", "marketplace": "MERCADO_LIVRE",
-  "currency": "BRL", "totalAmount": 15000.00, "commissionPercent": 11.00, "commissionAmount": 1650.00,
+  "amount": 15000.00, "commissionPercent": 11.00, "commissionAmount": 1650.00,
   "netAmount": 13350.00, "issuedAt": "2026-10-24T12:00:01Z" }
 // billing.payment.confirmed.v1
-{ "invoiceId": "...", "orderId": "...", "pspChargeId": "ch_paid_...", "amount": 15000.00, "currency": "BRL", "paidAt": "..." }
+{ "invoiceId": "...", "orderId": "...", "amount": 15000.00, "pspTransactionId": "ch_paid_...", "paidAt": "..." }
 // billing.payment.failed.v1
-{ "invoiceId": "...", "orderId": "...", "pspChargeId": "ch_failed_...", "amount": 105000.00, "currency": "BRL",
+{ "invoiceId": "...", "orderId": "...", "amount": 105000.00, "pspTransactionId": "ch_failed_...",
   "reason": "INSUFFICIENT_FUNDS", "failedAt": "..." }
 ```
 
@@ -259,11 +259,11 @@ The amount is in cents, as PSPs usually expect. The simulator is stateless, so i
 ```json
 // GET /invoices/{id} → 200
 { "id": "...", "orderId": "...", "externalOrderId": "ML-2000001", "marketplace": "MERCADO_LIVRE",
-  "status": "PAID", "currency": "BRL", "totalAmount": 15000.00, "commissionPercent": 11.00,
+  "status": "PAID", "amount": 15000.00, "commissionPercent": 11.00,
   "commissionAmount": 1650.00, "netAmount": 13350.00,
   "items": [{ "sku": "231", "quantity": 1, "unitPrice": 15000.00, "amount": 15000.00 }],
   "issuedAt": "...", "cancelledAt": null, "cancellationReason": null,
-  "pspChargeId": "ch_paid_...", "failureReason": null, "paidAt": "...", "failedAt": null }
+  "pspTransactionId": "ch_paid_...", "failureReason": null, "paidAt": "...", "failedAt": null }
 // GET /invoices?orderId=&status=&marketplace=&limit=20&offset=0 → 200
 { "invoices": [ ... ], "limit": 20, "offset": 0 }
 ```

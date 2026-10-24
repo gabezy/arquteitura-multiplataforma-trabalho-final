@@ -41,7 +41,7 @@ Every ambiguity is resolved or recorded here - nothing is left silently unclear.
 | What is charged | The confirmed order total, charged through the PSP, with the Omni Market commission per marketplace and the store's net amount recorded on the invoice | User choice on 2026-10-24; matches ADR-0004 (refused payment cancels the order) | y |
 | PSP simulator | Billing ships the WireMock mappings of the PSP, overlapping #26 | User choice on 2026-10-24 | y |
 | Trigger | `order.order.confirmed.v1` | ADR-0004 | y |
-| Contract of `order.order.confirmed.v1` | `orderId` (UUID), `marketplace`, optional `externalOrderId`, `currency`, `items[]` with `sku`, `quantity`, `unitPrice`, and `confirmedAt` | Billing needs the sold price per item; the order-service owner (#20) still has to accept it | n |
+| Contract of `order.order.confirmed.v1` | As in the event catalog of #8 (`docs/eventos.md`): `orderId` (UUID), `marketplace`, optional `externalOrderId`, `items[]` with `sku`, `quantity`, `unitPrice`, `total` and `confirmedAt`; there is no currency field and every value is in BRL | The catalog proposes it and billing consumes it; the order-service owner (#20) still has to accept it | n |
 | Marketplace values | `AMAZON`, `MERCADO_LIVRE`, `SHOPEE` | The three marketplaces of the C4 model, upper snake case like the other enums of the project | n |
 | Money in events and in the API | JSON number with exactly two decimals (e.g. `15000.00`); stored as integer cents | The catalog already sends prices as JSON numbers; integer cents avoid float rounding | n |
 | Commission rates | `AMAZON` 12%, `MERCADO_LIVRE` 11%, `SHOPEE` 14%, overridable by environment variables | Simulation values close to real platform fees; the rate is chosen per marketplace (Strategy) | n |
@@ -73,10 +73,10 @@ Every ambiguity is resolved or recorded here - nothing is left silently unclear.
 **Acceptance Criteria**:
 
 1. The billing scope SHALL be recorded in ADR-0005 with at least three alternatives and their trade-offs. (DOC-01)
-2. The billing events and the order events billing consumes SHALL be listed in `docs/eventos.md` with producer, consumers, key, CloudEvent type, a JSON example and the DLQ. (DOC-02)
+2. The billing events and the order events billing consumes SHALL be listed in the event catalog `docs/eventos.md` (#8) with producer, consumers, key, CloudEvent type, a JSON example and the DLQ. (DOC-02)
 3. The PSP contract SHALL be documented with request and response examples for charge creation, webhook and status query. (DOC-03)
 
-**Independent Test**: Review ADR-0005 and `docs/eventos.md` in the pull request of #11.
+**Independent Test**: Review ADR-0005 in the pull request of #11 and the billing sections of `docs/eventos.md` in the pull request of #8.
 
 ---
 
@@ -116,7 +116,7 @@ Every ambiguity is resolved or recorded here - nothing is left silently unclear.
 3. WHEN an invoice is created THEN the billing-service SHALL publish `billing.invoice.issued.v1` keyed by `invoiceId` through the outbox. (INV-03)
 4. IF an event whose `ce_id` was already processed arrives THEN the billing-service SHALL change nothing and publish nothing. (INV-04)
 5. IF a confirmation arrives for an order that already has an invoice THEN the billing-service SHALL keep the single existing invoice and publish nothing. (INV-05)
-6. IF a message lacks a required CloudEvents header, is not valid JSON, has an `orderId` that is not a UUID, an unknown marketplace, a currency other than BRL or items out of bounds THEN the billing-service SHALL publish it to `billing.order-events.dlq` with `dlq-*` headers and commit its offset. (INV-06)
+6. IF a message lacks a required CloudEvents header, is not valid JSON, has an `orderId` that is not a UUID, an unknown marketplace, a `total` that differs from the sum of quantity × unit price or items out of bounds THEN the billing-service SHALL publish it to `billing.order-events.dlq` with `dlq-*` headers and commit its offset. (INV-06)
 7. IF processing fails for a transient reason THEN the billing-service SHALL retry the same message with a backoff that starts at 1 s and doubles up to 30 s, without committing its offset. (INV-07)
 8. WHEN `order.order.cancelled.v1` arrives for an invoice in `ISSUED` or `PAYMENT_PENDING` THEN the billing-service SHALL set the invoice to `CANCELLED`. (INV-08)
 9. IF `order.order.cancelled.v1` arrives for an order without an invoice THEN the billing-service SHALL record the cancellation of that order. (INV-09)
