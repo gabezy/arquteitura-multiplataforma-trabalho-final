@@ -75,6 +75,34 @@ Authorization: Bearer {{csm.response.body.access_token}}
 GET {{bff}}/reports/sales-by-marketplace?from=2026-10-31&to=2026-10-01
 Authorization: Bearer {{csm.response.body.access_token}}
 
+### Cobranças: a página padrão (fiscal, store e admin)
+GET {{bff}}/invoices
+Authorization: Bearer {{fiscal.response.body.access_token}}
+
+### Cobranças: as pagas de um marketplace, com paginação
+GET {{bff}}/invoices?status=PAID&marketplace=AMAZON&limit=5&offset=0
+Authorization: Bearer {{loja.response.body.access_token}}
+
+### Cobranças: a fatura de um pedido. O id do pedido é o do modo mock (APP_GATEWAYS_BILLING=mock); com o billing-service real, use um orderId de GET /invoices
+GET {{bff}}/invoices?orderId=6f1c2b8e-0000-4000-8000-000000000001
+Authorization: Bearer {{fiscal.response.body.access_token}}
+
+### Cobranças: os pagamentos recusados (failureReason e pspTransactionId)
+GET {{bff}}/invoices?status=PAYMENT_FAILED
+Authorization: Bearer {{fiscal.response.body.access_token}}
+
+### Cobrança: detalhe. O id é o do modo mock
+GET {{bff}}/invoices/1d7e3a10-0000-4000-8000-000000000001
+Authorization: Bearer {{fiscal.response.body.access_token}}
+
+### Cobrança: id que não existe, 404
+GET {{bff}}/invoices/1d7e3a10-0000-4000-8000-0000000000ff
+Authorization: Bearer {{fiscal.response.body.access_token}}
+
+### Cobranças: status inválido, 400
+GET {{bff}}/invoices?status=REFUNDED
+Authorization: Bearer {{fiscal.response.body.access_token}}
+
 ### Permissões: a loja não vê o relatório, 403
 GET {{bff}}/reports/sales-by-marketplace?from=2026-10-01&to=2026-10-31
 Authorization: Bearer {{loja.response.body.access_token}}
@@ -89,3 +117,14 @@ Authorization: Bearer {{especialista.response.body.access_token}}
 
 ### Permissões: sem token, 401
 GET {{bff}}/orders
+
+### Permissões: o CSM não vê cobranças, 403
+GET {{bff}}/invoices
+Authorization: Bearer {{csm.response.body.access_token}}
+
+### Permissões: o especialista não vê cobranças, 403
+GET {{bff}}/invoices
+Authorization: Bearer {{especialista.response.body.access_token}}
+
+### Permissões: cobranças sem token, 401
+GET {{bff}}/invoices

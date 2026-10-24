@@ -112,6 +112,61 @@ curl -s -H "Authorization: Bearer $CSM" "http://localhost:8080/reports/sales-by-
 }
 ```
 
+## Cobranças
+
+### `GET /invoices`
+
+Papéis: `admin`, `store` e `fiscal` (somente leitura). Lista as faturas, com o status do pagamento.
+
+| Parâmetro | Tipo | Descrição |
+|---|---|---|
+| `orderId` | UUID | Opcional. A fatura de um pedido (há uma por pedido) |
+| `marketplace` | enum | Opcional. Marketplace do pedido |
+| `status` | enum | Opcional. `ISSUED`, `PAYMENT_PENDING`, `PAID`, `PAYMENT_FAILED` ou `CANCELLED` |
+| `limit`, `offset` | inteiro | Opcionais. Paginação |
+
+O contrato não tem filtro por loja, porque a demo tem uma loja só: o recorte por canal é o `marketplace`.
+
+```bash
+FISCAL=$(token fiscal)
+curl -s -H "Authorization: Bearer $FISCAL" "http://localhost:8080/invoices?status=PAYMENT_FAILED"
+```
+
+```json
+{
+  "invoices": [
+    {
+      "id": "1d7e3a10-0000-4000-8000-000000000002",
+      "orderId": "6f1c2b8e-0000-4000-8000-000000000002",
+      "externalOrderId": "AMZ-1000001",
+      "marketplace": "AMAZON",
+      "status": "PAYMENT_FAILED",
+      "amount": 111000.00,
+      "commissionPercent": 12.00,
+      "commissionAmount": 13320.00,
+      "netAmount": 97680.00,
+      "items": [{ "sku": "MON-002", "quantity": 6, "unitPrice": 18500.00, "amount": 111000.00 }],
+      "issuedAt": "2026-10-28T13:10:03Z",
+      "cancelledAt": null,
+      "cancellationReason": null,
+      "pspTransactionId": "ch_failed_1d7e3a10-0000-4000-8000-000000000002",
+      "failureReason": "INSUFFICIENT_FUNDS",
+      "paidAt": null,
+      "failedAt": "2026-10-28T13:10:06Z"
+    }
+  ],
+  "limit": 20,
+  "offset": 0
+}
+```
+
+- `amount` é o total do pedido. A comissão do Omni Market é `amount` vezes a taxa do marketplace (`commissionPercent`: Amazon 12, Mercado Livre 11 e Shopee 14), arredondada no centavo, e `netAmount` é o que cabe à loja (`amount` menos `commissionAmount`).
+- Os campos do desfecho só vêm preenchidos no status correspondente, e nos outros vêm `null`: `PAID` (`paidAt` e `pspTransactionId`), `PAYMENT_FAILED` (`failedAt`, `failureReason` e `pspTransactionId`) e `CANCELLED` (`cancelledAt` e `cancellationReason`). `PAYMENT_PENDING` já tem `pspTransactionId`, e `ISSUED` ainda não tem nenhum.
+
+### `GET /invoices/{id}`
+
+Papéis: `admin`, `store` e `fiscal`. Devolve uma fatura, no mesmo formato de cada item de `invoices`. Responde 404 se a fatura não existe.
+
 ## Mock e serviço real
 
 Cada domínio com serviço de destino tem dois gateways, e a propriedade `app.gateways.<domínio>` escolhe um: `rest` chama o serviço (é o padrão, inclusive no compose) e `mock` responde com dados de demonstração dentro do BFF. A variável de ambiente é `APP_GATEWAYS_<DOMÍNIO>`.
@@ -119,9 +174,12 @@ Cada domínio com serviço de destino tem dois gateways, e a propriedade `app.ga
 | Domínio | URL do serviço (variável) | Padrão |
 |---|---|---|
 | `order` | `ORDER_SERVICE_URL` | `http://order-service:8084` |
+| `billing` | `BILLING_SERVICE_URL` | `http://billing-service:8086` |
 
-- Rodando o BFF fora do Docker (`make up-infra`), o padrão `order-service` não resolve: use `ORDER_SERVICE_URL=http://localhost:8084`.
-- Para ensaiar sem o serviço: `APP_GATEWAYS_ORDER=mock ./mvnw spring-boot:run`. Os dados do mock são 8 pedidos, de 26 a 28/10/2026, com os produtos da demo (`OXI-001` e `MON-002`) e todos os status. O relatório conta só os pedidos `CONFIRMED` e `PAID`.
+- Rodando o BFF fora do Docker (`make up-infra`), os nomes dos serviços não resolvem: use `ORDER_SERVICE_URL=http://localhost:8084` e `BILLING_SERVICE_URL=http://localhost:8086`.
+- Para ensaiar sem o serviço: `APP_GATEWAYS_ORDER=mock APP_GATEWAYS_BILLING=mock ./mvnw spring-boot:run`.
+- **Dados do mock de pedidos:** 8 pedidos, de 26 a 28/10/2026, com os produtos da demo (`OXI-001` e `MON-002`) e todos os status. O relatório conta só os pedidos `CONFIRMED` e `PAID`.
+- **Dados do mock de cobranças:** 6 faturas, uma para cada status (duas são `PAID`), ligadas aos pedidos do mock pelo mesmo `orderId`, marketplace, itens e total. A comissão segue as taxas acima.
 - No modo `rest`, com o serviço fora do ar, a rota responde 503.
 
 ## O que o BFF espera dos serviços
@@ -139,3 +197,12 @@ Os contratos abaixo são propostos: os donos dos serviços ainda os implementam,
 `Order` é `{ id (uuid), marketplace, externalOrderId, status (RECEIVED, CONFIRMED, PAID ou CANCELLED), total, items: [{ sku, quantity, unitPrice }], cancellationReason (string ou null), createdAt, updatedAt }`. O `marketplace` é `AMAZON`, `MERCADO_LIVRE` ou `SHOPEE`, como em `docs/eventos.md`.
 
 Um 400 ou 422 do serviço vira 400 no BFF, com o `detail` do problema. Um 404 só é esperado em `GET /orders/{id}`.
+
+### billing-service (#23)
+
+| Chamada | Resposta |
+|---|---|
+| `GET /invoices?orderId=&status=&marketplace=&limit=20&offset=0` | `{ "invoices": [Invoice], "limit": 20, "offset": 0 }` |
+| `GET /invoices/{id}` | `Invoice`, ou 404 |
+
+`Invoice` é `{ id (uuid), orderId (uuid), externalOrderId, marketplace, status (ISSUED, PAYMENT_PENDING, PAID, PAYMENT_FAILED ou CANCELLED), amount, commissionPercent, commissionAmount, netAmount, items: [{ sku, quantity, unitPrice, amount }], issuedAt, cancelledAt, cancellationReason, pspTransactionId, failureReason, paidAt, failedAt }`. Os campos do desfecho (`cancelledAt`, `cancellationReason`, `pspTransactionId`, `failureReason`, `paidAt` e `failedAt`) são `null` quando não se aplicam. Os campos seguem `billing.invoice.issued.v1` e `billing.payment.*` de `docs/eventos.md`. O erro de um 400 ou 422 e o 404 seguem a mesma regra do order-service.

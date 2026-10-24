@@ -45,7 +45,7 @@ infra/shared/            gateway/ and config/: the HTTP client every downstream 
 
 - `core` must not depend on Spring, servlet, Jackson, or anything in `infra`. Use cases are plain Java classes with constructor injection. They are not annotated with `@Service`/`@Component`.
 - A new downstream domain (order, cart, …) gets its own `core/<domain>` and `infra/<domain>`. One domain must not reach into another domain's `infra`.
-- The `order` domain has two gateways behind `OrderGateway`: `MockOrderGateway` (in-memory demo data) and `OrderServiceClientGateway` (calls the order-service). `OrderConfig` activates one with `app.gateways.order=mock|rest` (default `rest`; the env var `APP_GATEWAYS_ORDER=mock` works too). The URL is `ORDER_SERVICE_URL` (default `http://order-service:8084`, so from the host use `http://localhost:8084`). A new downstream domain repeats this pattern.
+- The `order` and `billing` domains each have two gateways behind their port: `Mock<Domain>Gateway` (in-memory demo data) and `<Service>ClientGateway` (calls the service). The domain's `@Configuration` activates one with `app.gateways.<domain>=mock|rest` (default `rest`; the env var `APP_GATEWAYS_ORDER=mock` works too). The URLs are `ORDER_SERVICE_URL` (default `http://order-service:8084`) and `BILLING_SERVICE_URL` (default `http://billing-service:8086`); from the host use `http://localhost:<port>`. A new downstream domain repeats this pattern.
 
 Rules to keep when adding code:
 - Controllers convert HTTP DTOs to use-case input and back. They hold no business logic.
