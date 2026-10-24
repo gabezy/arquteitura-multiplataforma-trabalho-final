@@ -1,4 +1,4 @@
-name: kind-deploy
+name: deploy
 
 on:
   workflow_dispatch:
@@ -15,7 +15,7 @@ env:
 
 jobs:
   deploy-local:
-    name: Build and deploy to local kind
+    name: Build and deploy to local cluster
     runs-on: ubuntu-latest
     steps:
       # Fetch the repository contents that all later workflow steps use.

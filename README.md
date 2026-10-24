@@ -38,13 +38,26 @@ Cada serviço tem build próprio e um `CLAUDE.md` com comandos e arquitetura. To
 
 ## Ambiente local com kind
 
-O caminho padrão para desenvolvimento e demonstração é `make act-kind-deploy`. Esse comando chama [act](https://nektosact.com/installation/) para executar explicitamente o workflow [`kind-deploy`](.github/workflows/kind-deploy.yml), acionado pelo evento `workflow_dispatch`. Também é possível iniciá-lo no GitHub em **Actions → kind-deploy → Run workflow**. O arquivo mostra em etapas a preparação do ambiente, criação do cluster kind e registry, build e publicação das imagens, instalação com Helm e verificação dos recursos.
+O caminho padrão para desenvolvimento e demonstração é `make act-kind-deploy`. Esse comando chama [act](https://nektosact.com/installation/) para executar explicitamente o workflow [`deploy`](.github/workflows/deploy.yaml), acionado pelo evento `workflow_dispatch`. O workflow prepara o ambiente, cria o cluster kind e o registry, constrói e publica as imagens, instala a stack com Helm e verifica os recursos.
 
 ```bash
 make act-install       # opcional: instala/atualiza act em ~/.local/bin
 make act-kind-deploy   # executa localmente o workflow e implanta no kind
 make act-list          # lista os workflows disponíveis
 ```
+
+Para remover o cluster e o registry locais, execute o workflow [`destroy`](.github/workflows/destroy.yaml) com `act`, montando o Docker do host:
+
+```bash
+DOCKER_BIN="$(command -v docker)"
+act --bind \
+  --container-daemon-socket /var/run/docker.sock \
+  --container-options "--network=host -v ${HOME}/.kube:/root/.kube:rw -v ${DOCKER_BIN}:/usr/local/bin/docker:ro" \
+  --workflows .github/workflows/destroy.yaml \
+  workflow_dispatch
+```
+
+No GitHub, os workflows também podem ser iniciados manualmente em **Actions → deploy/destroy → Run workflow**. Os runners hospedados pelo GitHub são temporários e separados entre execuções; para criar e depois remover um cluster Docker persistente da sua máquina, execute ambos localmente com `act`.
 
 `make act-install` instala apenas o `act` em `~/.local/bin`; Docker CLI e um Docker Engine ativo são necessários no host. O workflow instala `kubectl`, Helm e kind no runner e descreve diretamente cada operação, sem delegar o deploy a um alvo do Makefile. `act` executa o workflow localmente dentro de um container Docker; esse runner não é idêntico à VM hospedada pelo GitHub. O wrapper funciona em Linux e WSL2. No WSL2 com Docker Desktop, habilite a integração para a distribuição Linux e o host networking do Docker Desktop (versão 4.34 ou superior), usado pelo runner do `act` ([configuração do host networking](https://docs.docker.com/engine/network/drivers/host/#docker-desktop), [integração WSL](https://docs.docker.com/desktop/features/wsl/)).
 

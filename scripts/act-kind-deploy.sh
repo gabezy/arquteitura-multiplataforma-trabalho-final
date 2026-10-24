@@ -39,5 +39,5 @@ CONTAINER_OPTIONS="--network=host -v ${KUBECONFIG_DIR}:/root/.kube:rw -v ${DOCKE
 "$ACT_BIN" --bind \
   --container-daemon-socket /var/run/docker.sock \
   --container-options "$CONTAINER_OPTIONS" \
-  --workflows .github/workflows/kind-deploy.yml \
+  --workflows .github/workflows/deploy.yaml \
   workflow_dispatch
