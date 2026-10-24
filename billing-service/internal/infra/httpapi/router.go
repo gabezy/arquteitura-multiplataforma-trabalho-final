@@ -24,6 +24,8 @@ type Deps struct {
 	CheckHealth func(ctx context.Context) error
 	// HealthTimeout bounds CheckHealth; zero means DefaultHealthTimeout.
 	HealthTimeout time.Duration
+	// Invoices are the use cases behind the invoice routes; without them the routes are not registered.
+	Invoices InvoiceQueries
 }
 
 // Router holds the routes of the service.
@@ -43,6 +45,10 @@ func NewRouter(deps Deps) *Router {
 	}
 	router := &Router{mux: http.NewServeMux(), deps: deps}
 	router.mux.HandleFunc("GET /health", router.health)
+	if deps.Invoices != nil {
+		router.handle("GET /invoices/{id}", router.getInvoice)
+		router.handle("GET /invoices", router.listInvoices)
+	}
 	return router
 }
 

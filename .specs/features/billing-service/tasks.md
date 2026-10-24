@@ -497,9 +497,9 @@ T18 → T19 → T20 → T21 → T22 → T23
 
 **Done when**:
 
-- [ ] 200 with the invoice, 404 for an unknown id, 400 for each invalid parameter
-- [ ] Filters and pagination are passed to the port
-- [ ] Gate check passes: quick gate; test count ≥ 8
+- [x] 200 with the invoice, 404 for an unknown id, 400 for each invalid parameter
+- [x] Filters and pagination are passed to the port
+- [x] Gate check passes: quick gate; test count ≥ 8
 
 **Tests**: unit
 **Gate**: quick

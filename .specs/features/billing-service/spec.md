@@ -224,10 +224,10 @@ Every ambiguity is resolved or recorded here - nothing is left silently unclear.
 | INV-09 | P1: Invoice from the confirmed order | Tasks T13, T14 | Implementing |
 | INV-10 | P1: Invoice from the confirmed order | Tasks T13 | Implementing |
 | INV-11 | P1: Invoice from the confirmed order | Tasks T12 | Implementing |
-| API-01 | P1: Query invoices | Tasks T16 | In Tasks |
-| API-02 | P1: Query invoices | Tasks T16 | In Tasks |
-| API-03 | P1: Query invoices | Tasks T14, T16 | In Tasks |
-| API-04 | P1: Query invoices | Tasks T16 | In Tasks |
+| API-01 | P1: Query invoices | Tasks T16 | Implementing |
+| API-02 | P1: Query invoices | Tasks T16 | Implementing |
+| API-03 | P1: Query invoices | Tasks T14, T16 | Implementing |
+| API-04 | P1: Query invoices | Tasks T16 | Implementing |
 | PAY-01 | P2: Charge the invoice at the PSP | Tasks T19, T20, T23 | In Tasks |
 | PAY-02 | P2: Charge the invoice at the PSP | Tasks T19 | In Tasks |
 | PAY-03 | P2: Charge the invoice at the PSP | Tasks T19, T22 | In Tasks |
