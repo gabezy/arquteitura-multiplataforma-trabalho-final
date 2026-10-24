@@ -4,6 +4,7 @@ APPS := bff-gateway catalog-service compliance-service order-service billing-ser
 KIND := $(shell command -v kind 2>/dev/null || printf '%s/.local/bin/kind' '$(HOME)')
 KUBECTL := $(shell command -v kubectl 2>/dev/null)
 HELM := $(shell command -v helm 2>/dev/null)
+K8S_CONTEXT := kind-omni-market
 
 .DEFAULT_GOAL := help
 .PHONY: help env up up-infra down clean restart ps logs topics vault kind-install k8s-up k8s-registry k8s-build k8s-push k8s-load k8s-config k8s-deploy k8s-status k8s-down act-list act-kind-deploy
@@ -55,6 +56,8 @@ k8s-up: env ## cria kind, constrói/carrega imagens locais e instala o Omni Mark
 	$(MAKE) k8s-build
 	$(MAKE) k8s-push
 	$(MAKE) k8s-deploy
+	$(KUBECTL) --context $(K8S_CONTEXT) rollout restart deployment/wiremock --namespace omni-market
+	$(KUBECTL) --context $(K8S_CONTEXT) rollout status deployment/wiremock --namespace omni-market --timeout=5m
 
 k8s-build: ## constrói imagens locais para o cluster kind
 	docker build -t omni-market/bff-gateway:local ./bff-gateway
@@ -66,11 +69,11 @@ k8s-build: ## constrói imagens locais para o cluster kind
 	docker build -t omni-market/wiremock:local -f k8s/wiremock/Dockerfile .
 
 k8s-registry: ## inicia o registry Docker local e conecta o kind
-	@if ! docker inspect omni-market-registry >/dev/null 2>&1; then docker volume create omni-market-registry >/dev/null; docker run -d --restart=always --name omni-market-registry -p 127.0.0.1:5001:5000 -v omni-market-registry:/var/lib/registry registry:3; fi
+	@if ! docker inspect omni-market-registry >/dev/null 2>&1; then docker volume create omni-market-registry >/dev/null; docker run -d --restart=always --name omni-market-registry -p 127.0.0.1:5001:5000 -v omni-market-registry:/var/lib/registry registry:3; elif [ "`docker inspect -f '{{.State.Running}}' omni-market-registry`" != "true" ]; then docker start omni-market-registry >/dev/null; fi
 	@if ! docker inspect -f '{{json .NetworkSettings.Networks.kind}}' omni-market-registry | grep -qv '^null$$'; then docker network connect kind omni-market-registry; fi
 	@for node in `$(KIND) get nodes --name omni-market`; do docker exec $$node mkdir -p /etc/containerd/certs.d/localhost:5001; printf '[host."http://omni-market-registry:5000"]\n  capabilities = ["pull", "resolve", "push"]\n' | docker exec -i $$node sh -c 'cat > /etc/containerd/certs.d/localhost:5001/hosts.toml'; done
 	@until curl --fail --silent http://127.0.0.1:5001/v2/ >/dev/null; do sleep 1; done
-	$(KUBECTL) apply -f k8s/local-registry.yaml
+	$(KUBECTL) --context $(K8S_CONTEXT) apply -f k8s/local-registry.yaml
 
 k8s-push: ## publica as imagens locais no registry remoto simulado
 	@for image in bff-gateway catalog-service compliance-service order-service billing-service marketplace-gateway wiremock; do docker tag "omni-market/$$image:local" "localhost:5001/omni-market/$$image:local" && docker push "localhost:5001/omni-market/$$image:local" || exit 1; done
@@ -88,14 +91,14 @@ k8s-config: ## sincroniza os arquivos de configuração do Docker Compose com o 
 	cp docker/prometheus/prometheus.yml k8s/helm/omni-market/files/prometheus.yml
 
 k8s-deploy: env k8s-config ## aplica os manifests e aguarda os workloads em kind
-	$(KUBECTL) apply -f k8s/namespace.yaml
-	$(KUBECTL) create secret generic omni-market-secrets --namespace omni-market --from-env-file=.env --dry-run=client -o yaml | $(KUBECTL) apply -f -
-	$(KUBECTL) delete job vault-init kafka-init --namespace omni-market --ignore-not-found
-	$(HELM) upgrade --install omni-market ./k8s/helm/omni-market --namespace omni-market --set applicationWorkloads.enabled=false --wait --wait-for-jobs --timeout 20m
-	$(HELM) upgrade omni-market ./k8s/helm/omni-market --namespace omni-market --set applicationWorkloads.enabled=true --wait --timeout 10m
+	$(KUBECTL) --context $(K8S_CONTEXT) apply -f k8s/namespace.yaml
+	$(KUBECTL) --context $(K8S_CONTEXT) create secret generic omni-market-secrets --namespace omni-market --from-env-file=.env --dry-run=client -o yaml | $(KUBECTL) --context $(K8S_CONTEXT) apply -f -
+	$(KUBECTL) --context $(K8S_CONTEXT) delete job vault-init kafka-init --namespace omni-market --ignore-not-found
+	$(HELM) upgrade --install omni-market ./k8s/helm/omni-market --namespace omni-market --kube-context $(K8S_CONTEXT) --set applicationWorkloads.enabled=false --wait --wait-for-jobs --timeout 20m
+	$(HELM) upgrade omni-market ./k8s/helm/omni-market --namespace omni-market --kube-context $(K8S_CONTEXT) --set applicationWorkloads.enabled=true --wait --timeout 10m
 
 k8s-status: ## mostra pods e services do namespace omni-market
-	$(KUBECTL) get pods,services,jobs -n omni-market -o wide
+	$(KUBECTL) --context $(K8S_CONTEXT) get pods,services,jobs -n omni-market -o wide
 
 k8s-down: ## remove o cluster kind do Omni Market e seus dados locais
 	$(KIND) delete cluster --name omni-market

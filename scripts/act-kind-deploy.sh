@@ -4,6 +4,11 @@ set -eu
 KUBECONFIG_DIR="${KUBECONFIG_DIR:-${HOME}/.kube}"
 mkdir -p "$KUBECONFIG_DIR"
 
+if [ "$(uname -s)" != "Linux" ]; then
+  echo "scripts/act-kind-deploy.sh is only supported on Linux hosts." >&2
+  exit 1
+fi
+
 if ! command -v kind >/dev/null 2>&1; then
   sh scripts/install-kind.sh
 fi

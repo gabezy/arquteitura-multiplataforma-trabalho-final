@@ -1,3 +1,4 @@
+{{- $root := . }}
 {{- range .Values.infrastructure }}
 apiVersion: apps/v1
 kind: Deployment
@@ -14,6 +15,10 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: {{ .name }}
+{{- if .mounts }}
+      annotations:
+        checksum/config: {{ include (print $root.Template.BasePath "/configmaps.yaml") $root | sha256sum }}
+{{- end }}
     spec:
       containers:
         - name: {{ .name }}
@@ -78,7 +83,13 @@ kind: Service
 metadata:
   name: {{ .name }}
 spec:
-{{- if or .nodePort .ports }}
+{{- $hasNodePort := false }}
+{{- range .ports }}
+{{- if .nodePort }}
+{{- $hasNodePort = true }}
+{{- end }}
+{{- end }}
+{{- if or .nodePort $hasNodePort }}
   type: NodePort
 {{- end }}
   selector:

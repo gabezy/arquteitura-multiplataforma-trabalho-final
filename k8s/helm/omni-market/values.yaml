@@ -151,6 +151,9 @@ infrastructure:
   - name: tempo
     image: grafana/tempo:3.0.0
     port: 3200
+    ports:
+      - { name: grpc, containerPort: 4317, servicePort: 4317 }
+      - { name: http, containerPort: 3200, servicePort: 3200 }
     command: ["-config.file=/etc/tempo.yaml"]
     mounts:
       - { key: tempo-config.yaml, path: /etc/tempo.yaml }

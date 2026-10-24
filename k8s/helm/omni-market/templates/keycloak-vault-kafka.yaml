@@ -13,6 +13,8 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: keycloak
+      annotations:
+        checksum/realm: {{ .Files.Get "files/realm.json" | sha256sum }}
     spec:
       initContainers:
         - name: render-realm
