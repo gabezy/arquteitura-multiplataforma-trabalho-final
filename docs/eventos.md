@@ -522,13 +522,15 @@ Os serviços internos não validam token: a autenticação e a autorização por
 |---|---|---|---|---|
 | bff-gateway | catalog-service | `POST /products/import` com `{ items: [{ sku, name, description, price, stock }] }` (1 a 1000 itens) | importação da planilha (`POST /catalog/import/xlsx` no BFF) | Implementado |
 | bff-gateway, marketplace-gateway | catalog-service | `GET /products/sku/:sku` → `{ id, sku, name, description, price, stock, analysisStatus }` | consulta do produto e dos dados para o anúncio | Implementado (o uso pelo marketplace depende da ADR #12) |
-| bff-gateway | order-service | listar e detalhar pedidos, relatórios por marketplace | #24, #31 | Proposto |
+| bff-gateway | order-service | `GET /orders` (filtros `marketplace`, `status`, `limit` até 100, `offset`) → `{ orders, limit, offset }`, `GET /orders/{id}` e `GET /reports/sales-by-marketplace?from=YYYY-MM-DD&to=YYYY-MM-DD` → `{ from, to, marketplaces: [{ marketplace, orders, units, totalAmount }] }` | listar e detalhar pedidos e relatório de vendas por marketplace (mesmas rotas no BFF, #24, #31) | Implementado |
 | bff-gateway | billing-service | `GET /invoices` (filtros `orderId`, `status`, `marketplace`, `limit`, `offset`) e `GET /invoices/{id}` | #34 | Proposto |
 | bff-gateway | marketplace-gateway | status dos anúncios por marketplace | #35 | Proposto |
 | marketplace-gateway | marketplaces (WireMock) | publicar anúncio, atualizar estoque, receber e cancelar pedidos | #18, #21, #22, #33 | Proposto (ADR #12) |
 | billing-service | PSP (WireMock) | `POST /psp/v1/charges` e `GET /psp/v1/charges/{id}`; o PSP chama de volta `POST /webhooks/psp` | #26, #32 | Proposto ([contrato do PSP](#contrato-do-psp-simulado)) |
 
 O catalog responde erros em `application/problem+json`: 422 para validação, 404 para não encontrado e 409 para conflito (ex.: SKU repetido na importação).
+
+O relatório do order-service conta como venda o pedido `CONFIRMED` ou `PAID` cuja data da venda no marketplace (`orderedAt`) cai no período, com os dois dias incluídos e lidos em UTC. Ele traz sempre uma linha por marketplace (`AMAZON`, `MERCADO_LIVRE` e `SHOPEE`), com zeros quando não houve venda: `orders` é a quantidade de pedidos, `units` a soma das quantidades dos itens e `totalAmount` a soma dos totais, em reais. Um período inválido (dia que não existe ou `to` antes de `from`) responde 400 em `application/problem+json`, assim como os filtros inválidos de `GET /orders`. `GET /orders/{id}` responde 404 para pedido desconhecido.
 
 ## Contrato do PSP (simulado)
 
