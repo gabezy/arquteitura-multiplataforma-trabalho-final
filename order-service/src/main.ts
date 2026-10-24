@@ -1,4 +1,4 @@
-import { loadConfig } from './infra/config/env';
+import { loadAppConfig } from './infra/config/load-app-config';
 import { createLogger } from './infra/observability/logger';
 import { createApp } from './infra/http/app';
 import { createDatabaseConnection } from './infra/persistence/database';
@@ -9,7 +9,7 @@ import { OutboxRelay } from './infra/messaging/outbox-relay';
 const RELAY_INTERVAL_MS = 1000;
 
 async function start(): Promise<void> {
-  const config = loadConfig();
+  const config = await loadAppConfig();
   const logger = createLogger(config.logLevel);
   const db = createDatabaseConnection(config.databaseUrl, logger);
   const { producer } = configureKafka(config.kafkaBrokers);
@@ -40,7 +40,7 @@ async function start(): Promise<void> {
 }
 
 start().catch(err => {
-  // The config may be what failed, so this logger does not depend on it.
+  // The config may be what failed (e.g. Vault unreachable), so this logger does not depend on it.
   createLogger(process.env.LOG_LEVEL ?? 'info').error({ err }, 'order-service failed to start');
   process.exit(1);
 });

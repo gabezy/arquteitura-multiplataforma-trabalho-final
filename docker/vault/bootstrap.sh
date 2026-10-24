@@ -31,5 +31,8 @@ configure_service catalog-service "$CATALOG_VAULT_ROLE_ID" "$CATALOG_VAULT_SECRE
 configure_service compliance-service "$COMPLIANCE_VAULT_ROLE_ID" "$COMPLIANCE_VAULT_SECRET_ID" \
   db_username="$COMPLIANCE_DB_USER" db_password="$COMPLIANCE_DB_PASSWORD"
 
+configure_service order-service "$ORDER_VAULT_ROLE_ID" "$ORDER_VAULT_SECRET_ID" \
+  db_username="$ORDER_DB_USER" db_password="$ORDER_DB_PASSWORD"
+
 configure_service bff-gateway "$BFF_VAULT_ROLE_ID" "$BFF_VAULT_SECRET_ID" \
   keycloak.client-secret="$BFF_CLIENT_SECRET"

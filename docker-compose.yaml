@@ -56,11 +56,15 @@ services:
       CATALOG_DB_PASSWORD: ${CATALOG_DB_PASSWORD:?run make env}
       COMPLIANCE_DB_USER: ${COMPLIANCE_DB_USER:-compliance}
       COMPLIANCE_DB_PASSWORD: ${COMPLIANCE_DB_PASSWORD:?run make env}
+      ORDER_DB_USER: ${ORDER_DB_USER:-orders}
+      ORDER_DB_PASSWORD: ${ORDER_DB_PASSWORD:?run make env}
       BFF_CLIENT_SECRET: ${BFF_CLIENT_SECRET:?run make env}
       CATALOG_VAULT_ROLE_ID: ${CATALOG_VAULT_ROLE_ID:?run make env}
       CATALOG_VAULT_SECRET_ID: ${CATALOG_VAULT_SECRET_ID:?run make env}
       COMPLIANCE_VAULT_ROLE_ID: ${COMPLIANCE_VAULT_ROLE_ID:?run make env}
       COMPLIANCE_VAULT_SECRET_ID: ${COMPLIANCE_VAULT_SECRET_ID:?run make env}
+      ORDER_VAULT_ROLE_ID: ${ORDER_VAULT_ROLE_ID:?run make env}
+      ORDER_VAULT_SECRET_ID: ${ORDER_VAULT_SECRET_ID:?run make env}
       BFF_VAULT_ROLE_ID: ${BFF_VAULT_ROLE_ID:?run make env}
       BFF_VAULT_SECRET_ID: ${BFF_VAULT_SECRET_ID:?run make env}
     volumes:
@@ -111,7 +115,7 @@ services:
     environment:
       POSTGRES_DB: ${ORDER_DB_NAME:-orders}
       POSTGRES_USER: ${ORDER_DB_USER:-orders}
-      POSTGRES_PASSWORD: ${ORDER_DB_PASSWORD:-orders}
+      POSTGRES_PASSWORD: ${ORDER_DB_PASSWORD:?run make env}
     ports:
       - "5434:5432"
     volumes:
@@ -299,12 +303,19 @@ services:
     build: ./order-service
     container_name: order-service
     environment:
-      DATABASE_URL: postgresql://${ORDER_DB_USER:-orders}:${ORDER_DB_PASSWORD:-orders}@order-db:5432/${ORDER_DB_NAME:-orders}
+      DB_HOST: order-db
+      DB_PORT: 5432
+      DB_NAME: ${ORDER_DB_NAME:-orders}
+      VAULT_ADDR: http://vault:8200
+      VAULT_ROLE_ID: ${ORDER_VAULT_ROLE_ID:?run make env}
+      VAULT_SECRET_ID: ${ORDER_VAULT_SECRET_ID:?run make env}
       KAFKA_BROKERS: kafka:19092
       OTEL_COLLECTOR_URL: http://otel-collector:4318
     ports:
       - "8084:8084"
     depends_on:
+      vault-init:
+        condition: service_completed_successfully
       order-db:
         condition: service_healthy
       kafka-init:
