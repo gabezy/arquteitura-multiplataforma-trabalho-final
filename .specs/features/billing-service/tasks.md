@@ -415,10 +415,10 @@ T18 → T19 → T20 → T21 → T22 → T23
 
 **Done when**:
 
-- [ ] Issue returns `Issued`, `AlreadyIssued` or `OrderCancelled` as the spec says
-- [ ] Cancel returns `Cancelled`, `Unchanged` or `Recorded`
-- [ ] Get of an unknown id returns `NotFoundError`
-- [ ] Gate check passes: quick gate; test count ≥ 10
+- [x] Issue returns `Issued`, `AlreadyIssued` or `OrderCancelled` as the spec says
+- [x] Cancel returns `Cancelled`, `Unchanged` or `Recorded`
+- [x] Get of an unknown id returns `NotFoundError`
+- [x] Gate check passes: quick gate; test count ≥ 10
 
 **Tests**: unit
 **Gate**: quick

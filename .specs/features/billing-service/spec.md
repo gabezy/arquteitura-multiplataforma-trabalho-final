@@ -217,12 +217,12 @@ Every ambiguity is resolved or recorded here - nothing is left silently unclear.
 | INV-02 | P1: Invoice from the confirmed order | Tasks T12 | Implementing |
 | INV-03 | P1: Invoice from the confirmed order | Tasks T14, T15 | In Tasks |
 | INV-04 | P1: Invoice from the confirmed order | Tasks T15 | In Tasks |
-| INV-05 | P1: Invoice from the confirmed order | Tasks T13, T14 | In Tasks |
+| INV-05 | P1: Invoice from the confirmed order | Tasks T13, T14 | Implementing |
 | INV-06 | P1: Invoice from the confirmed order | Tasks T15 | In Tasks |
 | INV-07 | P1: Invoice from the confirmed order | Tasks T15 | In Tasks |
 | INV-08 | P1: Invoice from the confirmed order | Tasks T12, T13 | Implementing |
-| INV-09 | P1: Invoice from the confirmed order | Tasks T13, T14 | In Tasks |
-| INV-10 | P1: Invoice from the confirmed order | Tasks T13 | In Tasks |
+| INV-09 | P1: Invoice from the confirmed order | Tasks T13, T14 | Implementing |
+| INV-10 | P1: Invoice from the confirmed order | Tasks T13 | Implementing |
 | INV-11 | P1: Invoice from the confirmed order | Tasks T12 | Implementing |
 | API-01 | P1: Query invoices | Tasks T16 | In Tasks |
 | API-02 | P1: Query invoices | Tasks T16 | In Tasks |
