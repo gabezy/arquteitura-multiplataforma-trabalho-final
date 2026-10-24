@@ -29,10 +29,10 @@ Cada serviço tem build próprio e um `CLAUDE.md` com comandos e arquitetura. To
 
 ## Pré-requisitos
 
-- Host Linux para executar o wrapper do `act`
+- Host Linux ou WSL2 para executar o wrapper do `act`
 - Docker Engine e CLI, com o daemon em execução
 - `make`
-- `act`, `kubectl`, Helm 3 e `curl` instalados no host
+- `curl` para instalar `act` com o alvo opcional
 - `kind` é instalado pelos comandos do projeto se ainda não estiver disponível
 - Toolchain dos serviços (JDK, Node.js, uv, Go) apenas para executá-los fora de containers
 
@@ -41,13 +41,14 @@ Cada serviço tem build próprio e um `CLAUDE.md` com comandos e arquitetura. To
 O caminho padrão para desenvolvimento e demonstração é `make act-kind-deploy`. Ele usa [act](https://nektosact.com/installation/) para simular localmente o workflow do GitHub Actions: o pipeline constrói as imagens, publica-as no registry local e instala a aplicação num cluster Kubernetes criado com kind, usando Helm. Assim, a execução local percorre o mesmo workflow de provisionamento definido no repositório.
 
 ```bash
+make act-install       # opcional: instala/atualiza act em ~/.local/bin
 make act-kind-deploy   # caminho padrão: simula o workflow e implanta no kind
 make act-list          # lista os workflows disponíveis
 ```
 
-O repositório instala `kind` quando necessário, mas não instala `act`, Docker, `kubectl` ou Helm. Instale esses pré-requisitos no host antes de executar o comando. O wrapper `act` só funciona em hosts Linux; o Docker Engine precisa estar ativo.
+`make act-install` instala apenas o `act` em `~/.local/bin`; Docker e o Docker Engine ativo são os pré-requisitos de sistema para executar o fluxo pelo `act`. O próprio workflow instala `kubectl` e Helm, e `make k8s-up` instala `kind` no runner quando necessário. O wrapper funciona em Linux e WSL2. No WSL2 com Docker Desktop, habilite a integração para a distribuição Linux e o host networking do Docker Desktop (versão 4.34 ou superior), usado pelo runner do `act` ([configuração do host networking](https://docs.docker.com/engine/network/drivers/host/#docker-desktop), [integração WSL](https://docs.docker.com/desktop/features/wsl/)).
 
-Para implantar diretamente no kind, sem executar o workflow pelo `act`, use:
+Para implantar diretamente no kind, sem executar o workflow pelo `act`, instale `kubectl` e Helm no host e use:
 
 ```bash
 make k8s-up            # cria o cluster e implanta a stack diretamente
