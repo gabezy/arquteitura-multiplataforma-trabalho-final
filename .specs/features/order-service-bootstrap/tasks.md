@@ -316,15 +316,17 @@ T6 → T8
 
 **Done when**:
 
-- [ ] README lists `order-service` (Node.js, TypeScript, Express, 8084) and the components `order-db` (`localhost:5434`, `orders`/`orders`) and `order-service` (`http://localhost:8084`)
-- [ ] Root `CLAUDE.md` lists `order-service/` and `order-db` on localhost:5434
-- [ ] `diff .specs/features/order-service-bootstrap/spec.md docs/specs/order-service/bootstrap/spec.md` is empty
-- [ ] Gate check passes: build gate from T6
+- [x] README lists `order-service` (Node.js, TypeScript, Express, 8084) and the components `order-db` (`localhost:5434`, `orders`/`orders`) and `order-service` (`http://localhost:8084`)
+- [x] Root `CLAUDE.md` lists `order-service/` and `order-db` on localhost:5434
+- [x] `diff .specs/features/order-service-bootstrap/spec.md docs/specs/order-service/bootstrap/spec.md` is empty
+- [x] Gate check passes: build gate from T6
 
 **Tests**: none
 **Gate**: build
 
 **Commit**: `docs(order): documenta o order-service`
+
+**Status**: ✅ Complete
 
 ---
 

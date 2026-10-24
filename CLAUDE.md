@@ -9,6 +9,7 @@ This monorepo holds the services of the "omni-market" system. Each service sits 
 - `bff-gateway/` — backend-for-frontend / gateway (Spring Boot, OAuth2 resource server). See `bff-gateway/CLAUDE.md`.
 - `catalog-service/` — catalog service (Node.js, TypeScript, Express, OpenTelemetry). See `catalog-service/CLAUDE.md`.
 - `compliance-service/` — simulated product compliance checks (Python, FastAPI, uv). See `compliance-service/CLAUDE.md`.
+- `order-service/` — sales orders from the marketplaces (Node.js, TypeScript, Express, OpenTelemetry). See `order-service/CLAUDE.md`.
 
 Shared local infrastructure lives at the root:
 
@@ -24,7 +25,7 @@ docker compose down -v         # stop and drop volumes (needed to re-import a ch
 
 The root `Makefile` wraps these (`make` lists targets): `up` (everything), `up-infra` (everything but the applications), `down`, `clean` (drops volumes), `restart`, `ps`, `logs s=<service>`, `topics`.
 
-**Applications**: `bff-gateway`, `catalog-service` and `compliance-service` are built from source and run inside the compose network (`kafka:19092`, `catalog-db:5432`, `otel-collector:4318`). To run one of them from its own directory, start the rest with `make up-infra`, which leaves out the services listed in `APPS` in the Makefile. A new service is added to the compose file and to `APPS`. Inside the network the BFF fetches Keycloak's signing keys from `keycloak:8080` (`SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWKSETURI`) but keeps validating `iss` against `http://localhost:8085/realms/omni-market`, the issuer of tokens fetched from the host. `BFF_PORT` and `GRAFANA_PORT` change the host ports when 8080 or 3000 are taken.
+**Applications**: `bff-gateway`, `catalog-service`, `compliance-service` and `order-service` are built from source and run inside the compose network (`kafka:19092`, `catalog-db:5432`, `otel-collector:4318`). To run one of them from its own directory, start the rest with `make up-infra`, which leaves out the services listed in `APPS` in the Makefile. A new service is added to the compose file and to `APPS`. Inside the network the BFF fetches Keycloak's signing keys from `keycloak:8080` (`SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWKSETURI`) but keeps validating `iss` against `http://localhost:8085/realms/omni-market`, the issuer of tokens fetched from the host. `BFF_PORT` and `GRAFANA_PORT` change the host ports when 8080 or 3000 are taken.
 
 **Keycloak** (26.x) runs on http://localhost:8085 (admin console: `admin`/`admin`). The realm is `omni-market` and the issuer is `http://localhost:8085/realms/omni-market`.
 
@@ -44,7 +45,7 @@ Realm changes go in `docker/keycloak/realms/omni-market-realm.json`. `--import-r
 
 Topics are created by the one-shot `kafka-init` service, which runs `docker/kafka/create-topics.sh` once the broker is healthy. A service that publishes or consumes a new topic adds it to that script. The script is idempotent (`--if-not-exists`), so `docker compose up -d kafka-init` applies new topics without touching existing ones.
 
-**Postgres**: one container per service. `catalog-db` on localhost:5432 (`catalog`/`catalog`), `compliance-db` on localhost:5433 (`compliance`/`compliance`).
+**Postgres**: one container per service. `catalog-db` on localhost:5432 (`catalog`/`catalog`), `compliance-db` on localhost:5433 (`compliance`/`compliance`), `order-db` on localhost:5434 (`orders`/`orders`).
 
 **Observability**: apps send OTLP over HTTP to the collector on http://localhost:4318. Grafana runs on http://localhost:3000 (`admin`/`admin`).
 

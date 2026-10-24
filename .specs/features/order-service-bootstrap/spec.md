@@ -261,9 +261,9 @@ The order-service is in the C4 but has no code, database or pipeline. Issues #20
 | BOOT-22 | P1: CI - runs on order-service changes | T7 | Implementing |
 | BOOT-23 | P1: CI - skipped for other paths | T7 | Implementing |
 | BOOT-24 | P1: CI - CD image on `main` | T7 | Implementing |
-| BOOT-25 | P2: Docs - `order-service/CLAUDE.md` | T8 | In Tasks |
-| BOOT-26 | P2: Docs - root README tables | T8 | In Tasks |
-| BOOT-27 | P2: Docs - root CLAUDE.md | T8 | In Tasks |
+| BOOT-25 | P2: Docs - `order-service/CLAUDE.md` | T8 | Implementing |
+| BOOT-26 | P2: Docs - root README tables | T8 | Implementing |
+| BOOT-27 | P2: Docs - root CLAUDE.md | T8 | Implementing |
 | BOOT-28 | P1: Configuration - `KAFKA_BROKERS` list | T1 | Implementing |
 | BOOT-29 | P1: Publishing - producer connects before listening | T6 | Implementing |
 | BOOT-30 | P1: Publishing - Kafka unreachable at startup exits 1 | T6 | Implementing |
@@ -276,7 +276,7 @@ The order-service is in the C4 but has no code, database or pipeline. Issues #20
 | BOOT-37 | P1: Publishing - 1000 ms polling | T5 | Implementing |
 | BOOT-38 | P1: Publishing - send span in the recording trace | T5 | Implementing |
 
-**Coverage:** 38 total, 38 mapped to tasks, 0 unmapped; 35 implemented
+**Coverage:** 38 total, 38 mapped to tasks, 0 unmapped; 38 implemented
 
 ---
 
