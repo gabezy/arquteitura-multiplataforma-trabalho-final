@@ -4,6 +4,8 @@ O `bff-gateway` é a porta de entrada da API do omni-market: autentica o JWT do 
 
 Base: `http://localhost:8080` (a variável `BFF_PORT` muda a porta). Toda rota exige o header `Authorization: Bearer <token>`.
 
+**Swagger:** a interface fica em http://localhost:8080/swagger-ui/index.html e o contrato OpenAPI em http://localhost:8080/v3/api-docs, ambos sem token. Para chamar as rotas pela interface, gere um token (abaixo), clique em **Authorize** e cole o `access_token` sem o prefixo `Bearer`.
+
 ## Token por persona
 
 A senha de cada usuário é igual ao nome de usuário: `admin`, `loja`, `especialista`, `fiscal`, `csm` e `customer`. O `client_secret` é o do [README](../README.md#keycloak).
