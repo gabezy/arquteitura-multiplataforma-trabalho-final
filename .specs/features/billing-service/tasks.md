@@ -442,10 +442,10 @@ T18 → T19 → T20 → T21 → T22 → T23
 
 **Done when**:
 
-- [ ] Save and reload give the same snapshot; a second invoice for the same order fails on the unique key
-- [ ] Saving writes the pulled events to the outbox in the same transaction
-- [ ] Filters, limit and offset return the expected rows newest first
-- [ ] Gate check passes: full gate; test count ≥ 6
+- [x] Save and reload give the same snapshot; a second invoice for the same order fails on the unique key
+- [x] Saving writes the pulled events to the outbox in the same transaction
+- [x] Filters, limit and offset return the expected rows newest first
+- [x] Gate check passes: full gate; test count ≥ 6
 
 **Tests**: integration
 **Gate**: full

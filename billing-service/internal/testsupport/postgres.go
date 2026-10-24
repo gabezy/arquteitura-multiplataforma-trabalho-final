@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/moby/moby/api/types/container"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 )
@@ -66,6 +67,13 @@ func startPostgres(ctx context.Context) {
 		postgres.WithDatabase("postgres"),
 		postgres.WithUsername("billing"),
 		postgres.WithPassword("billing"),
+		// The tests need no durability: keeping the data in memory and skipping fsync stops a
+		// slow disk from turning the container start into a timeout.
+		testcontainers.WithHostConfigModifier(func(hostConfig *container.HostConfig) {
+			hostConfig.Tmpfs = map[string]string{"/var/lib/postgresql": "rw"}
+		}),
+		testcontainers.WithEnv(map[string]string{"POSTGRES_INITDB_ARGS": "--no-sync"}),
+		testcontainers.WithCmd("postgres", "-c", "fsync=off", "-c", "synchronous_commit=off", "-c", "full_page_writes=off"),
 		postgres.BasicWaitStrategies(),
 	)
 	if postgresErr != nil {
