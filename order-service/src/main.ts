@@ -6,8 +6,10 @@ import { createDatabaseProbe } from './infra/persistence/database-probe';
 import { configureKafka } from './infra/messaging/kafka.config';
 import { OutboxRelay } from './infra/messaging/outbox-relay';
 import { createOrderModule } from './infra/order.factory';
+import { createShutdown, shutdownSteps } from './infra/shutdown';
 
 const RELAY_INTERVAL_MS = 1000;
+const SHUTDOWN_TIMEOUT_MS = 10_000;
 
 async function start(): Promise<void> {
   const config = await loadAppConfig();
@@ -45,17 +47,12 @@ async function start(): Promise<void> {
     logger.info({ port: config.port }, `${config.serviceName} listening`);
   });
 
-  const shutdown = async (signal: string): Promise<void> => {
-    logger.info({ signal }, `${config.serviceName} shutting down`);
-    await new Promise<void>(resolve => server.close(() => resolve()));
-    for (const consumer of consumers) {
-      await consumer.disconnect();
-    }
-    await relay.stop();
-    await producer.disconnect();
-    await db.destroy();
-    process.exit(0);
-  };
+  const shutdown = createShutdown({
+    steps: shutdownSteps({ consumers, server, relay, producer, db }),
+    timeoutMs: SHUTDOWN_TIMEOUT_MS,
+    exit: code => process.exit(code),
+    logger,
+  });
 
   process.once('SIGTERM', shutdown);
   process.once('SIGINT', shutdown);

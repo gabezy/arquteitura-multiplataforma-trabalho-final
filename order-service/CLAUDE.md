@@ -82,7 +82,7 @@ src/
 ## Observability
 
 - `infra/observability/instrumentation.ts` starts the `NodeSDK` and must run before any other module. `dev` and `start` load it with `--require`; never import it from app code.
-- On `SIGTERM`/`SIGINT` it only flushes the SDK. `main.ts` owns the exit: it closes the server, waits for the relay round, disconnects the producer, destroys the pool and exits with code 0.
+- On `SIGTERM`/`SIGINT` it only flushes the SDK. `main.ts` owns the exit through `createShutdown` (`infra/shutdown.ts`): it disconnects the consumers, closes the server, waits for the relay round, disconnects the producer, destroys the pool and exits with code 0; a failed step, or a shutdown longer than 10 s, exits with code 1.
 - Logs: use the pino `Logger`. `instrumentation-pino` adds `trace_id`/`span_id` and sends each record to the collector. Knex warnings go through pino too (`createDatabaseConnection`), so every line is JSON.
 - Custom metrics/spans: use `@opentelemetry/api` inside `infra`, never in `core`.
 
