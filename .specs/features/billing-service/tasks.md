@@ -388,10 +388,10 @@ T18 → T19 → T20 → T21 → T22 → T23
 
 **Done when**:
 
-- [ ] Total, commission (half-up, including the R$ 0,25 at 14% edge case) and net match the spec
-- [ ] Bounds of items, marketplace and a declared total that differs from the sum of the items raise `ValidationError`
-- [ ] Cancel changes `ISSUED` and `PAYMENT_PENDING` only
-- [ ] Gate check passes: quick gate; test count ≥ 15
+- [x] Total, commission (half-up, including the R$ 0,25 at 14% edge case) and net match the spec
+- [x] Bounds of items, marketplace and a declared total that differs from the sum of the items raise `ValidationError`
+- [x] Cancel changes `ISSUED` and `PAYMENT_PENDING` only
+- [x] Gate check passes: quick gate; test count ≥ 15
 
 **Tests**: unit
 **Gate**: quick
@@ -415,10 +415,10 @@ T18 → T19 → T20 → T21 → T22 → T23
 
 **Done when**:
 
-- [ ] Issue returns `Issued`, `AlreadyIssued` or `OrderCancelled` as the spec says
-- [ ] Cancel returns `Cancelled`, `Unchanged` or `Recorded`
-- [ ] Get of an unknown id returns `NotFoundError`
-- [ ] Gate check passes: quick gate; test count ≥ 10
+- [x] Issue returns `Issued`, `AlreadyIssued` or `OrderCancelled` as the spec says
+- [x] Cancel returns `Cancelled`, `Unchanged` or `Recorded`
+- [x] Get of an unknown id returns `NotFoundError`
+- [x] Gate check passes: quick gate; test count ≥ 10
 
 **Tests**: unit
 **Gate**: quick
@@ -442,10 +442,10 @@ T18 → T19 → T20 → T21 → T22 → T23
 
 **Done when**:
 
-- [ ] Save and reload give the same snapshot; a second invoice for the same order fails on the unique key
-- [ ] Saving writes the pulled events to the outbox in the same transaction
-- [ ] Filters, limit and offset return the expected rows newest first
-- [ ] Gate check passes: full gate; test count ≥ 6
+- [x] Save and reload give the same snapshot; a second invoice for the same order fails on the unique key
+- [x] Saving writes the pulled events to the outbox in the same transaction
+- [x] Filters, limit and offset return the expected rows newest first
+- [x] Gate check passes: full gate; test count ≥ 6
 
 **Tests**: integration
 **Gate**: full
@@ -469,11 +469,11 @@ T18 → T19 → T20 → T21 → T22 → T23
 
 **Done when**:
 
-- [ ] Valid confirmation reaches the facade once; a duplicate `ce_id` does not
-- [ ] Each contract violation of INV-06 goes to the DLQ with `dlq-*` headers and the offset is committed
-- [ ] A transient error is retried with the backoff sequence and the offset is committed only after success
-- [ ] `billing.invoice.issued.v1` payload matches the design, money with two decimals
-- [ ] Gate check passes: quick gate; test count ≥ 12
+- [x] Valid confirmation reaches the facade once; a duplicate `ce_id` does not
+- [x] Each contract violation of INV-06 goes to the DLQ with `dlq-*` headers and the offset is committed
+- [x] A transient error is retried with the backoff sequence and the offset is committed only after success
+- [x] `billing.invoice.issued.v1` payload matches the design, money with two decimals
+- [x] Gate check passes: quick gate; test count ≥ 12
 
 **Tests**: unit
 **Gate**: quick
@@ -497,9 +497,9 @@ T18 → T19 → T20 → T21 → T22 → T23
 
 **Done when**:
 
-- [ ] 200 with the invoice, 404 for an unknown id, 400 for each invalid parameter
-- [ ] Filters and pagination are passed to the port
-- [ ] Gate check passes: quick gate; test count ≥ 8
+- [x] 200 with the invoice, 404 for an unknown id, 400 for each invalid parameter
+- [x] Filters and pagination are passed to the port
+- [x] Gate check passes: quick gate; test count ≥ 8
 
 **Tests**: unit
 **Gate**: quick
@@ -523,9 +523,9 @@ T18 → T19 → T20 → T21 → T22 → T23
 
 **Done when**:
 
-- [ ] An app test with Testcontainers Kafka and Postgres publishes a confirmation twice and finds one invoice through the API and one `billing.invoice.issued.v1` on Kafka
-- [ ] The demo runs against `make up`
-- [ ] Gate check passes: build gate; test count ≥ 3 in `internal/app`
+- [x] An app test with Testcontainers Kafka and Postgres publishes a confirmation twice and finds one invoice through the API and one `billing.invoice.issued.v1` on Kafka
+- [x] The demo runs against `make up`
+- [x] Gate check passes: build gate; test count ≥ 3 in `internal/app`
 
 **Tests**: integration
 **Gate**: build

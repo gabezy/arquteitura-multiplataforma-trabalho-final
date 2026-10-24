@@ -34,6 +34,11 @@ func TestLoadAppliesTheDocumentedDefaults(t *testing.T) {
 		DatabaseURL:        validDatabaseURL,
 		KafkaBrokers:       []string{"localhost:9092"},
 		OutboxPollInterval: time.Second,
+		ConsumerGroup:      "billing-service",
+		ConfirmedTopic:     "order.order.confirmed.v1",
+		CancelledTopic:     "order.order.cancelled.v1",
+		DeadLetterTopic:    "billing.order-events.dlq",
+		CommissionBps:      map[string]int{"AMAZON": 1200, "MERCADO_LIVRE": 1100, "SHOPEE": 1400},
 	}
 	if !reflect.DeepEqual(cfg, want) {
 		t.Fatalf("Load() = %+v, want %+v", cfg, want)
@@ -49,6 +54,14 @@ func TestLoadReadsEveryVariable(t *testing.T) {
 		"DATABASE_URL":         "postgres://u:p@db:5432/x",
 		"KAFKA_BROKERS":        "kafka-1:9092, kafka-2:9093",
 		"OUTBOX_POLL_INTERVAL": "250ms",
+
+		"KAFKA_CONSUMER_GROUP":             "billing-test",
+		"ORDER_CONFIRMED_TOPIC":            "orders.confirmed",
+		"ORDER_CANCELLED_TOPIC":            "orders.cancelled",
+		"ORDER_EVENTS_DLQ_TOPIC":           "billing.dlq",
+		"COMMISSION_AMAZON_PERCENT":        "10",
+		"COMMISSION_MERCADO_LIVRE_PERCENT": "9.5",
+		"COMMISSION_SHOPEE_PERCENT":        "0",
 	}))
 	if err != nil {
 		t.Fatal(err)
@@ -62,6 +75,11 @@ func TestLoadReadsEveryVariable(t *testing.T) {
 		DatabaseURL:        "postgres://u:p@db:5432/x",
 		KafkaBrokers:       []string{"kafka-1:9092", "kafka-2:9093"},
 		OutboxPollInterval: 250 * time.Millisecond,
+		ConsumerGroup:      "billing-test",
+		ConfirmedTopic:     "orders.confirmed",
+		CancelledTopic:     "orders.cancelled",
+		DeadLetterTopic:    "billing.dlq",
+		CommissionBps:      map[string]int{"AMAZON": 1000, "MERCADO_LIVRE": 950, "SHOPEE": 0},
 	}
 	if !reflect.DeepEqual(cfg, want) {
 		t.Fatalf("Load() = %+v, want %+v", cfg, want)
@@ -98,6 +116,15 @@ func TestLoadNamesEachInvalidVariableWithoutItsValue(t *testing.T) {
 		{"OUTBOX_POLL_INTERVAL", "soon-6e0a"},
 		{"OUTBOX_POLL_INTERVAL", "-1s"},
 		{"OUTBOX_POLL_INTERVAL", "0s"},
+		{"KAFKA_CONSUMER_GROUP", "bad group 7e1d"},
+		{"ORDER_CONFIRMED_TOPIC", "topic with spaces 3a9c"},
+		{"ORDER_CANCELLED_TOPIC", "not/a/topic-5b2f"},
+		{"ORDER_EVENTS_DLQ_TOPIC", "dlq?-8d4e"},
+		{"COMMISSION_AMAZON_PERCENT", "abc-1f6a"},
+		{"COMMISSION_AMAZON_PERCENT", "100.01"},
+		{"COMMISSION_MERCADO_LIVRE_PERCENT", "-1"},
+		{"COMMISSION_SHOPEE_PERCENT", "12.345"},
+		{"COMMISSION_SHOPEE_PERCENT", "1e1"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.variable+"="+tt.value, func(t *testing.T) {

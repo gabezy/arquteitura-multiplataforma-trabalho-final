@@ -6,9 +6,12 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/gabezy/arquteitura-multiplataforma-trabalho-final/billing-service/internal/core/invoice/model"
 )
 
 const (
@@ -18,6 +21,7 @@ const (
 	defaultKafkaBrokers       = "localhost:9092"
 	defaultOutboxPollInterval = time.Second
 	maxPort                   = 65535
+	maxPercentBps             = 10000
 )
 
 // Config is the validated configuration of the service.
@@ -29,6 +33,13 @@ type Config struct {
 	DatabaseURL        string
 	KafkaBrokers       []string
 	OutboxPollInterval time.Duration
+	// ConsumerGroup, ConfirmedTopic, CancelledTopic and DeadLetterTopic are the Kafka names of the order consumer.
+	ConsumerGroup   string
+	ConfirmedTopic  string
+	CancelledTopic  string
+	DeadLetterTopic string
+	// CommissionBps is the commission of each marketplace, in basis points (1100 is 11%).
+	CommissionBps map[string]int
 }
 
 // Lookup reads one variable, like os.LookupEnv.
@@ -71,6 +82,15 @@ func Load(lookup Lookup) (Config, error) {
 		DatabaseURL:        reader.databaseURL(),
 		KafkaBrokers:       reader.kafkaBrokers(),
 		OutboxPollInterval: reader.duration("OUTBOX_POLL_INTERVAL", defaultOutboxPollInterval),
+		ConsumerGroup:      reader.kafkaName("KAFKA_CONSUMER_GROUP", "billing-service"),
+		ConfirmedTopic:     reader.kafkaName("ORDER_CONFIRMED_TOPIC", "order.order.confirmed.v1"),
+		CancelledTopic:     reader.kafkaName("ORDER_CANCELLED_TOPIC", "order.order.cancelled.v1"),
+		DeadLetterTopic:    reader.kafkaName("ORDER_EVENTS_DLQ_TOPIC", "billing.order-events.dlq"),
+		CommissionBps: map[string]int{
+			"AMAZON":        reader.percentBps("COMMISSION_AMAZON_PERCENT", 1200),
+			"MERCADO_LIVRE": reader.percentBps("COMMISSION_MERCADO_LIVRE_PERCENT", 1100),
+			"SHOPEE":        reader.percentBps("COMMISSION_SHOPEE_PERCENT", 1400),
+		},
 	}
 
 	if len(reader.problems) > 0 {
@@ -193,6 +213,35 @@ func (r *reader) duration(name string, fallback time.Duration) time.Duration {
 		return fallback
 	}
 	return parsed
+}
+
+var kafkaNamePattern = regexp.MustCompile(`^[A-Za-z0-9._-]{1,249}$`)
+
+func (r *reader) kafkaName(name, fallback string) string {
+	raw, ok := r.value(name)
+	if !ok {
+		return fallback
+	}
+	if !kafkaNamePattern.MatchString(raw) {
+		r.invalid(name, "must be 1 to 249 letters, digits, dots, underscores or hyphens")
+		return fallback
+	}
+	return raw
+}
+
+// percentBps reads a percentage from 0 to 100 with at most two decimals and returns
+// it in basis points. A percentage with two decimals has the scale of an amount in cents.
+func (r *reader) percentBps(name string, fallback int) int {
+	raw, ok := r.value(name)
+	if !ok {
+		return fallback
+	}
+	bps, err := model.ParseMoney(raw)
+	if err != nil || bps > maxPercentBps {
+		r.invalid(name, "must be a percentage from 0 to 100 with at most two decimals")
+		return fallback
+	}
+	return int(bps)
 }
 
 func hasURLShape(raw string, schemes ...string) bool {

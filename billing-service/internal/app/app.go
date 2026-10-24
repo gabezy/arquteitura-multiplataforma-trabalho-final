@@ -10,18 +10,25 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/twmb/franz-go/pkg/kgo"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/gabezy/arquteitura-multiplataforma-trabalho-final/billing-service/internal/core/invoice"
+	"github.com/gabezy/arquteitura-multiplataforma-trabalho-final/billing-service/internal/core/invoice/model"
 	"github.com/gabezy/arquteitura-multiplataforma-trabalho-final/billing-service/internal/infra/config"
 	"github.com/gabezy/arquteitura-multiplataforma-trabalho-final/billing-service/internal/infra/httpapi"
 	"github.com/gabezy/arquteitura-multiplataforma-trabalho-final/billing-service/internal/infra/messaging"
 	"github.com/gabezy/arquteitura-multiplataforma-trabalho-final/billing-service/internal/infra/outbox"
 	"github.com/gabezy/arquteitura-multiplataforma-trabalho-final/billing-service/internal/infra/persistence"
+	"github.com/gabezy/arquteitura-multiplataforma-trabalho-final/billing-service/internal/infra/system"
 )
 
 // ShutdownTimeout is how long Run takes to stop once its context ends. With the
 // 2 s that main keeps to flush the telemetry, the process exits within 10 s.
 const ShutdownTimeout = 7 * time.Second
+
+// leaveGroupTimeout bounds how long the consumer takes to leave its group on shutdown.
+const leaveGroupTimeout = 3 * time.Second
 
 var errShutdownTimedOut = errors.New("shutdown timed out")
 
@@ -45,10 +52,34 @@ func Run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 	}
 	defer kafkaClient.Close()
 
+	policies, err := commissionPolicies(cfg.CommissionBps)
+	if err != nil {
+		return err
+	}
+	store := outbox.NewStore(db, messaging.ToIntegrationEvent)
+	invoices := invoice.NewFacade(
+		persistence.NewInvoiceRepository(db, store),
+		persistence.NewOrderCancellationRepository(db),
+		db,
+		system.UUIDGenerator{},
+		system.Clock{},
+		policies,
+	)
+
+	consumerClient, tracer, err := messaging.NewConsumerClient(cfg.KafkaBrokers, cfg.ConsumerGroup, cfg.ConfirmedTopic, cfg.CancelledTopic)
+	if err != nil {
+		return err
+	}
+	defer leaveAndClose(consumerClient)
+	handler := messaging.NewOrderEventHandler(invoices, invoices, persistence.NewInboxRepository(db), db,
+		messaging.OrderTopics{Confirmed: cfg.ConfirmedTopic, Cancelled: cfg.CancelledTopic}, logger)
+	consumer := messaging.NewOrderEventsConsumer(consumerClient, tracer, handler,
+		messaging.NewKafkaDeadLetter(kafkaClient, cfg.DeadLetterTopic), logger)
+
 	relay := outbox.NewRelay(db, outbox.NewKafkaProducer(kafkaClient), logger, outbox.RelayOptions{
 		PollInterval: cfg.OutboxPollInterval,
 	})
-	router := httpapi.NewRouter(httpapi.Deps{Logger: logger, CheckHealth: db.Ping})
+	router := httpapi.NewRouter(httpapi.Deps{Logger: logger, CheckHealth: db.Ping, Invoices: invoices})
 	server := httpapi.NewServer(fmt.Sprintf(":%d", cfg.Port), router.Handler())
 
 	group, groupCtx := errgroup.WithContext(ctx)
@@ -60,6 +91,7 @@ func Run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 		return nil
 	})
 	group.Go(func() error { return relay.Run(groupCtx) })
+	group.Go(func() error { return consumer.Run(groupCtx) })
 	group.Go(func() error {
 		<-groupCtx.Done()
 		shutdownCtx, cancel := context.WithTimeout(context.WithoutCancel(groupCtx), ShutdownTimeout)
@@ -92,4 +124,25 @@ func waitWithin(group *errgroup.Group, groupCtx context.Context, logger *slog.Lo
 	case <-time.After(ShutdownTimeout):
 		return errShutdownTimedOut
 	}
+}
+
+func commissionPolicies(ratesBps map[string]int) (model.CommissionPolicies, error) {
+	policies := model.CommissionPolicies{}
+	for _, marketplace := range []model.Marketplace{model.Amazon, model.MercadoLivre, model.Shopee} {
+		policy, err := model.NewPercentageCommission(ratesBps[string(marketplace)])
+		if err != nil {
+			return nil, fmt.Errorf("commission of %s: %w", marketplace, err)
+		}
+		policies[marketplace] = policy
+	}
+	return policies, nil
+}
+
+// leaveAndClose leaves the consumer group with a time limit first, so that Close does
+// not wait on a broker that is down and the process still exits within its budget.
+func leaveAndClose(client *kgo.Client) {
+	ctx, cancel := context.WithTimeout(context.Background(), leaveGroupTimeout)
+	defer cancel()
+	_ = client.LeaveGroupContext(ctx)
+	client.Close()
 }

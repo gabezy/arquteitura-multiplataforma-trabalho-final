@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -46,17 +47,24 @@ func newKafka(t *testing.T) []string {
 	return cluster.ListenAddrs()
 }
 
+// testConfig loads the configuration the way the service does, so the tests run with the real defaults.
 func testConfig(t *testing.T, databaseURL string, brokers []string) config.Config {
 	t.Helper()
-	return config.Config{
-		Port:               freePort(t),
-		LogLevel:           slog.LevelInfo,
-		ServiceName:        "billing-service",
-		OTelCollectorURL:   "http://127.0.0.1:1",
-		DatabaseURL:        databaseURL,
-		KafkaBrokers:       brokers,
-		OutboxPollInterval: 50 * time.Millisecond,
+	values := map[string]string{
+		"PORT":                 strconv.Itoa(freePort(t)),
+		"DATABASE_URL":         databaseURL,
+		"KAFKA_BROKERS":        strings.Join(brokers, ","),
+		"OTEL_COLLECTOR_URL":   "http://127.0.0.1:1",
+		"OUTBOX_POLL_INTERVAL": "50ms",
 	}
+	cfg, err := config.Load(func(key string) (string, bool) {
+		value, ok := values[key]
+		return value, ok
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return cfg
 }
 
 func quietLogger() *slog.Logger {
