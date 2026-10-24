@@ -38,6 +38,7 @@ The demo script (#27) proves the flow by hand, and nothing re-checks it when a s
 | Timeouts | Stack health 300 s (`E2E_TIMEOUT`), each asynchronous check 60 s | The cold Keycloak start took about 2 min in the rehearsal; the outbox relay polls every second | y |
 | Ports | BFF on `BFF_PORT` (default 8080); catalog 8082, Keycloak 8085, same as the compose | The compose lets only `BFF_PORT` and `GRAFANA_PORT` change | y |
 | Script location and name | `scripts/e2e-smoke.sh` at the repository root, target `e2e` in the root `Makefile` | Suggested by #37 | y |
+| What "never deletes" covers (E2E-17) | No `down`, `rm` or `volume rm`; every volume survives. Containers that `docker compose up --build` recreates because an image changed do not count | Found during Execute: the first harness run saw catalog and compliance recreated by the compose up, with their volumes intact; that is compose's normal behavior, not data loss | y |
 | Output language | Report lines in Portuguese (`[OK]`, `[FALHA]`, `[PENDENTE]`), ASCII only | The team's docs are in Portuguese; ASCII avoids broken characters in the Windows console | y |
 
 **Open questions:** none - all resolved or logged above.
@@ -96,7 +97,7 @@ The demo script (#27) proves the flow by hand, and nothing re-checks it when a s
 
 1. The script SHALL suffix every SKU of the generated spreadsheet with a run id that is different on every run.  <!-- ubiquitous -->
 2. WHEN the script runs twice on the same environment THEN both runs SHALL exit with code 0.  <!-- event-driven -->
-3. The script SHALL not delete containers, volumes or data.  <!-- ubiquitous -->
+3. The script SHALL not run `docker compose down`, `docker rm` or `docker volume rm`, and every volume SHALL still exist after a run.  <!-- ubiquitous -->
 
 **Independent Test**: run the script twice in a row on the same stack; both exit 0.
 
@@ -156,22 +157,22 @@ The demo script (#27) proves the flow by hand, and nothing re-checks it when a s
 | Requirement ID | Story | Phase | Status |
 | --- | --- | --- | --- |
 | E2E-01 | P1 Run: `make e2e` runs the script | Execute | Pending |
-| E2E-02 | P1 Run: `docker compose up -d --build` | Execute | Pending |
-| E2E-03 | P1 Run: `E2E_SKIP_UP=1` skips the up | Execute | Pending |
-| E2E-04 | P1 Run: waits for the five apps healthy | Execute | Pending |
-| E2E-05 | P1 Run: admin token | Execute | Pending |
-| E2E-06 | P1 Run: 401 without token | Execute | Pending |
-| E2E-07 | P1 Run: import with `importedProducts` 3 | Execute | Pending |
-| E2E-08 | P1 Run: compliance statuses | Execute | Pending |
+| E2E-02 | P1 Run: `docker compose up -d --build` | Execute | Implementing |
+| E2E-03 | P1 Run: `E2E_SKIP_UP=1` skips the up | Execute | Implementing |
+| E2E-04 | P1 Run: waits for the five apps healthy | Execute | Implementing |
+| E2E-05 | P1 Run: admin token | Execute | Implementing |
+| E2E-06 | P1 Run: 401 without token | Execute | Implementing |
+| E2E-07 | P1 Run: import with `importedProducts` 3 | Execute | Implementing |
+| E2E-08 | P1 Run: compliance statuses | Execute | Implementing |
 | E2E-09 | P1 Run: reservation (stock 1 and `reserved`) | Execute | Pending |
 | E2E-10 | P1 Run: cancellation (stock 2) | Execute | Pending |
-| E2E-11 | P1 Run: `[OK]` lines and exit 0 | Execute | Pending |
-| E2E-12 | P1 Fail: `[FALHA]` and exit 1, stop | Execute | Pending |
-| E2E-13 | P1 Fail: stack timeout lists unhealthy services | Execute | Pending |
-| E2E-14 | P1 Fail: async timeout prints last value | Execute | Pending |
-| E2E-15 | P1 Repeat: run-unique SKUs | Execute | Pending |
-| E2E-16 | P1 Repeat: two runs pass | Execute | Pending |
-| E2E-17 | P1 Repeat: no deletion | Execute | Pending |
+| E2E-11 | P1 Run: `[OK]` lines and exit 0 | Execute | Implementing |
+| E2E-12 | P1 Fail: `[FALHA]` and exit 1, stop | Execute | Implementing |
+| E2E-13 | P1 Fail: stack timeout lists unhealthy services | Execute | Implementing |
+| E2E-14 | P1 Fail: async timeout prints last value | Execute | Implementing |
+| E2E-15 | P1 Repeat: run-unique SKUs | Execute | Implementing |
+| E2E-16 | P1 Repeat: two runs pass | Execute | Implementing |
+| E2E-17 | P1 Repeat: no deletion | Execute | Implementing |
 | E2E-18 | P1 Pending: four `[PENDENTE]` lines | Execute | Pending |
 | E2E-19 | P1 Pending: exit 0 without strict | Execute | Pending |
 | E2E-20 | P1 Pending: exit 1 with `E2E_STRICT=1` | Execute | Pending |
