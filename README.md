@@ -29,31 +29,33 @@ Cada serviço tem build próprio e um `CLAUDE.md` com comandos e arquitetura. To
 
 ## Pré-requisitos
 
-- Docker Engine em execução
+- Host Linux para executar o wrapper do `act`
+- Docker Engine e CLI, com o daemon em execução
 - `make`
-- `kubectl` e Helm 3 para implantar no kind
-- `act` apenas para executar o workflow localmente
+- `act`, `kubectl`, Helm 3 e `curl` instalados no host
+- `kind` é instalado pelos comandos do projeto se ainda não estiver disponível
 - Toolchain dos serviços (JDK, Node.js, uv, Go) apenas para executá-los fora de containers
 
 ## Ambiente local com kind
 
-O caminho recomendado para desenvolvimento e demonstração é o cluster Kubernetes local. O `make k8s-up` instala o kind se necessário, cria o cluster, constrói e publica as imagens no registry local e instala a stack pelo Helm. O comando também cria ou completa o `.env` local a partir do `.env.example`; esse arquivo é ignorado pelo git.
+O caminho padrão para desenvolvimento e demonstração é `make act-kind-deploy`. Ele usa [act](https://nektosact.com/installation/) para simular localmente o workflow do GitHub Actions: o pipeline constrói as imagens, publica-as no registry local e instala a aplicação num cluster Kubernetes criado com kind, usando Helm. Assim, a execução local percorre o mesmo workflow de provisionamento definido no repositório.
 
 ```bash
-make kind-install      # opcional: instala o kind antes do primeiro uso
-make k8s-up            # cria o cluster e implanta a stack
+make act-kind-deploy   # caminho padrão: simula o workflow e implanta no kind
+make act-list          # lista os workflows disponíveis
+```
+
+O repositório instala `kind` quando necessário, mas não instala `act`, Docker, `kubectl` ou Helm. Instale esses pré-requisitos no host antes de executar o comando. O wrapper `act` só funciona em hosts Linux; o Docker Engine precisa estar ativo.
+
+Para implantar diretamente no kind, sem executar o workflow pelo `act`, use:
+
+```bash
+make k8s-up            # cria o cluster e implanta a stack diretamente
 make k8s-status        # mostra pods, serviços e jobs
 make k8s-down          # remove o cluster e os dados locais
 ```
 
-Para executar o mesmo workflow manual do GitHub Actions no checkout local, instale o `act` e use:
-
-```bash
-make act-list          # lista os workflows disponíveis
-make act-kind-deploy   # executa o workflow de deploy com act
-```
-
-Use `make k8s-up` para subir a stack diretamente. Use `make act-kind-deploy` quando quiser validar localmente o workflow de CI/deploy; os dois caminhos implantam no kind. Pré-requisitos completos, portas, detalhes do registry e solução de problemas estão em [`docs/kubernetes-kind.md`](docs/kubernetes-kind.md).
+Pré-requisitos completos, portas, detalhes do registry e solução de problemas estão em [`docs/kubernetes-kind.md`](docs/kubernetes-kind.md).
 
 ### Keycloak
 
