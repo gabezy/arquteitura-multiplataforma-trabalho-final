@@ -441,6 +441,22 @@ O valor depende do escopo da ADR #11. Se a cobrança for a comissão do Omni Mar
 
 Os nomes das DLQs propostas seguem o padrão das existentes. Se um serviço novo usar um consumer group por tópico, ele terá uma DLQ por tópico.
 
+## Chamadas REST entre serviços
+
+Os serviços internos não validam token: a autenticação e a autorização por papel ficam no BFF (Keycloak). O BFF repassa o usuário autenticado no header `X-User-Id`.
+
+| Origem | Destino | Chamada | Uso | Estado |
+|---|---|---|---|---|
+| bff-gateway | catalog-service | `POST /products/import` com `{ items: [{ sku, name, description, price, stock }] }` (1 a 1000 itens) | importação da planilha (`POST /catalog/import/xlsx` no BFF) | Implementado |
+| bff-gateway, marketplace-gateway | catalog-service | `GET /products/sku/:sku` → `{ id, sku, name, description, price, stock, analysisStatus }` | consulta do produto e dos dados para o anúncio | Implementado (o uso pelo marketplace depende da ADR #12) |
+| bff-gateway | order-service | listar e detalhar pedidos, relatórios por marketplace | #24, #31 | Proposto |
+| bff-gateway | billing-service | consultar cobranças | #34 | Proposto |
+| bff-gateway | marketplace-gateway | status dos anúncios por marketplace | #35 | Proposto |
+| marketplace-gateway | marketplaces (WireMock) | publicar anúncio, atualizar estoque, receber e cancelar pedidos | #18, #21, #22, #33 | Proposto (ADR #12) |
+| billing-service | PSP (WireMock) | cobrar e consultar pagamento | #26, #32 | Proposto (ADR #11) |
+
+O catalog responde erros em `application/problem+json`: 422 para validação, 404 para não encontrado e 409 para conflito (ex.: SKU repetido na importação).
+
 ## Como adicionar ou mudar um evento
 
 1. Abrir um PR alterando este arquivo, com a ficha do evento no estado **Proposto**, e marcar os donos do produtor e dos consumidores.
