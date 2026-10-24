@@ -8,7 +8,7 @@ from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
 from fastapi import FastAPI
 from opentelemetry import metrics
 
-from compliance_service.infra.config.settings import Settings
+from compliance_service.infra.config.vault import load_settings
 from compliance_service.infra.http.app import create_app
 from compliance_service.infra.messaging.dead_letter import DeadLetterPublisher
 from compliance_service.infra.messaging.kafka_analysis_result_publisher import KafkaAnalysisResultPublisher
@@ -22,7 +22,7 @@ from compliance_service.infra.tasks import cancel_and_wait
 
 CONSUMER_GROUP = "compliance-service"
 
-settings = Settings()
+settings = load_settings()
 telemetry = setup_telemetry(settings)
 logger = logging.getLogger(__name__)
 
