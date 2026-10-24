@@ -1,0 +1,116 @@
+{{- $root := . }}
+{{- range .Values.infrastructure }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .name }}
+  labels:
+    app.kubernetes.io/name: {{ .name }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ .name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ .name }}
+{{- if .mounts }}
+      annotations:
+        checksum/config: {{ include (print $root.Template.BasePath "/configmaps.yaml") $root | sha256sum }}
+{{- end }}
+    spec:
+      containers:
+        - name: {{ .name }}
+          image: {{ .image }}
+          imagePullPolicy: {{ if hasPrefix "localhost:5001/" .image }}Always{{ else }}IfNotPresent{{ end }}
+{{- if .command }}
+          args:
+{{ toYaml .command | indent 12 }}
+{{- end }}
+          ports:
+{{- if .ports }}
+{{- range .ports }}
+            - name: {{ .name }}
+              containerPort: {{ .containerPort }}
+{{- end }}
+{{- else }}
+            - name: http
+              containerPort: {{ .port }}
+{{- end }}
+{{- if .env }}
+          env:
+{{ toYaml .env | indent 12 }}
+{{- end }}
+{{- if .mounts }}
+          volumeMounts:
+{{- range .mounts }}
+            - name: config
+              mountPath: {{ .path }}
+              subPath: {{ .key }}
+              readOnly: true
+{{- end }}
+{{- end }}
+{{- if .healthPath }}
+          startupProbe:
+            httpGet:
+              path: {{ .healthPath }}
+              port: http
+            periodSeconds: 5
+            failureThreshold: 120
+          readinessProbe:
+            httpGet:
+              path: {{ .healthPath }}
+              port: http
+            periodSeconds: 10
+            failureThreshold: 12
+          livenessProbe:
+            httpGet:
+              path: {{ .healthPath }}
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 15
+{{- end }}
+{{- if .mounts }}
+      volumes:
+        - name: config
+          configMap:
+            name: omni-market-config
+{{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .name }}
+spec:
+{{- $hasNodePort := false }}
+{{- range .ports }}
+{{- if .nodePort }}
+{{- $hasNodePort = true }}
+{{- end }}
+{{- end }}
+{{- if or .nodePort $hasNodePort }}
+  type: NodePort
+{{- end }}
+  selector:
+    app.kubernetes.io/name: {{ .name }}
+  ports:
+{{- if .ports }}
+{{- range .ports }}
+    - name: {{ .name }}
+      port: {{ .servicePort }}
+      targetPort: {{ .containerPort }}
+{{- if .nodePort }}
+      nodePort: {{ .nodePort }}
+{{- end }}
+{{- end }}
+{{- else }}
+    - name: http
+      port: {{ .port }}
+      targetPort: http
+{{- if .nodePort }}
+      nodePort: {{ .nodePort }}
+{{- end }}
+{{- end }}
+---
+{{- end }}

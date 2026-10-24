@@ -71,6 +71,10 @@ make vault      # regrava os secrets no Vault (depois de reiniciar o container v
 | billing-service | http://localhost:8086 | — |
 | marketplace-gateway | http://localhost:8087 | — |
 
+### Kubernetes local com kind e act
+
+O ambiente da demonstração em Kubernetes local está em [`docs/kubernetes-kind.md`](docs/kubernetes-kind.md). Para subir o cluster e as aplicações, use `make k8s-up`; para executar o workflow de deploy localmente com `act`, use `make act-kind-deploy`.
+
 ### Keycloak
 
 Realm `omni-market` (issuer `http://localhost:8085/realms/omni-market`), importado de `docker/keycloak/realms/omni-market-realm.json`.

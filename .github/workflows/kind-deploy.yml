@@ -1,0 +1,16 @@
+name: kind-deploy
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy-local:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check local Kubernetes tools
+        run: command -v kind && command -v kubectl && command -v helm && command -v docker
+      - name: Build and deploy the local stack
+        run: make k8s-up
+      - name: Show cluster status
+        run: make k8s-status
