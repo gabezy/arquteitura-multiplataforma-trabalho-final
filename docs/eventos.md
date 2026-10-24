@@ -51,6 +51,62 @@ Cada contrato tem um estado:
 
 DLQs: ver [Dead letter topics](#dead-letter-topics).
 
+## Fluxo principal
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Loja as Loja (persona)
+    participant BFF as bff-gateway
+    participant CAT as catalog-service
+    participant CMP as compliance-service
+    participant MKT as marketplace-gateway
+    participant MP as Marketplaces (Amazon, ML, Shopee)
+    participant ORD as order-service
+    participant BIL as billing-service
+    participant PSP as Provedor de pagamento
+
+    Loja->>BFF: POST /catalog/import/xlsx (JWT)
+    BFF->>CAT: POST /products/import
+    CAT-->>CMP: catalog.product.created.v1
+    CMP-->>CAT: produto.analisado.v1 (APPROVED | REJECTED)
+    alt aprovado
+        CAT-->>MKT: catalog.product.approved.v1
+        MKT->>CAT: GET /products/sku/:sku
+        MKT->>MP: publica o anúncio
+        MKT-->>MKT: marketplace.listing.published.v1 | failed.v1
+    else reprovado
+        CAT-->>CAT: catalog.product.rejected.v1 (fim)
+    end
+
+    MP->>MKT: pedido (webhook ou polling, conforme a ADR do marketplace)
+    MKT-->>ORD: marketplace.order.received.v1
+    ORD-->>CAT: order.order.placed.v1
+    alt estoque suficiente
+        CAT-->>ORD: catalog.stock.reserved.v1
+        CAT-->>MKT: catalog.product.stock-changed.v1
+        MKT->>MP: atualiza o estoque anunciado
+        ORD-->>BIL: order.order.confirmed.v1
+        BIL-->>BIL: billing.invoice.issued.v1
+        BIL->>PSP: cobra
+        alt pagamento aprovado
+            BIL-->>ORD: billing.payment.confirmed.v1
+        else pagamento recusado
+            BIL-->>ORD: billing.payment.failed.v1
+            ORD-->>CAT: order.order.cancelled.v1 (PAYMENT_FAILED)
+            CAT-->>MKT: catalog.product.stock-changed.v1 (estoque devolvido)
+            ORD-->>MKT: order.order.cancelled.v1
+            MKT->>MP: cancela o pedido
+        end
+    else estoque insuficiente
+        CAT-->>ORD: catalog.stock.insufficient.v1
+        ORD-->>MKT: order.order.cancelled.v1 (OUT_OF_STOCK)
+        MKT->>MP: cancela o pedido
+    end
+```
+
+Setas tracejadas são eventos no Kafka; setas contínuas são chamadas síncronas. O trecho a partir do pedido segue a [ADR-0004](adr/0004-catalog-dono-do-estoque-com-reserva-por-coreografia.md). O trecho de cobrança depende da ADR do billing (#11).
+
 ---
 
 ## Contratos implementados e provisórios
