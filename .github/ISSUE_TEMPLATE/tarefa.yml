@@ -1,0 +1,35 @@
+name: Tarefa
+description: Atividade do trabalho, com tarefas e critérios de aceite
+title: "[serviço] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Troque `serviço` no título pelo serviço ou pela área (`order-service`, `billing-service`, `plataforma`, `arquitetura`...), como nas issues existentes.
+        Depois de criar a issue, aplique a label e o milestone e atribua ao responsável. Prioridade, tamanho e status ficam no [board](https://github.com/users/gabezy/projects/2).
+  - type: input
+    id: responsavel
+    attributes:
+      label: Responsável
+      description: Username do GitHub de quem vai fazer a atividade, com `@`.
+      placeholder: "@username"
+  - type: textarea
+    id: contexto
+    attributes:
+      label: Contexto
+      description: Por que a atividade existe e o que ela destrava. Pode ficar em branco quando o título já explica.
+  - type: textarea
+    id: tarefas
+    attributes:
+      label: Tarefas
+      description: O que precisa ser feito, uma linha por item.
+      value: "- [ ] "
+    validations:
+      required: true
+  - type: textarea
+    id: criterios-de-aceite
+    attributes:
+      label: Critérios de aceite
+      description: Como saber que a atividade está pronta. Escreva algo que dê para verificar.
+    validations:
+      required: true
