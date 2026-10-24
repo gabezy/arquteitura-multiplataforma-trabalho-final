@@ -56,7 +56,7 @@ make vault      # regrava os secrets no Vault (depois de reiniciar o container v
 | Vault | http://localhost:8200 | token `VAULT_ROOT_TOKEN` do `.env` |
 | catalog-db (Postgres) | `localhost:5432` | `catalog` / `CATALOG_DB_PASSWORD` do `.env` |
 | compliance-db (Postgres) | `localhost:5433` | `compliance` / `COMPLIANCE_DB_PASSWORD` do `.env` |
-| order-db (Postgres) | `localhost:5434` | `orders` / `orders` |
+| order-db (Postgres) | `localhost:5434` | `orders` / `ORDER_DB_PASSWORD` do `.env` |
 | OTel Collector (OTLP HTTP) | http://localhost:4318 | — |
 | Grafana | http://localhost:3000 (`GRAFANA_PORT`) | `admin` / `admin` |
 | WireMock | http://localhost:8089 | — |
@@ -109,10 +109,10 @@ curl -s http://localhost:8082/products/sku/<sku>   # status da análise feita pe
 Os secrets das aplicações ficam num HashiCorp Vault em modo dev (decisão em [ADR-0003](docs/adr/0003-vault-para-secrets-das-aplicacoes.md)). Nenhum secret de aplicação é versionado.
 
 - `make env` (chamado pelo `make up`) gera o `.env` a partir do `.env.example`: cada `__GENERATE__` vira um valor aleatório. Chaves que já existem no `.env` nunca são reescritas, então as senhas não mudam entre execuções. Os logins de admin do Keycloak e do Grafana ficam fixos em `admin`/`admin`.
-- O job `vault-init` grava `secret/catalog-service`, `secret/compliance-service` e `secret/bff-gateway` e cria um AppRole por serviço, que só lê o próprio path. Cada aplicação lê seus secrets ao subir e não sobe sem o Vault.
+- O job `vault-init` grava `secret/catalog-service`, `secret/compliance-service`, `secret/order-service` e `secret/bff-gateway` e cria um AppRole por serviço, que só lê o próprio path. Cada aplicação lê seus secrets ao subir e não sobe sem o Vault.
 - O modo dev guarda tudo em memória: depois de reiniciar o container `vault`, rode `make vault`.
 - O Postgres mantém a senha com que o volume foi criado. Se o `.env` for apagado ou se o volume é anterior ao Vault, rode `make clean` (apaga os dados locais) e `make up`.
-- Para rodar um serviço pelo código, copie o `<SERVIÇO>_VAULT_ROLE_ID` / `_SECRET_ID` do `.env` da raiz para `VAULT_ROLE_ID` / `VAULT_SECRET_ID` (no `.env` do catalog e do compliance; variáveis exportadas no BFF).
+- Para rodar um serviço pelo código, copie o `<SERVIÇO>_VAULT_ROLE_ID` / `_SECRET_ID` do `.env` da raiz para `VAULT_ROLE_ID` / `VAULT_SECRET_ID` (no `.env` do catalog, do compliance e do order; variáveis exportadas no BFF).
 
 ## Fluxo de eventos
 
