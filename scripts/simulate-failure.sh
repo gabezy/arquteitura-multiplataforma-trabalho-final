@@ -42,7 +42,7 @@ for marketplace in "${targets[@]}"; do
   if ! curl -fsS -X PUT "$WIREMOCK_URL/__admin/scenarios/${marketplace}-mode/state" \
     -H 'Content-Type: application/json' \
     -d "{\"state\":\"$state\"}" > /dev/null; then
-    echo "Não consegui falar com o WireMock em $WIREMOCK_URL (make up-infra sobe o WireMock)." >&2
+    echo "Não consegui falar com o WireMock em $WIREMOCK_URL (make compose-up-infra sobe o WireMock)." >&2
     exit 1
   fi
   echo "$marketplace: $2"

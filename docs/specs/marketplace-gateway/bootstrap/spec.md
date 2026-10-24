@@ -9,7 +9,7 @@ O `marketplace-gateway` está no C4, mas não tem código, banco nem pipeline. A
 
 ## Goals
 
-- [ ] `make up` sobe `marketplace-db` e `marketplace-gateway`, e o container chega a `healthy` com as migrations aplicadas.
+- [ ] `make compose-up` sobe `marketplace-db` e `marketplace-gateway`, e o container chega a `healthy` com as migrations aplicadas.
 - [ ] Um push que altera `marketplace-gateway/` roda typecheck, testes, build e o build do Docker no CI, e todos passam.
 - [ ] Uma linha gravada em `outbox` chega ao Kafka no tópico do seu tipo, em CloudEvents binary mode, com a chave que o contrato manda (inclusive `<marketplace>:<externalOrderId>`).
 - [ ] Os testes unitários rodam em segundos sem Docker, e os de integração usam um único Postgres para a execução inteira.
@@ -57,9 +57,9 @@ O `marketplace-gateway` está no C4, mas não tem código, banco nem pipeline. A
 3. WHEN o container do serviço inicia THEN o serviço SHALL aplicar toda migration pendente antes de ouvir na porta. (`MKTBOOT-03`)
 4. IF uma migration falha THEN o processo de migration SHALL sair com código 1, e o serviço SHALL não iniciar. (`MKTBOOT-04`)
 5. WHEN o serviço inicia sem migration nova THEN o serviço SHALL aplicar nenhuma e logar `Database already up to date`. (`MKTBOOT-05`)
-6. WHEN `make up-infra` roda THEN o Makefile SHALL iniciar `marketplace-db` e SHALL não iniciar o container `marketplace-gateway`. (`MKTBOOT-06`)
+6. WHEN `make compose-up-infra` roda THEN o Makefile SHALL iniciar `marketplace-db` e SHALL não iniciar o container `marketplace-gateway`. (`MKTBOOT-06`)
 
-**Independent Test**: `make up` e `curl localhost:8087/health` devolvem `{"status":"UP"}`; `docker exec marketplace-db psql -U marketplace -c '\dt'` lista `outbox` e `processed_events`.
+**Independent Test**: `make compose-up` e `curl localhost:8087/health` devolvem `{"status":"UP"}`; `docker exec marketplace-db psql -U marketplace -c '\dt'` lista `outbox` e `processed_events`.
 
 ---
 
@@ -141,7 +141,7 @@ O `marketplace-gateway` está no C4, mas não tem código, banco nem pipeline. A
 
 ### P2: CI e tópicos do Kafka
 
-**User Story**: Como integrante do time, quero que o CI do gateway rode só quando o gateway muda e que os tópicos dele existam depois do `make topics`.
+**User Story**: Como integrante do time, quero que o CI do gateway rode só quando o gateway muda e que os tópicos dele existam depois do `make compose-topics`.
 
 **Why P2**: Importante para o M1, mas o serviço roda sem isso.
 
@@ -151,7 +151,7 @@ O `marketplace-gateway` está no C4, mas não tem código, banco nem pipeline. A
 2. WHEN um push não altera `marketplace-gateway/**` nem os workflows do gateway THEN o workflow `marketplace-gateway` SHALL não rodar. (`MKTBOOT-32`)
 3. WHEN o `kafka-init` roda THEN o script SHALL criar `marketplace.order.received.v1`, `marketplace.listing.published.v1` e `marketplace.listing.failed.v1` com 3 partições, e `marketplace.catalog-product.dlq` e `marketplace.order-cancelled.dlq` com 1 partição e retenção de 14 dias. (`MKTBOOT-33`)
 
-**Independent Test**: `make topics` e a lista de tópicos do Kafka UI mostram os cinco tópicos novos; um push só no `order-service/` não dispara o workflow do gateway.
+**Independent Test**: `make compose-topics` e a lista de tópicos do Kafka UI mostram os cinco tópicos novos; um push só no `order-service/` não dispara o workflow do gateway.
 
 ---
 

@@ -31,7 +31,7 @@
 1. **Vault down or unreachable at service start** → the service exits with a clear error naming Vault and the address, never a stack of undefined config. Tests in Tasks 2 and 3; manual check in Task 5.
 2. **Password with URL-special characters** (`p@ss/w:rd`) → the DB URL is percent-encoded and still connects. Tests in Tasks 2 and 3; `make env` generates hex so real runs never hit it, but a hand-edited `.env` will.
 3. **Existing `.env` holding only `BFF_PORT=8081`** (documented in today's README) → `make env` appends the missing keys and keeps the existing lines untouched. Check in Task 1.
-4. **Vault container restarted** (dev mode loses everything) → `make vault` re-runs the bootstrap and it succeeds on a Vault that already has the roles, and on an empty one. Check in Task 1.
+4. **Vault container restarted** (dev mode loses everything) → `make compose-vault` re-runs the bootstrap and it succeeds on a Vault that already has the roles, and on an empty one. Check in Task 1.
 5. **A service's AppRole reads another service's path** → HTTP 403. Check in Task 1.
 
 ---
@@ -68,7 +68,7 @@
 - [ ] **Step 6: realm.** `"secret": "${BFF_CLIENT_SECRET}"` in `omni-market-realm.json` (Keycloak's import replaces env placeholders).
 
 - [ ] **Step 7: verify.**
-  Run: `make clean && make up-infra && docker compose ps vault-init -a`
+  Run: `make compose-clean && make compose-up-infra && docker compose ps vault-init -a`
   Expected: `vault-init` exited 0.
   Run (catalog role reads its path, then is denied the compliance path):
   ```bash
@@ -78,7 +78,7 @@
   curl -s -o /dev/null -w '%{http_code}\n' -H "X-Vault-Token: $T" localhost:8200/v1/secret/data/compliance-service
   ```
   Expected: `db_password`, `db_username`, then `403`.
-  Run: `make vault && docker compose ps vault-init -a` → exited 0 (re-run on a populated Vault). Run: `docker compose restart vault && make vault` → exited 0 (re-run on an empty Vault).
+  Run: `make compose-vault && docker compose ps vault-init -a` → exited 0 (re-run on a populated Vault). Run: `docker compose restart vault && make compose-vault` → exited 0 (re-run on an empty Vault).
   Run: `cp .env .env.bak && printf 'BFF_PORT=8081\n' > .env && make env && head -1 .env && grep -c __GENERATE__ .env; mv .env.bak .env`
   Expected: first line `BFF_PORT=8081`, count `0`.
   Run: Keycloak token with `client_secret=$BFF_CLIENT_SECRET` (curl from root `CLAUDE.md`) → returns `access_token`.
@@ -179,14 +179,14 @@ Paths relative to `bff-gateway/`. Commands run from `bff-gateway/`.
 - Modify: `README.md`, `CLAUDE.md`, `bff-gateway/CLAUDE.md`, `catalog-service/CLAUDE.md`, `compliance-service/CLAUDE.md`, `docs/adr/0003-vault-para-secrets-das-aplicacoes.md` (only if implementation diverged)
 
 - [ ] **Step 1: docs.**
-  - README: first run is `make up` (it creates `.env` via `make env`); credentials table points to `.env` keys for the DB passwords (Keycloak/Grafana admin and realm users stay literal `admin`/`admin`); new rows Vault `http://localhost:8200` (token `VAULT_ROOT_TOKEN`); token curl uses `client_secret=$BFF_CLIENT_SECRET` after `set -a; . ./.env; set +a`; note that a pre-existing Postgres volume keeps its old password → `make clean`; `make vault` after restarting Vault; how to run a service from source (copy its role/secret id into the service `.env`, or export `VAULT_ROLE_ID`/`VAULT_SECRET_ID` for the BFF).
-  - Root `CLAUDE.md`: Vault section (dev mode, `vault-init`, paths and keys, AppRole per service, `.env` generation, adding a secret = add key to `.env.example` + `bootstrap.sh`), Keycloak curl updated, `make env`/`make vault` in the Makefile list, Postgres lines without literal passwords.
+  - README: first run is `make compose-up` (it creates `.env` via `make env`); credentials table points to `.env` keys for the DB passwords (Keycloak/Grafana admin and realm users stay literal `admin`/`admin`); new rows Vault `http://localhost:8200` (token `VAULT_ROOT_TOKEN`); token curl uses `client_secret=$BFF_CLIENT_SECRET` after `set -a; . ./.env; set +a`; note that a pre-existing Postgres volume keeps its old password → `make compose-clean`; `make compose-vault` after restarting Vault; how to run a service from source (copy its role/secret id into the service `.env`, or export `VAULT_ROLE_ID`/`VAULT_SECRET_ID` for the BFF).
+  - Root `CLAUDE.md`: Vault section (dev mode, `vault-init`, paths and keys, AppRole per service, `.env` generation, adding a secret = add key to `.env.example` + `bootstrap.sh`), Keycloak curl updated, `make env`/`make compose-vault` in the Makefile list, Postgres lines without literal passwords.
   - Service `CLAUDE.md`s: config now comes from Vault + `DB_*` env; how tests avoid Vault (fake fetch / fake client / `spring.cloud.vault.enabled=false`).
 
 - [ ] **Step 2: end-to-end.**
-  Run: `make clean && make up && make ps` → all apps `healthy`.
+  Run: `make compose-clean && make compose-up && make compose-ps` → all apps `healthy`.
   Run the README end-to-end flow (token → `POST /catalog/import/xlsx`) → `2xx`.
   Run: `git grep -nE 'bff-gateway-secret|catalog:catalog@|compliance:compliance@|DB_PASSWORD:-'` → no output.
-  Run: `docker compose stop vault && docker compose restart catalog-service compliance-service bff-gateway`, then `docker compose logs --tail=20 catalog-service compliance-service bff-gateway` → each fails naming Vault; then `docker compose start vault && make vault && docker compose restart catalog-service compliance-service bff-gateway` → healthy again.
+  Run: `docker compose stop vault && docker compose restart catalog-service compliance-service bff-gateway`, then `docker compose logs --tail=20 catalog-service compliance-service bff-gateway` → each fails naming Vault; then `docker compose start vault && make compose-vault && docker compose restart catalog-service compliance-service bff-gateway` → healthy again.
 
 - [ ] **Step 3: Commit** — `docs: documenta o vault e o fluxo de secrets locais`.

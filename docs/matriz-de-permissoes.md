@@ -39,7 +39,7 @@ A importação do catálogo também aceita o escopo `catalog:write`, para client
 - A única rota de escrita é a importação do catálogo. As demais são `GET`, então `fiscal` e `csm` são somente leitura por construção. Uma rota de escrita nova entra primeiro nesta tabela e não é concedida a `fiscal` nem a `csm`.
 - Os papéis se somam: o usuário `admin` tem `admin` e `customer`.
 - Rota nova: acrescente a linha aqui, escreva `@PreAuthorize("hasAnyRole('admin', …)")` conforme a linha e cubra no teste de segurança ao menos um papel permitido e um negado (`@WebMvcTest` + `@Import(SecurityConfig.class)`).
-- Alterou o realm? O Keycloak ignora um realm que já existe: rode `make clean && make up` para reimportar.
+- Alterou o realm? O Keycloak ignora um realm que já existe: rode `make compose-clean && make compose-up` para reimportar.
 
 ## Pontos a validar com o time
 

@@ -34,7 +34,7 @@ Roteiro reproduzível da demo do omni-market (apresentação de 28/10, #27). Nã
 Faça do zero, para não carregar dados de testes anteriores. A planilha da demo só pode ser importada uma vez por ambiente (ver o ato 2).
 
 ```bash
-make clean && make up
+make compose-clean && make compose-up
 # sem make: docker compose down -v && docker compose up -d --build
 ```
 
@@ -44,7 +44,7 @@ make clean && make up
 Confira a saúde de cada serviço (tudo `UP`):
 
 ```bash
-make ps     # sem make: docker compose ps
+make compose-ps     # sem make: docker compose ps
 curl -s localhost:8080/actuator/health   # bff-gateway
 curl -s localhost:8082/health            # catalog-service
 curl -s localhost:8083/health            # compliance-service
@@ -105,7 +105,7 @@ curl -s -H "Authorization: Bearer $ADMIN" -F file=@docs/demo/catalog-demo.xlsx l
 
 **Resultado esperado:** `{"importedProducts":5}`
 
-Importar a mesma planilha de novo responde **500**: os SKUs já existem, e o BFF ainda não traduz o 409 do catalog. Não repita este ato. Para recomeçar, rode `make clean && make up`.
+Importar a mesma planilha de novo responde **500**: os SKUs já existem, e o BFF ainda não traduz o 409 do catalog. Não repita este ato. Para recomeçar, rode `make compose-clean && make compose-up`.
 
 ## Ato 3: análise de conformidade
 
@@ -203,9 +203,9 @@ Key: `MERCADO_LIVRE:ML-2000001`.
 | Sintoma | Causa | Solução |
 |---|---|---|
 | Build falha com `invalid peer certificate: UnknownIssuer` (uv, npm ou Maven) | Antivírus com inspeção de HTTPS (ex.: Avast Web Shield) reassina os certificados, e os containers não confiam na raiz dele | Desligar a varredura HTTPS do antivírus durante o build (no Avast: *Configurações → Proteção → Escudos principais → Escudo da Web → Ativar varredura HTTPS*). As imagens ficam em cache depois |
-| `kafka-init` sai com código 2 (`set: illegal option -`), e as aplicações ficam em `Created` | No Windows, o Git com `core.autocrlf=true` extrai `docker/kafka/create-topics.sh` com CRLF | Converter o arquivo para LF (`sed -i 's/\r$//' docker/kafka/create-topics.sh`) e rodar `make up` de novo |
+| `kafka-init` sai com código 2 (`set: illegal option -`), e as aplicações ficam em `Created` | No Windows, o Git com `core.autocrlf=true` extrai `docker/kafka/create-topics.sh` com CRLF | Converter o arquivo para LF (`sed -i 's/\r$//' docker/kafka/create-topics.sh`) e rodar `make compose-up` de novo |
 | `docker exec kafka /opt/kafka/...` falha com `C:/Program Files/Git/opt/...` | O Git Bash converte caminhos que começam com `/` | Rodar `export MSYS_NO_PATHCONV=1` antes |
-| Importação responde 500 | SKUs da planilha já importados | `make clean && make up`, ou trocar os SKUs da planilha |
-| Usuário ou papel novo não aparece no Keycloak | O realm só é importado num volume novo | `make clean && make up` |
-| Porta 8080 ou 3000 ocupada | Outro projeto na mesma porta | `BFF_PORT=8081 GRAFANA_PORT=3001 make up`, e ajustar `@bff` na coleção |
+| Importação responde 500 | SKUs da planilha já importados | `make compose-clean && make compose-up`, ou trocar os SKUs da planilha |
+| Usuário ou papel novo não aparece no Keycloak | O realm só é importado num volume novo | `make compose-clean && make compose-up` |
+| Porta 8080 ou 3000 ocupada | Outro projeto na mesma porta | `BFF_PORT=8081 GRAFANA_PORT=3001 make compose-up`, e ajustar `@bff` na coleção |
 | Mensagem publicada à mão vai para `catalog.order-stock.dlq` | Valor fora do contrato (ex.: campo `content` em vez de `value` na API do Kafka UI, JSON inválido, `orderId` que não é UUID) | Conferir o valor. O motivo está no header `dlq-reason` da mensagem na DLQ |

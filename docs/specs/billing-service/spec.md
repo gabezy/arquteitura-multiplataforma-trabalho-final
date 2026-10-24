@@ -12,7 +12,7 @@ The C4 model only says the billing-service "does the billing". ADR-0004 already 
 
 - [ ] Every confirmed order becomes exactly one invoice that records the Omni Market commission of its marketplace, even when Kafka redelivers the event.
 - [ ] Every invoice is charged through the simulated PSP, and approved and refused payments change its status and publish `billing.payment.confirmed.v1` or `billing.payment.failed.v1`.
-- [ ] The service starts with `make up`, shows up in Grafana (traces, logs, metrics) and its CI passes on every pull request.
+- [ ] The service starts with `make compose-up`, shows up in Grafana (traces, logs, metrics) and its CI passes on every pull request.
 
 ## Out of Scope
 
@@ -82,7 +82,7 @@ Every ambiguity is resolved or recorded here - nothing is left silently unclear.
 
 ### P1: Service bootstrap ⭐ MVP
 
-**User Story**: As the billing owner, I want a Go service that starts with `make up`, reports its health and telemetry and passes CI, so that the billing features run on a production-like base.
+**User Story**: As the billing owner, I want a Go service that starts with `make compose-up`, reports its health and telemetry and passes CI, so that the billing features run on a production-like base.
 
 **Why P1**: Every feature story runs on it; #16 is due on 24/10 (M1).
 
@@ -94,12 +94,12 @@ Every ambiguity is resolved or recorded here - nothing is left silently unclear.
 4. IF a configuration variable is invalid THEN the billing-service SHALL exit with a non-zero status and an error that names the variable without printing its value. (BOOT-04)
 5. The billing-service SHALL export traces, metrics and logs over OTLP/HTTP to `OTEL_COLLECTOR_URL` with `service.name` `billing-service`. (BOOT-05)
 6. WHEN the process receives SIGTERM THEN the billing-service SHALL stop accepting requests, finish the HTTP requests being served, mark as published the outbox events the relay already sent (it stops at the next event), stop consuming (the message in process is not committed, so it is delivered again, and a charge in flight is rolled back and tried again with the same idempotency key) and exit within 10 s, also when a request is still waiting on the database: after 7 s its context is cancelled and it gives its connection back. (BOOT-06)
-7. WHEN `make up` runs THEN the `billing-db` and `billing-service` containers SHALL become healthy, with the service on port 8086 and the database on port 5435. (BOOT-07)
+7. WHEN `make compose-up` runs THEN the `billing-db` and `billing-service` containers SHALL become healthy, with the service on port 8086 and the database on port 5435. (BOOT-07)
 8. WHEN a push changes `billing-service/**` THEN the CI SHALL run lint, the tests and the Docker build of billing only. (BOOT-08)
 9. The core packages SHALL import only the Go standard library and other core packages. (BOOT-09)
 10. WHEN an aggregate is saved with domain events THEN the billing-service SHALL write them to the outbox in the same transaction, and the relay SHALL publish each one to the topic named after its type, keyed by the aggregate id, with CloudEvents binary headers. (BOOT-10)
 
-**Independent Test**: `make up`, then `curl localhost:8086/health` answers `UP`, the service shows up in Grafana Tempo, and `docker stop billing-db` turns the health check into 503.
+**Independent Test**: `make compose-up`, then `curl localhost:8086/health` answers `UP`, the service shows up in Grafana Tempo, and `docker stop billing-db` turns the health check into 503.
 
 ---
 
@@ -165,7 +165,7 @@ Every ambiguity is resolved or recorded here - nothing is left silently unclear.
 11. IF 5 consecutive PSP attempts fail THEN the billing-service SHALL open the circuit for 30 s and make no PSP call while it is open. (PAY-11)
 12. WHEN the simulated PSP receives a charge of R$ 100.000,00 or more THEN the WireMock mappings SHALL answer 201 and call the webhook with `FAILED` and `INSUFFICIENT_FUNDS`, and below that amount they SHALL call it with `PAID`. (PAY-12)
 
-**Independent Test**: With `make up`, an order of one iPhone ends `PAID` and an order of seven iPhones ends `PAYMENT_FAILED`, each with its event in Kafka UI. With the PSP outage stub on, the log shows the circuit opening and new invoices stay `ISSUED` until the stub is removed.
+**Independent Test**: With `make compose-up`, an order of one iPhone ends `PAID` and an order of seven iPhones ends `PAYMENT_FAILED`, each with its event in Kafka UI. With the PSP outage stub on, the log shows the circuit opening and new invoices stay `ISSUED` until the stub is removed.
 
 ---
 

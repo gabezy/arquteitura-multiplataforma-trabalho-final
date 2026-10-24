@@ -1,5 +1,5 @@
 COMPOSE := docker compose -f docker-compose.yaml
-# Applications built from source; `up-infra` leaves them out. A new service is added here too.
+# Applications built from source; `compose-up-infra` leaves them out. A new service is added here too.
 APPS := bff-gateway catalog-service compliance-service order-service billing-service marketplace-gateway
 KIND := $(shell command -v kind 2>/dev/null || printf '%s/.local/bin/kind' '$(HOME)')
 ACT := $(shell if [ -x '$(HOME)/.local/bin/act' ]; then printf '%s/.local/bin/act' '$(HOME)'; else command -v act 2>/dev/null; fi)
@@ -8,40 +8,40 @@ HELM := $(shell command -v helm 2>/dev/null)
 K8S_CONTEXT := kind-omni-market
 
 .DEFAULT_GOAL := help
-.PHONY: help env up up-infra down clean restart ps logs topics vault kind-install k8s-deploy k8s-registry k8s-build k8s-push k8s-load k8s-config k8s-apply k8s-status k8s-destroy act-install act-list act-deploy act-destroy
+.PHONY: help env compose-up compose-up-infra compose-down compose-clean compose-restart compose-ps compose-logs compose-topics compose-vault kind-install k8s-deploy k8s-registry k8s-build k8s-push k8s-load k8s-config k8s-apply k8s-status k8s-destroy act-install act-list act-deploy act-destroy
 
 help: ## lista os comandos disponíveis
-	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2}'
+	@grep -E '^[a-zA-Z0-9_-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
 # Every target that runs docker compose depends on `env`: the compose file refuses to start without
-# the secrets in .env, so even `make clean` or `make ps` would fail on a .env that lacks a new key.
+# the secrets in .env, so even `make compose-clean` or `make compose-ps` would fail on a .env that lacks a new key.
 env: ## cria/completa o .env (secrets aleatórios, mantém os valores existentes)
 	@sh scripts/generate-env.sh
 
-up: env ## sobe tudo: infra, observabilidade, WireMock e aplicações (com build)
+compose-up: env ## sobe tudo: infra, observabilidade, WireMock e aplicações (com build)
 	$(COMPOSE) up -d --build
 
-up-infra: env ## sobe tudo menos as aplicações (para rodar um serviço pelo código)
+compose-up-infra: env ## sobe tudo menos as aplicações (para rodar um serviço pelo código)
 	$(COMPOSE) up -d $(foreach app,$(APPS),--scale $(app)=0)
 
-down: env ## para todos os containers (mantém os volumes)
+compose-down: env ## para todos os containers (mantém os volumes)
 	$(COMPOSE) down
 
-clean: env ## para todos os containers e apaga os volumes (necessário para reimportar o realm)
+compose-clean: env ## para todos os containers e apaga os volumes (necessário para reimportar o realm)
 	$(COMPOSE) down -v
 
-restart: down up ## reinicia tudo
+compose-restart: compose-down compose-up ## reinicia tudo
 
-ps: env ## mostra o estado dos containers
+compose-ps: env ## mostra o estado dos containers
 	$(COMPOSE) ps
 
-logs: env ## segue os logs (ex.: make logs s=kafka)
+compose-logs: env ## segue os logs (ex.: make compose-logs s=kafka)
 	$(COMPOSE) logs -f $(s)
 
-topics: env ## cria os tópicos novos do Kafka (create-topics.sh)
+compose-topics: env ## cria os tópicos novos do Kafka (create-topics.sh)
 	$(COMPOSE) up -d kafka-init
 
-vault: env ## regrava secrets e AppRoles no Vault (necessário após reiniciar o Vault)
+compose-vault: env ## regrava secrets e AppRoles no Vault (necessário após reiniciar o Vault)
 	$(COMPOSE) up -d --force-recreate vault-init
 
 kind-install: ## instala kind em ~/.local/bin

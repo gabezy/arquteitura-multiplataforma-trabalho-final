@@ -361,7 +361,7 @@ T8 → T9 → T10
 
 **Status**: ✅ Complete
 
-**Smoke (2026-10-24, `make up`)**: 1 iPhone on Mercado Livre ended `PAID`; 7 iPhones on Shopee (R$ 105.000,00) ended `CANCELLED(PAYMENT_FAILED)` with the stock back from 2 to 9; 50 on Amazon ended `CANCELLED(OUT_OF_STOCK)`; the same sale 3 more times left one order; a late `reserved` and a contradicting `insufficient` changed nothing (one `warn`); `{}` went to `order.stock-response.dlq`; the outbox had 3 `placed`, 2 `confirmed`, 2 `cancelled`; `GET /orders` through the BFF answered 200 and the report counted only the paid order. The smoke found that the billing compresses with Snappy, fixed in `c1b5932`.
+**Smoke (2026-10-24, `make compose-up`)**: 1 iPhone on Mercado Livre ended `PAID`; 7 iPhones on Shopee (R$ 105.000,00) ended `CANCELLED(PAYMENT_FAILED)` with the stock back from 2 to 9; 50 on Amazon ended `CANCELLED(OUT_OF_STOCK)`; the same sale 3 more times left one order; a late `reserved` and a contradicting `insufficient` changed nothing (one `warn`); `{}` went to `order.stock-response.dlq`; the outbox had 3 `placed`, 2 `confirmed`, 2 `cancelled`; `GET /orders` through the BFF answered 200 and the report counted only the paid order. The smoke found that the billing compresses with Snappy, fixed in `c1b5932`.
 
 **Deviations**: the README needed no change (it already lists the order-service); the demo script is `docs/demo-pedidos.md`.
 ---

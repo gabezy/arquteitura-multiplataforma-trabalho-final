@@ -136,11 +136,11 @@ Every ambiguity is resolved or recorded here - nothing is left silently unclear.
 
 ### P2: Infrastructure and documentation
 
-**User Story**: As the team, I want the topics, the shutdown and the docs to be ready, so that `make up` runs the flow.
+**User Story**: As the team, I want the topics, the shutdown and the docs to be ready, so that `make compose-up` runs the flow.
 
 **Acceptance Criteria**:
 
-1. WHEN `make up` runs THEN `kafka-init` SHALL create `order.marketplace-order.dlq`, `order.stock-response.dlq` and `order.billing-payment.dlq` (one partition, 14 days of retention). (INF-01)
+1. WHEN `make compose-up` runs THEN `kafka-init` SHALL create `order.marketplace-order.dlq`, `order.stock-response.dlq` and `order.billing-payment.dlq` (one partition, 14 days of retention). (INF-01)
 2. WHEN the process receives SIGTERM THEN the order-service SHALL stop its consumers, close the server, flush the relay round and exit within 10 s. (INF-02)
 3. WHEN the order-service handles a message THEN the work SHALL continue the trace of the message and appear in the telemetry like the other services. (INF-03)
 4. WHEN the feature is done THEN `order-service/CLAUDE.md`, the event catalog states and the demo script SHALL describe the order life cycle and the new settings. (INF-04)

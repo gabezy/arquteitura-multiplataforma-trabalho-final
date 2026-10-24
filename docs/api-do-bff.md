@@ -224,7 +224,7 @@ Cada domínio com serviço de destino tem dois gateways, e a propriedade `app.ga
 | `billing` | `BILLING_SERVICE_URL` | `http://billing-service:8086` |
 | `marketplace` | `MARKETPLACE_GATEWAY_URL` | `http://marketplace-gateway:8087` |
 
-- Rodando o BFF fora do Docker (`make up-infra`), os nomes dos serviços não resolvem: use `ORDER_SERVICE_URL=http://localhost:8084`, `BILLING_SERVICE_URL=http://localhost:8086` e `MARKETPLACE_GATEWAY_URL=http://localhost:8087`.
+- Rodando o BFF fora do Docker (`make compose-up-infra`), os nomes dos serviços não resolvem: use `ORDER_SERVICE_URL=http://localhost:8084`, `BILLING_SERVICE_URL=http://localhost:8086` e `MARKETPLACE_GATEWAY_URL=http://localhost:8087`.
 - Para ensaiar sem os serviços: `APP_GATEWAYS_ORDER=mock APP_GATEWAYS_BILLING=mock APP_GATEWAYS_MARKETPLACE=mock ./mvnw spring-boot:run`.
 - **Dados do mock de pedidos:** 8 pedidos, de 26 a 28/10/2026, com os produtos da demo (`OXI-001` e `MON-002`) e todos os status. O relatório conta só os pedidos `CONFIRMED` e `PAID`.
 - **Dados do mock de cobranças:** 6 faturas, uma para cada status (duas são `PAID`), ligadas aos pedidos do mock pelo mesmo `orderId`, marketplace, itens e total. A comissão segue as taxas acima.

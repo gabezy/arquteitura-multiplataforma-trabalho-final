@@ -143,25 +143,26 @@ O Compose continua disponível para quem preferir executar a stack sem Kubernete
 
 Esta alternativa requer Docker Compose v2 (plugin `docker compose`).
 
-O ambiente está em `docker-compose.yaml`, com configurações montadas de `docker/`. `make up` cria/completa o `.env` (ignorado pelo git) e sobe Keycloak, Vault, Postgres, Kafka, observabilidade, WireMock e as aplicações:
+O ambiente está em `docker-compose.yaml`, com configurações montadas de `docker/`. Os alvos Compose usam o prefixo `compose-`. `make compose-up` cria/completa o `.env` (ignorado pelo git) e sobe Keycloak, Vault, Postgres, Kafka, observabilidade, WireMock e as aplicações:
 
 ```bash
 make            # lista os comandos
-make up         # sobe tudo, com build das aplicações
-make up-infra   # sobe a infraestrutura sem as aplicações
-make ps         # estado dos containers
-make logs s=kafka
-make topics     # aplica tópicos de docker/kafka/create-topics.sh
-make down       # para os containers e mantém os dados
-make clean      # para e apaga os volumes e dados locais
-make env        # cria/completa o .env
-make vault      # regrava os secrets após reiniciar o Vault
+make compose-up         # sobe tudo, com build das aplicações
+make compose-up-infra   # sobe a infraestrutura sem as aplicações
+make compose-ps         # mostra o estado dos containers
+make compose-logs s=kafka
+make compose-topics     # aplica tópicos de docker/kafka/create-topics.sh
+make compose-down       # para os containers e mantém os dados
+make compose-clean      # para e apaga os volumes e dados locais
+make compose-restart    # reinicia toda a stack
+make env                # cria/completa o .env compartilhado
+make compose-vault      # regrava os secrets após reiniciar o Vault
 ```
 
-Para rodar uma aplicação pelo código (por exemplo, com hot reload ou debugger), use `make up-infra` e inicie o serviço fora do Compose. Para evitar conflito com portas ocupadas, configure-as no comando ou no `.env`:
+Para rodar uma aplicação pelo código (por exemplo, com hot reload ou debugger), use `make compose-up-infra` e inicie o serviço fora do Compose. Para evitar conflito com portas ocupadas, configure-as no comando ou no `.env`:
 
 ```bash
-BFF_PORT=8081 GRAFANA_PORT=3001 make up
+BFF_PORT=8081 GRAFANA_PORT=3001 make compose-up
 ```
 
 | Componente | Endereço | Credenciais |
@@ -185,4 +186,4 @@ BFF_PORT=8081 GRAFANA_PORT=3001 make up
 | billing-service | http://localhost:8086 | — |
 | marketplace-gateway | http://localhost:8087 | — |
 
-O Postgres mantém a senha com que o volume foi criado. Se apagar o `.env`, mudar uma senha ou precisar reaplicar o realm do Keycloak, `make clean` apaga os volumes; depois execute `make up` para recriá-los.
+O Postgres mantém a senha com que o volume foi criado. Se apagar o `.env`, mudar uma senha ou precisar reaplicar o realm do Keycloak, `make compose-clean` apaga os volumes; depois execute `make compose-up` para recriá-los.

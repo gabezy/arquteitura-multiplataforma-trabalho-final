@@ -18,7 +18,7 @@ O PSP é o WireMock do compose (`docker/wiremock/mappings/psp.json`): responde `
 Na raiz do repositório:
 
 ```bash
-make up
+make compose-up
 curl -s localhost:8086/health        # {"status":"UP"}
 ```
 

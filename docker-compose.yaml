@@ -25,7 +25,7 @@ services:
       start_period: 120s
 
   # Dev mode: in memory and already unsealed, with KV v2 mounted at secret/. Data is lost on
-  # restart; `make vault` re-runs vault-init to write it back.
+  # restart; `make compose-vault` re-runs vault-init to write it back.
   vault:
     image: hashicorp/vault:2.2.1
     container_name: vault
@@ -289,11 +289,11 @@ services:
       - ./docker/wiremock/mappings:/home/wiremock/mappings
       - ./docker/wiremock/__files:/home/wiremock/__files
     # The webhooks of the PSP mappings reach a service that runs on the host, such as `go run` of the
-    # billing-service against `make up-infra`.
+    # billing-service against `make compose-up-infra`.
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
-  # Applications, built from source. `make up-infra` leaves them out, for whoever runs a service
+  # Applications, built from source. `make compose-up-infra` leaves them out, for whoever runs a service
   # from its own directory.
   catalog-service:
     build: ./catalog-service
