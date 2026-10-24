@@ -52,7 +52,7 @@ make_out() {
 }
 
 # E2E-01, E2E-23
-check "make e2e runs scripts/e2e-smoke.sh (E2E-01)" '[ "$(make_out -n e2e)" = "bash scripts/e2e-smoke.sh" ]'
+check "make e2e generates the .env and runs scripts/e2e-smoke.sh (E2E-01)"   '[ "$(make_out -n e2e | tail -1)" = "bash scripts/e2e-smoke.sh" ] && make_out -n e2e | grep -q "sh scripts/generate-env.sh"'
 check "make help lists e2e (E2E-23)" 'make_out help | grep -q "e2e.*roda o teste ponta a ponta"'
 
 volumes_before=$(docker volume ls -q | sort)
@@ -118,6 +118,10 @@ printf '%s|{"orderId":"%s","items":[]}\n' "$order_id" "$order_id" \
 e2e E2E_SKIP_UP=1 E2E_ORDER_ID="$order_id"
 check "the reservation step checks the reserved message keyed by the order id (E2E-09, E2E-24)" \
   "[ \"\$code\" = 1 ] && has \"[FALHA] estoque: reserva: mensagens em catalog.stock.reserved.v1 com a chave $order_id: esperado '1', ultimo valor '2'\""
+
+# E2E-25: the client secret comes from BFF_CLIENT_SECRET when it is set, so a wrong one is refused
+e2e E2E_SKIP_UP=1 BFF_CLIENT_SECRET=segredo-errado
+check "the script uses BFF_CLIENT_SECRET for the token (E2E-25)"   '[ "$code" = 1 ] && has "[FALHA] autenticacao: o Keycloak respondeu HTTP 401 sem access_token"'
 
 # Edge case: Keycloak gives no token
 isolate keycloak

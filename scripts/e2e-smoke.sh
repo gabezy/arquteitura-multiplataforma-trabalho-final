@@ -7,6 +7,7 @@
 #   E2E_TIMEOUT=300               # seconds to wait for the stack to be healthy
 #   BFF_PORT=8080                 # same variable as the compose file
 #   E2E_ORDER_ID=<uuid>           # order id of the stock steps (default: a new UUID per run)
+#   BFF_CLIENT_SECRET=...         # default: read from .env, which make env generates
 #
 # Needs bash, curl and Docker. It never deletes containers, volumes or data.
 set -uo pipefail
@@ -66,6 +67,8 @@ echo "Execucao: $RUN"
 
 if [ "${E2E_SKIP_UP:-}" != 1 ]; then
   echo "Subindo o ambiente (docker compose up -d --build)"
+  # The compose file refuses to start without the secrets in .env; this keeps the existing ones.
+  sh scripts/generate-env.sh > "$tmp/env.log" 2>&1 || fail ambiente "nao foi possivel gerar o .env: $(tail -3 "$tmp/env.log")"
   docker compose up -d --build > "$tmp/up.log" 2>&1 || fail ambiente "docker compose up falhou: $(tail -5 "$tmp/up.log")"
 fi
 deadline=$((SECONDS + STACK_TIMEOUT))
@@ -75,8 +78,11 @@ until [ -z "$(unhealthy_apps)" ]; do
 done
 ok ambiente
 
+# The client secret is generated into .env (Vault, ADR-0003); the variable wins when it is set.
+CLIENT_SECRET=${BFF_CLIENT_SECRET:-$(sed -n 's/^BFF_CLIENT_SECRET=//p' .env 2> /dev/null | tr -d '\r')}
+[ -n "$CLIENT_SECRET" ] || fail autenticacao "BFF_CLIENT_SECRET ausente no ambiente e no .env (rode make env)"
 status=$(curl -s --max-time 10 -o "$tmp/token.json" -w '%{http_code}' -X POST "$KEYCLOAK" \
-  -d grant_type=password -d client_id=bff-gateway -d client_secret=bff-gateway-secret \
+  -d grant_type=password -d client_id=bff-gateway -d client_secret="$CLIENT_SECRET" \
   -d username=admin -d password=admin)
 token=$(sed -nE 's/.*"access_token":"([^"]+)".*/\1/p' "$tmp/token.json")
 [ -n "$token" ] || fail autenticacao "o Keycloak respondeu HTTP $status sem access_token"

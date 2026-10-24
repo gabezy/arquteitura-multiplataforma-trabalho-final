@@ -124,6 +124,7 @@ Os secrets das aplicações ficam num HashiCorp Vault em modo dev (decisão em [
 | `E2E_TIMEOUT` | `300` | segundos de espera até os serviços ficarem `healthy` |
 | `BFF_PORT` | `8080` | porta do BFF, a mesma variável do compose |
 | `E2E_ORDER_ID` | um UUID novo | id do pedido usado nas etapas de estoque |
+| `BFF_CLIENT_SECRET` | o do `.env` | client secret do BFF no Keycloak |
 
 `bash scripts/e2e-smoke.test.sh` testa o próprio teste: roda os cenários da spec (`.specs/features/e2e-smoke/spec.md`) contra o ambiente no ar, tirando um serviço por vez da rede do compose e restaurando no fim.
 

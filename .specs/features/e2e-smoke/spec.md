@@ -40,6 +40,7 @@ The demo script (#27) proves the flow by hand, and nothing re-checks it when a s
 | Script location and name | `scripts/e2e-smoke.sh` at the repository root, target `e2e` in the root `Makefile` | Suggested by #37 | y |
 | What "never deletes" covers (E2E-17) | No `down`, `rm` or `volume rm`; every volume survives. Containers that `docker compose up --build` recreates because an image changed do not count | Found during Execute: the first harness run saw catalog and compliance recreated by the compose up, with their volumes intact; that is compose's normal behavior, not data loss | y |
 | Choosing the order id (E2E-24) | `E2E_ORDER_ID` overrides the generated order id | Found by the Verifier (iteration 1): without it no scenario could make the reserved-message check fail, so deleting that check went unnoticed | y |
+| Client secret (E2E-25) | `BFF_CLIENT_SECRET` from the environment, else from the `.env` that `scripts/generate-env.sh` creates; `make e2e` depends on `make env` | The dev merge brought Vault (ADR-0003, #48): the realm reads the secret from `.env` and the fixed `bff-gateway-secret` no longer exists | y |
 | Output language | Report lines in Portuguese (`[OK]`, `[FALHA]`, `[PENDENTE]`), ASCII only | The team's docs are in Portuguese; ASCII avoids broken characters in the Windows console | y |
 
 **Open questions:** none - all resolved or logged above.
@@ -57,7 +58,7 @@ The demo script (#27) proves the flow by hand, and nothing re-checks it when a s
 **Acceptance Criteria**:
 
 1. WHEN `make e2e` runs THEN the Makefile SHALL run `scripts/e2e-smoke.sh`.  <!-- event-driven -->
-2. WHEN the script starts without `E2E_SKIP_UP=1` THEN the script SHALL run `docker compose up -d --build` from the repository root.  <!-- event-driven -->
+2. WHEN the script starts without `E2E_SKIP_UP=1` THEN the script SHALL run `scripts/generate-env.sh` and then `docker compose up -d --build` from the repository root.  <!-- event-driven -->
 3. WHERE `E2E_SKIP_UP=1` is set the script SHALL not run `docker compose up`.  <!-- optional-feature -->
 4. WHEN the stack is starting THEN the script SHALL wait until `bff-gateway`, `catalog-service`, `compliance-service`, `order-service` and `keycloak` report `healthy`, for at most `E2E_TIMEOUT` seconds (default 300).  <!-- event-driven -->
 5. WHEN the stack is healthy THEN the script SHALL get an access token for the `admin` user from Keycloak.  <!-- event-driven -->
@@ -68,6 +69,7 @@ The demo script (#27) proves the flow by hand, and nothing re-checks it when a s
 10. WHEN the reservation succeeded THEN the script SHALL publish `order.order.cancelled.v1` for the same order id and SHALL check within 60 s that the stock returns to 2.  <!-- event-driven -->
 11. WHEN every step passes THEN the script SHALL print one `[OK] <step>` line per step and exit with code 0.  <!-- event-driven -->
 12. WHERE `E2E_ORDER_ID` is set the script SHALL use it as the order id of the stock steps instead of a new UUID.  <!-- optional-feature -->
+13. The script SHALL ask Keycloak for the token with the client secret in `BFF_CLIENT_SECRET`, read from `.env` when the variable is not set.  <!-- ubiquitous -->
 
 **Independent Test**: on a running stack, `E2E_SKIP_UP=1 bash scripts/e2e-smoke.sh` prints `[OK]` for authentication, import, compliance and stock, lists the pending steps and exits 0.
 
@@ -158,8 +160,8 @@ The demo script (#27) proves the flow by hand, and nothing re-checks it when a s
 
 | Requirement ID | Story | Phase | Status |
 | --- | --- | --- | --- |
-| E2E-01 | P1 Run: `make e2e` runs the script | Execute | Verified |
-| E2E-02 | P1 Run: `docker compose up -d --build` | Execute | Verified |
+| E2E-01 | P1 Run: `make e2e` runs the script | Execute | Implementing |
+| E2E-02 | P1 Run: `generate-env.sh` and `docker compose up -d --build` | Execute | Implementing |
 | E2E-03 | P1 Run: `E2E_SKIP_UP=1` skips the up | Execute | Verified |
 | E2E-04 | P1 Run: waits for the five apps healthy | Execute | Verified |
 | E2E-05 | P1 Run: admin token | Execute | Verified |
@@ -182,8 +184,9 @@ The demo script (#27) proves the flow by hand, and nothing re-checks it when a s
 | E2E-22 | P2 Docs: README section | Execute | Verified |
 | E2E-23 | P2 Docs: `e2e` in `make help` | Execute | Verified |
 | E2E-24 | P1 Run: `E2E_ORDER_ID` sets the order id | Execute | Verified |
+| E2E-25 | P1 Run: client secret from `BFF_CLIENT_SECRET` or `.env` | Execute | Implementing |
 
-**Coverage:** 24 total, 24 mapped to Execute, 0 unmapped; 24 verified (`validation.md`, iteration 3)
+**Coverage:** 25 total, 25 mapped to Execute, 0 unmapped; 22 verified (`validation.md`, iteration 3), 3 re-implemented after the dev merge
 
 ---
 
