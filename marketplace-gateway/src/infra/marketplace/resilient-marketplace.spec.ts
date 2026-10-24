@@ -36,6 +36,7 @@ describe('ResilientMarketplace', () => {
     marketplace,
     publishListing: jest.fn(),
     updateStock: jest.fn(),
+    updatePrice: jest.fn(),
     fetchNewOrders: jest.fn(),
     cancelOrder: jest.fn(),
   });

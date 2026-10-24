@@ -10,6 +10,7 @@ import {
     CanonicalOrder,
     ListingDraft,
     MarketplacePort,
+    PriceUpdate,
     PublishedListing,
     StockUpdate,
 } from '../../core/marketplace/port/out/marketplace.port';
@@ -125,6 +126,23 @@ export class ShopeeMarketplace implements MarketplacePort {
         }
         if (updated.data.failure_list.length > 0) {
             throw new MarketplaceRejectedError(`The stock was refused: ${updated.data.failure_list[0].failed_reason ?? 'no reason given'}`, this.marketplace);
+        }
+    }
+
+    async updatePrice({ externalListingId, price }: PriceUpdate): Promise<void> {
+        const { body } = await this.http.send({
+            method: 'POST',
+            path: '/api/v2/product/update_price',
+            query: { shop_id: this.options.shopId },
+            body: { item_id: Number(externalListingId), price_list: [{ model_id: 0, original_price: price }] },
+        });
+
+        const updated = z.object({ success_list: z.array(z.unknown()), failure_list: z.array(z.object({ failed_reason: z.string().optional() })) }).safeParse(this.responseOf(body));
+        if (!updated.success) {
+            throw new MarketplaceRejectedError(`The price was not updated: ${z.prettifyError(updated.error)}`, this.marketplace);
+        }
+        if (updated.data.failure_list.length > 0) {
+            throw new MarketplaceRejectedError(`The price was refused: ${updated.data.failure_list[0].failed_reason ?? 'no reason given'}`, this.marketplace);
         }
     }
 

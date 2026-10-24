@@ -39,6 +39,14 @@ export interface StockUpdate {
     stock: number;
 }
 
+export interface PriceUpdate {
+    // The id the marketplace gave the listing, and the SKU, because Amazon addresses its listings by SKU.
+    externalListingId: string;
+    sku: string;
+    // The absolute price to advertise, never a difference.
+    price: number;
+}
+
 export interface CancelOrderRequest {
     externalOrderId: string;
     reason?: string;
@@ -54,6 +62,9 @@ export interface MarketplacePort {
 
     // Sets the stock of a published listing. Sending the same stock again changes nothing.
     updateStock(update: StockUpdate): Promise<void>;
+
+    // Sets the price of a published listing. Sending the same price again changes nothing.
+    updatePrice(update: PriceUpdate): Promise<void>;
 
     // Paid orders not shipped yet, created since the given instant.
     fetchNewOrders(since: Date): Promise<CanonicalOrder[]>;

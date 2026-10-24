@@ -51,9 +51,10 @@ const portOf = (marketplace: Marketplace): jest.Mocked<MarketplacePort> => ({
     marketplace,
     publishListing: jest.fn(),
     updateStock: jest.fn(),
+    updatePrice: jest.fn(),
     fetchNewOrders: jest.fn(),
     cancelOrder: jest.fn(),
-});
+} as any);
 
 describe('ListingFacade', () => {
     let ports: Record<Marketplace, jest.Mocked<MarketplacePort>>;

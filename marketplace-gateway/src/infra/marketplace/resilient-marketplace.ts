@@ -11,6 +11,7 @@ import {
     CanonicalOrder,
     ListingDraft,
     MarketplacePort,
+    PriceUpdate,
     PublishedListing,
     StockUpdate,
 } from '../../core/marketplace/port/out/marketplace.port';
@@ -64,6 +65,10 @@ export class ResilientMarketplace implements MarketplacePort {
 
     updateStock(update: StockUpdate): Promise<void> {
         return this.execute('updateStock', () => this.inner.updateStock(update));
+    }
+
+    updatePrice(update: PriceUpdate): Promise<void> {
+        return this.execute('updatePrice', () => this.inner.updatePrice(update));
     }
 
     fetchNewOrders(since: Date): Promise<CanonicalOrder[]> {
