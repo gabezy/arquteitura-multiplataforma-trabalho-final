@@ -629,9 +629,9 @@ T18 → T19 → T20 → T21 → T22 → T23
 
 **Done when**:
 
-- [ ] Against WireMock with the real mappings: approved, refused (≥ R$ 100.000,00) and status query behave as the design says
-- [ ] With `httptest`: timeout and 5xx are retried 3 times; 422 is not retried; 5 failures open the circuit
-- [ ] Gate check passes: full gate; test count ≥ 8
+- [x] Against WireMock with the real mappings: approved, refused (≥ R$ 100.000,00) and status query behave as the design says
+- [x] With `httptest`: timeout and 5xx are retried 3 times; 422 is not retried; 5 failures open the circuit
+- [x] Gate check passes: full gate; test count ≥ 8
 
 **Tests**: integration
 **Gate**: full

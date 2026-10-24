@@ -129,8 +129,10 @@ func (f *PaymentFacade) ApplyPaymentResult(ctx context.Context, result in.Paymen
 }
 
 // ReconcilePendingPayments queries the PSP about the charges that have been pending for
-// longer than ReconcileAfter and applies the final ones, as the webhook would. It stops
-// at the first PSP failure, and a result that contradicts an invoice does not stop the others.
+// longer than ReconcileAfter and applies the final ones, as the webhook would. It stops when
+// the PSP is unavailable or ctx ends. A charge it cannot resolve (unknown to the PSP, or answered
+// with something unusable) and a result that contradicts an invoice do not stop the others: the
+// first such problem is returned after the whole batch.
 func (f *PaymentFacade) ReconcilePendingPayments(ctx context.Context) (int, error) {
 	cutoff := f.clock.Now().Add(-f.options.ReconcileAfter)
 	pending, err := f.invoices.ListPendingRequestedBefore(ctx, cutoff, f.options.ReconcileBatch)
@@ -139,11 +141,17 @@ func (f *PaymentFacade) ReconcilePendingPayments(ctx context.Context) (int, erro
 	}
 
 	resolved := 0
-	var firstConflict error
+	var firstProblem error
 	for _, invoice := range pending {
 		status, err := f.gateway.GetCharge(ctx, invoice.PSPTransactionID)
 		if err != nil {
-			return resolved, err
+			if errors.Is(err, out.ErrUnavailable) || ctx.Err() != nil {
+				return resolved, err
+			}
+			if firstProblem == nil {
+				firstProblem = fmt.Errorf("query charge %s of invoice %s: %w", invoice.PSPTransactionID, invoice.ID, err)
+			}
+			continue
 		}
 
 		result := in.PaymentResult{InvoiceID: invoice.ID, ChargeID: invoice.PSPTransactionID, FailureReason: status.FailureReason}
@@ -158,8 +166,8 @@ func (f *PaymentFacade) ReconcilePendingPayments(ctx context.Context) (int, erro
 
 		changed, err := f.ApplyPaymentResult(ctx, result)
 		if err != nil {
-			if firstConflict == nil {
-				firstConflict = fmt.Errorf("reconcile invoice %s: %w", invoice.ID, err)
+			if firstProblem == nil {
+				firstProblem = fmt.Errorf("reconcile invoice %s: %w", invoice.ID, err)
 			}
 			continue
 		}
@@ -167,5 +175,5 @@ func (f *PaymentFacade) ReconcilePendingPayments(ctx context.Context) (int, erro
 			resolved++
 		}
 	}
-	return resolved, firstConflict
+	return resolved, firstProblem
 }

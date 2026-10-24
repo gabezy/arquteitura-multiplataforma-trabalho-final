@@ -236,10 +236,10 @@ Every ambiguity is resolved or recorded here - nothing is left silently unclear.
 | PAY-06 | P2: Charge the invoice at the PSP | Tasks T22 | In Tasks |
 | PAY-07 | P2: Charge the invoice at the PSP | Tasks T19, T22 | Implementing |
 | PAY-08 | P2: Charge the invoice at the PSP | Tasks T19, T22 | Implementing |
-| PAY-09 | P2: Charge the invoice at the PSP | Tasks T21 | In Tasks |
+| PAY-09 | P2: Charge the invoice at the PSP | Tasks T21 | Implementing |
 | PAY-10 | P2: Charge the invoice at the PSP | Tasks T19 | Implementing |
-| PAY-11 | P2: Charge the invoice at the PSP | Tasks T21 | In Tasks |
-| PAY-12 | P2: Charge the invoice at the PSP | Tasks T21 | In Tasks |
+| PAY-11 | P2: Charge the invoice at the PSP | Tasks T21 | Implementing |
+| PAY-12 | P2: Charge the invoice at the PSP | Tasks T21 | Implementing |
 | REC-01 | P3: Reconcile pending payments | Tasks T20, T23 | Implementing |
 | REC-02 | P3: Reconcile pending payments | Tasks T19, T23 | Implementing |
 

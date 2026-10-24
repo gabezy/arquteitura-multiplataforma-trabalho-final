@@ -77,6 +77,7 @@ type fakeGateway struct {
 
 	statuses map[string]out.ChargeStatus
 	getErr   error
+	getErrs  map[string]error
 	queried  []string
 }
 
@@ -87,6 +88,9 @@ func (g *fakeGateway) CreateCharge(_ context.Context, request out.ChargeRequest)
 
 func (g *fakeGateway) GetCharge(_ context.Context, id string) (out.ChargeStatus, error) {
 	g.queried = append(g.queried, id)
+	if err := g.getErrs[id]; err != nil {
+		return out.ChargeStatus{}, err
+	}
 	if g.getErr != nil {
 		return out.ChargeStatus{}, g.getErr
 	}
@@ -480,6 +484,56 @@ func TestReconcilePendingPaymentsGoesOnAfterAConflictAndReportsIt(t *testing.T) 
 	}
 	if got := f.repository.byID["ok"]; got.Status != model.StatusPaid {
 		t.Fatalf("the invoice after the conflict has status %q, want PAID", got.Status)
+	}
+}
+
+// REC-01: one charge the PSP cannot resolve must not keep the ones behind it from being reconciled.
+func TestReconcilePendingPaymentsGoesOnAfterAChargeThePSPCannotResolve(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+	}{
+		{"an unknown charge", fmt.Errorf("%w: ch_stuck", out.ErrChargeNotFound)},
+		{"an answer it cannot use", errors.New(`unknown charge status "REFUNDED"`)},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := newPaymentFixture(invoice.PaymentOptions{})
+			f.repository.seed(pendingInvoice("stuck", now.Add(-5*time.Minute)))
+			f.repository.seed(pendingInvoice("ok", now.Add(-4*time.Minute)))
+			f.gateway.getErrs = map[string]error{"ch_stuck": tt.err}
+			f.gateway.statuses = map[string]out.ChargeStatus{"ch_ok": {State: out.ChargePaid}}
+
+			resolved, err := f.facade.ReconcilePendingPayments(context.Background())
+
+			if !errors.Is(err, tt.err) || resolved != 1 {
+				t.Fatalf("ReconcilePendingPayments() = (%d, %v), want (1, the problem of the first charge)", resolved, err)
+			}
+			if got := f.repository.byID["ok"]; got.Status != model.StatusPaid {
+				t.Errorf("the invoice behind the stuck one has status %q, want PAID", got.Status)
+			}
+			if got := f.repository.byID["stuck"]; got.Status != model.StatusPaymentPending {
+				t.Errorf("the stuck invoice has status %q, want it untouched", got.Status)
+			}
+		})
+	}
+}
+
+func TestReconcilePendingPaymentsStopsWhenItsContextEnds(t *testing.T) {
+	f := newPaymentFixture(invoice.PaymentOptions{})
+	f.repository.seed(pendingInvoice("first", now.Add(-5*time.Minute)))
+	f.repository.seed(pendingInvoice("second", now.Add(-4*time.Minute)))
+	f.gateway.getErr = context.Canceled
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	resolved, err := f.facade.ReconcilePendingPayments(ctx)
+
+	if !errors.Is(err, context.Canceled) || resolved != 0 {
+		t.Fatalf("ReconcilePendingPayments() = (%d, %v), want (0, context.Canceled)", resolved, err)
+	}
+	if len(f.gateway.queried) != 1 {
+		t.Fatalf("the PSP was asked %d times, want 1: a shutdown does not go through the rest of the batch", len(f.gateway.queried))
 	}
 }
 

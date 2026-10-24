@@ -48,7 +48,8 @@ type ChargeStatus struct {
 }
 
 // PaymentGateway is the PSP. A charge the PSP refuses to create fails with a *RefusedError,
-// and a PSP that cannot be reached (timeout, 5xx, open circuit) with an error that wraps ErrUnavailable.
+// a PSP that cannot be reached (timeout, 5xx, open circuit) with an error that wraps ErrUnavailable,
+// and a query about a charge it does not know with an error that wraps ErrChargeNotFound.
 type PaymentGateway interface {
 	CreateCharge(ctx context.Context, request ChargeRequest) (ChargeCreated, error)
 	GetCharge(ctx context.Context, chargeID string) (ChargeStatus, error)
@@ -63,3 +64,6 @@ func (e *RefusedError) Error() string { return "payment refused: " + e.Code }
 
 // ErrUnavailable marks a PSP that could not be reached, so the same call may work later.
 var ErrUnavailable = errors.New("payment provider unavailable")
+
+// ErrChargeNotFound marks a charge the PSP does not know.
+var ErrChargeNotFound = errors.New("charge unknown to the payment provider")
