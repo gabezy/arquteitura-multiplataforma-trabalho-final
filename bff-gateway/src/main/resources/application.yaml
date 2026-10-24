@@ -20,11 +20,15 @@ order-service:
 billing-service:
   url: ${BILLING_SERVICE_URL:http://billing-service:8086}
 
+marketplace-gateway:
+  url: ${MARKETPLACE_GATEWAY_URL:http://marketplace-gateway:8087}
+
 app:
   gateways:
     # mock | rest. Env var: APP_GATEWAYS_<DOMAIN>, e.g. APP_GATEWAYS_ORDER=mock
     order: rest
     billing: rest
+    marketplace: rest
 
 management:
   tracing:
