@@ -29,51 +29,31 @@ Cada serviço tem build próprio e um `CLAUDE.md` com comandos e arquitetura. To
 
 ## Pré-requisitos
 
-- Docker com Docker Compose
+- Docker Engine em execução
 - `make`
-- Toolchain de cada serviço (JDK, Node.js, uv, Go) para rodá-los fora do Docker
+- `kubectl` e Helm 3 para implantar no kind
+- `act` apenas para executar o workflow localmente
+- Toolchain dos serviços (JDK, Node.js, uv, Go) apenas para executá-los fora de containers
 
-## Ambiente local
+## Ambiente local com kind
 
-O ambiente local está em `docker-compose.yaml`, com as configs montadas em `docker/`. `docker compose up -d --build` sobe tudo: Keycloak, Vault, Postgres, Kafka, observabilidade, WireMock e as aplicações. As variáveis ficam num `.env` na raiz (ignorado pelo git), que o `make up` cria na primeira vez a partir do `.env.example`, com senhas aleatórias (veja [Secrets e Vault](#secrets-e-vault)). O `Makefile` encapsula os comandos:
+O caminho recomendado para desenvolvimento e demonstração é o cluster Kubernetes local. O `make k8s-up` instala o kind se necessário, cria o cluster, constrói e publica as imagens no registry local e instala a stack pelo Helm. O comando também cria ou completa o `.env` local a partir do `.env.example`; esse arquivo é ignorado pelo git.
 
 ```bash
-make            # lista os comandos
-make up         # sobe tudo, com build das aplicações
-make up-infra   # sobe tudo menos as aplicações (para rodar um serviço pelo código)
-make ps         # estado dos containers
-make logs s=kafka   # logs de um serviço (sem s=, de todos)
-make topics     # aplica tópicos novos de docker/kafka/create-topics.sh
-make down       # para os containers (mantém os dados)
-make clean      # para e apaga os volumes
-make env        # cria/completa o .env (o make up já faz isso)
-make vault      # regrava os secrets no Vault (depois de reiniciar o container vault)
+make kind-install      # opcional: instala o kind antes do primeiro uso
+make k8s-up            # cria o cluster e implanta a stack
+make k8s-status        # mostra pods, serviços e jobs
+make k8s-down          # remove o cluster e os dados locais
 ```
 
-| Componente | Endereço | Credenciais |
-| --- | --- | --- |
-| Keycloak | http://localhost:8085 | `admin` / `admin` |
-| Kafka | `localhost:9092` (containers: `kafka:19092`) | — |
-| Kafka UI | http://localhost:8090 | — |
-| Vault | http://localhost:8200 | token `VAULT_ROOT_TOKEN` do `.env` |
-| catalog-db (Postgres) | `localhost:5432` | `catalog` / `CATALOG_DB_PASSWORD` do `.env` |
-| compliance-db (Postgres) | `localhost:5433` | `compliance` / `COMPLIANCE_DB_PASSWORD` do `.env` |
-| order-db (Postgres) | `localhost:5434` | `orders` / `ORDER_DB_PASSWORD` do `.env` |
-| billing-db (Postgres) | `localhost:5435` | `billing` / `billing` (o billing-service ainda não lê o Vault) |
-| marketplace-db (Postgres) | `localhost:5436` | `marketplace` / `marketplace` (o marketplace-gateway ainda não lê o Vault) |
-| OTel Collector (OTLP HTTP) | http://localhost:4318 | — |
-| Grafana | http://localhost:3000 (`GRAFANA_PORT`) | `admin` / `admin` |
-| WireMock | http://localhost:8089 | — |
-| bff-gateway | http://localhost:8080 (`BFF_PORT`) | token do Keycloak |
-| catalog-service | http://localhost:8082 | — |
-| compliance-service | http://localhost:8083 | — |
-| order-service | http://localhost:8084 | — |
-| billing-service | http://localhost:8086 | — |
-| marketplace-gateway | http://localhost:8087 | — |
+Para executar o mesmo workflow manual do GitHub Actions no checkout local, instale o `act` e use:
 
-### Kubernetes local com kind e act
+```bash
+make act-list          # lista os workflows disponíveis
+make act-kind-deploy   # executa o workflow de deploy com act
+```
 
-O ambiente da demonstração em Kubernetes local está em [`docs/kubernetes-kind.md`](docs/kubernetes-kind.md). Para subir o cluster e as aplicações, use `make k8s-up`; para executar o workflow de deploy localmente com `act`, use `make act-kind-deploy`.
+Use `make k8s-up` para subir a stack diretamente. Use `make act-kind-deploy` quando quiser validar localmente o workflow de CI/deploy; os dois caminhos implantam no kind. Pré-requisitos completos, portas, detalhes do registry e solução de problemas estão em [`docs/kubernetes-kind.md`](docs/kubernetes-kind.md).
 
 ### Keycloak
 
@@ -101,17 +81,7 @@ curl -s -X POST http://localhost:8085/realms/omni-market/protocol/openid-connect
   -d username=admin -d password=admin
 ```
 
-O import ignora um realm que já existe: depois de alterar o JSON, rode `make clean && make up`.
-
-### Aplicações no compose
-
-`bff-gateway`, `catalog-service`, `compliance-service`, `order-service`, `billing-service` e `marketplace-gateway` são buildados a partir do código e sobem junto com a infra. Para rodar um deles pelo código (com hot reload, debugger etc.), use `make up-infra`, que deixa as aplicações de fora e evita disputa pelas portas.
-
-Se uma porta do host já estiver ocupada por outro projeto, troque pelas variáveis, na linha de comando ou no `.env` da raiz:
-
-```bash
-BFF_PORT=8081 GRAFANA_PORT=3001 make up
-```
+O realm é importado durante a inicialização do Keycloak. Para reaplicar alterações, consulte as instruções de reinicialização do caminho escolhido: [`kind`](docs/kubernetes-kind.md) ou [Docker Compose opcional](#alternativa-opcional-docker-compose).
 
 O roteiro completo da demo, com coleção de requisições e planilha de exemplo, está em [`docs/demo/`](docs/demo/README.md). Fluxo mínimo pelo BFF (usa `jq`):
 
@@ -128,11 +98,10 @@ curl -s http://localhost:8082/products/sku/<sku>   # status da análise feita pe
 
 Os secrets das aplicações ficam num HashiCorp Vault em modo dev (decisão em [ADR-0003](docs/adr/0003-vault-para-secrets-das-aplicacoes.md)). Nenhum secret de aplicação é versionado.
 
-- `make env` (chamado pelo `make up`) gera o `.env` a partir do `.env.example`: cada `__GENERATE__` vira um valor aleatório. Chaves que já existem no `.env` nunca são reescritas, então as senhas não mudam entre execuções. Os logins de admin do Keycloak e do Grafana ficam fixos em `admin`/`admin`.
+- `make env` (chamado pelo `make k8s-up`) gera o `.env` a partir do `.env.example`: cada `__GENERATE__` vira um valor aleatório. Chaves que já existem no `.env` nunca são reescritas, então as senhas não mudam entre execuções. Os logins de admin do Keycloak e do Grafana ficam fixos em `admin`/`admin`.
 - O job `vault-init` grava `secret/catalog-service`, `secret/compliance-service`, `secret/order-service` e `secret/bff-gateway` e cria um AppRole por serviço, que só lê o próprio path. Cada aplicação lê seus secrets ao subir e não sobe sem o Vault.
-- O modo dev guarda tudo em memória: depois de reiniciar o container `vault`, rode `make vault`.
-- O Postgres mantém a senha com que o volume foi criado. Se o `.env` for apagado ou se o volume é anterior ao Vault, rode `make clean` (apaga os dados locais) e `make up`.
-- Para rodar um serviço pelo código, copie o `<SERVIÇO>_VAULT_ROLE_ID` / `_SECRET_ID` do `.env` da raiz para `VAULT_ROLE_ID` / `VAULT_SECRET_ID` (no `.env` do catalog, do compliance e do order; variáveis exportadas no BFF).
+- O Vault em modo dev guarda tudo em memória. A implantação pelo kind executa o job de bootstrap da stack; no caminho Compose, veja os comandos da seção opcional ao final.
+- Para rodar um serviço fora do cluster pelo código, copie o `<SERVIÇO>_VAULT_ROLE_ID` / `_SECRET_ID` do `.env` da raiz para `VAULT_ROLE_ID` / `VAULT_SECRET_ID` (no `.env` do catalog, do compliance e do order; variáveis exportadas no BFF).
 
 ## Fluxo de eventos
 
@@ -161,3 +130,53 @@ Skills versionadas em `.claude/skills/`, carregadas pelo Claude Code aberto na r
 
 - `adr` — registra decisões de arquitetura em `docs/adr/` (ex.: "cria uma ADR para …" ou `/adr`).
 - `tlc-spec-driven` — do [Tech Leads Club](https://github.com/tech-leads-club/agent-skills) (CC BY 4.0): planeja e implementa uma feature em fases (Specify → Design → Tasks → Execute). Acionada por "specify feature", "design", "tasks", "implement" e "validate".
+
+## Alternativa opcional: Docker Compose
+
+O Compose continua disponível para quem preferir executar a stack sem Kubernetes. Ele não é necessário para usar o fluxo principal com kind.
+
+Esta alternativa requer Docker Compose v2 (plugin `docker compose`).
+
+O ambiente está em `docker-compose.yaml`, com configurações montadas de `docker/`. `make up` cria/completa o `.env` (ignorado pelo git) e sobe Keycloak, Vault, Postgres, Kafka, observabilidade, WireMock e as aplicações:
+
+```bash
+make            # lista os comandos
+make up         # sobe tudo, com build das aplicações
+make up-infra   # sobe a infraestrutura sem as aplicações
+make ps         # estado dos containers
+make logs s=kafka
+make topics     # aplica tópicos de docker/kafka/create-topics.sh
+make down       # para os containers e mantém os dados
+make clean      # para e apaga os volumes e dados locais
+make env        # cria/completa o .env
+make vault      # regrava os secrets após reiniciar o Vault
+```
+
+Para rodar uma aplicação pelo código (por exemplo, com hot reload ou debugger), use `make up-infra` e inicie o serviço fora do Compose. Para evitar conflito com portas ocupadas, configure-as no comando ou no `.env`:
+
+```bash
+BFF_PORT=8081 GRAFANA_PORT=3001 make up
+```
+
+| Componente | Endereço | Credenciais |
+| --- | --- | --- |
+| Keycloak | http://localhost:8085 | `admin` / `admin` |
+| Kafka | `localhost:9092` (containers: `kafka:19092`) | — |
+| Kafka UI | http://localhost:8090 | — |
+| Vault | http://localhost:8200 | token `VAULT_ROOT_TOKEN` do `.env` |
+| catalog-db (Postgres) | `localhost:5432` | `catalog` / `CATALOG_DB_PASSWORD` do `.env` |
+| compliance-db (Postgres) | `localhost:5433` | `compliance` / `COMPLIANCE_DB_PASSWORD` do `.env` |
+| order-db (Postgres) | `localhost:5434` | `orders` / `ORDER_DB_PASSWORD` do `.env` |
+| billing-db (Postgres) | `localhost:5435` | `billing` / `billing` (o billing-service ainda não lê o Vault) |
+| marketplace-db (Postgres) | `localhost:5436` | `marketplace` / `marketplace` (o marketplace-gateway ainda não lê o Vault) |
+| OTel Collector (OTLP HTTP) | http://localhost:4318 | — |
+| Grafana | http://localhost:3000 (`GRAFANA_PORT`) | `admin` / `admin` |
+| WireMock | http://localhost:8089 | — |
+| bff-gateway | http://localhost:8080 (`BFF_PORT`) | token do Keycloak |
+| catalog-service | http://localhost:8082 | — |
+| compliance-service | http://localhost:8083 | — |
+| order-service | http://localhost:8084 | — |
+| billing-service | http://localhost:8086 | — |
+| marketplace-gateway | http://localhost:8087 | — |
+
+O Postgres mantém a senha com que o volume foi criado. Se apagar o `.env`, mudar uma senha ou precisar reaplicar o realm do Keycloak, `make clean` apaga os volumes; depois execute `make up` para recriá-los.
