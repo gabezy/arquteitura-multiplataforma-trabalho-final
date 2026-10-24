@@ -11,7 +11,7 @@
 
 - **Problema:** secrets ficam em texto puro em arquivos versionados: senha do Postgres no `DATABASE_URL` (compose, `.env.example` e defaults em `env.ts`/`settings.py`), `bff-gateway-secret` no realm do Keycloak, admin do Keycloak e do Grafana como defaults do compose.
 - **Stack heterogênea:** `bff-gateway` em Spring Boot 4.1, `catalog-service` em Node/TypeScript, `compliance-service` em Python/FastAPI. A solução precisa de cliente nas três.
-- **Ambientes:** local com Docker Compose (`make up`) e, no futuro, cluster Kubernetes.
+- **Ambientes:** local com Docker Compose (`make compose-up`) e, no futuro, cluster Kubernetes.
 - **Critério de aceite (issue #45):** nenhum secret de aplicação versionado; os três serviços sobem buscando seus secrets no cofre.
 - **Restrição:** time de 7 integrantes; subir o ambiente local deve continuar sendo um comando, sem passos manuais de unseal.
 
@@ -45,7 +45,7 @@ Adotaremos o HashiCorp Vault (KV v2 + um AppRole por serviço) como fonte única
 - Vault vira dependência de startup: se não estiver de pé, nenhum serviço sobe.
 - "Secret zero": `role_id`/`secret_id` do AppRole e o token root do modo dev ainda vêm do `.env` local.
 - Modo dev é em memória e já desselado: secrets somem a cada restart (o `vault-init` regrava) e não serve como referência de produção.
-- Postgres recebe a senha por variável de ambiente do `.env` (gerada aleatoriamente por `make env`), fora do Vault; apagar o `.env` exige recriar o volume (`make clean`).
+- Postgres recebe a senha por variável de ambiente do `.env` (gerada aleatoriamente por `make env`), fora do Vault; apagar o `.env` exige recriar o volume (`make compose-clean`).
 - Admin do Keycloak e do Grafana seguem fixos (`admin`/`admin`) no `.env.example`: são acesso de ferramenta local, não secret de aplicação.
 - Os usuários de teste do realm (`admin`/`admin`, `customer`/`customer`) permanecem versionados como dados de demonstração.
 

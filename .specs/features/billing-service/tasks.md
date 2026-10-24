@@ -524,7 +524,7 @@ T18 → T19 → T20 → T21 → T22 → T23
 **Done when**:
 
 - [x] An app test with Testcontainers Kafka and Postgres publishes a confirmation twice and finds one invoice through the API and one `billing.invoice.issued.v1` on Kafka
-- [x] The demo runs against `make up`
+- [x] The demo runs against `make compose-up`
 - [x] Gate check passes: build gate; test count ≥ 3 in `internal/app`
 
 **Tests**: integration
@@ -681,7 +681,7 @@ T18 → T19 → T20 → T21 → T22 → T23
 **Done when**:
 
 - [x] Workers drain due work, stop on an unavailable PSP and on cancel (unit)
-- [x] With `make up`: one iPhone ends `PAID`, seven iPhones end `PAYMENT_FAILED`, the outage stub opens the circuit
+- [x] With `make compose-up`: one iPhone ends `PAID`, seven iPhones end `PAYMENT_FAILED`, the outage stub opens the circuit
 - [x] Gate check passes: build gate; test count ≥ 5 in `internal/infra/worker`
 
 **Tests**: unit

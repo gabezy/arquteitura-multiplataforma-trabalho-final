@@ -17,7 +17,7 @@ O PSP simulado recusa uma cobrança de R$ 100.000,00 ou mais (`docs/demo-cobranc
 Na raiz do repositório:
 
 ```bash
-make up
+make compose-up
 curl -s localhost:8084/health        # {"status":"UP"}
 ```
 

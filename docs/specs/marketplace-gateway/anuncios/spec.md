@@ -73,7 +73,7 @@ O produto aprovado pelo compliance só vira venda quando aparece anunciado nos m
 15. WHEN o gateway publica um anúncio THEN o gateway SHALL enviar o id do anúncio no header `Idempotency-Key` aos três marketplaces, o mesmo em toda nova tentativa. (`MKTLST-15`)
 16. WHEN o adapter publica THEN o adapter SHALL falar o formato do marketplace: `PUT` por SKU com `asin` na resposta na Amazon, `POST /items` com `id` no Mercado Livre e `add_item` com `item_id` na Shopee, em que o erro vem dentro do `200`. (`MKTLST-16`)
 
-**Independent Test**: Importar um produto com `make up`, esperar a aprovação e abrir `GET localhost:8087/listings?sku=<sku>`: 3 anúncios `PUBLISHED`. Importar um com preço `0`: 3 anúncios `FAILED` com o motivo de cada marketplace.
+**Independent Test**: Importar um produto com `make compose-up`, esperar a aprovação e abrir `GET localhost:8087/listings?sku=<sku>`: 3 anúncios `PUBLISHED`. Importar um com preço `0`: 3 anúncios `FAILED` com o motivo de cada marketplace.
 
 ---
 
@@ -154,6 +154,6 @@ Caminhos relativos a `marketplace-gateway/src/`. `infra/listing.module.int.spec.
 
 ## Success Criteria
 
-- [ ] Com `make up`, um produto aprovado vira 3 anúncios `PUBLISHED` em `GET localhost:8087/listings?sku=<sku>` e 3 eventos `marketplace.listing.published.v1` no Kafka.
+- [ ] Com `make compose-up`, um produto aprovado vira 3 anúncios `PUBLISHED` em `GET localhost:8087/listings?sku=<sku>` e 3 eventos `marketplace.listing.published.v1` no Kafka.
 - [ ] Com `scripts/simulate-failure.sh shopee unavailable`, a Shopee fica `FAILED` com `attempts: 3` e a Amazon e o Mercado Livre ficam `PUBLISHED`.
 - [ ] `npm test` passa, e o workflow `marketplace-gateway` fica verde no PR.

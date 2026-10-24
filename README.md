@@ -38,22 +38,25 @@ Cada serviço tem build próprio e um `CLAUDE.md` com comandos e arquitetura. To
 
 ## Ambiente local com kind
 
-O caminho padrão para desenvolvimento e demonstração é `make act-kind-deploy`. Ele usa [act](https://nektosact.com/installation/) para simular localmente o workflow do GitHub Actions: o pipeline constrói as imagens, publica-as no registry local e instala a aplicação num cluster Kubernetes criado com kind, usando Helm. Assim, a execução local percorre o mesmo workflow de provisionamento definido no repositório.
+O caminho padrão para desenvolvimento e demonstração é `make act-deploy`. Esse comando chama [act](https://nektosact.com/installation/) para executar explicitamente o workflow [`deploy`](.github/workflows/deploy.yaml), acionado pelo evento `workflow_dispatch`. O workflow prepara o ambiente, cria o cluster kind e o registry, constrói e publica as imagens, instala a stack com Helm e verifica os recursos.
 
 ```bash
 make act-install       # opcional: instala/atualiza act em ~/.local/bin
-make act-kind-deploy   # caminho padrão: simula o workflow e implanta no kind
+make act-deploy        # executa localmente o workflow e implanta no kind
+make act-destroy       # remove o cluster e o registry locais
 make act-list          # lista os workflows disponíveis
 ```
 
-`make act-install` instala apenas o `act` em `~/.local/bin`; Docker e o Docker Engine ativo são os pré-requisitos de sistema para executar o fluxo pelo `act`. O próprio workflow instala `kubectl` e Helm, e `make k8s-up` instala `kind` no runner quando necessário. O wrapper funciona em Linux e WSL2. No WSL2 com Docker Desktop, habilite a integração para a distribuição Linux e o host networking do Docker Desktop (versão 4.34 ou superior), usado pelo runner do `act` ([configuração do host networking](https://docs.docker.com/engine/network/drivers/host/#docker-desktop), [integração WSL](https://docs.docker.com/desktop/features/wsl/)).
+No GitHub, os workflows também podem ser iniciados manualmente em **Actions → deploy/destroy → Run workflow**. Os runners hospedados pelo GitHub são temporários e separados entre execuções; para criar e depois remover um cluster Docker persistente da sua máquina, execute ambos localmente com `act`.
+
+`make act-install` instala apenas o `act` em `~/.local/bin`; Docker CLI e um Docker Engine ativo são necessários no host. O workflow instala `kubectl`, Helm e kind no runner e descreve diretamente cada operação, sem delegar o deploy a um alvo do Makefile. `act` executa o workflow localmente dentro de um container Docker; esse runner não é idêntico à VM hospedada pelo GitHub. O wrapper funciona em Linux e WSL2. No WSL2 com Docker Desktop, habilite a integração para a distribuição Linux e o host networking do Docker Desktop (versão 4.34 ou superior), usado pelo runner do `act` ([configuração do host networking](https://docs.docker.com/engine/network/drivers/host/#docker-desktop), [integração WSL](https://docs.docker.com/desktop/features/wsl/)).
 
 Para implantar diretamente no kind, sem executar o workflow pelo `act`, instale `kubectl` e Helm no host e use:
 
 ```bash
-make k8s-up            # cria o cluster e implanta a stack diretamente
+make k8s-deploy        # cria o cluster e implanta a stack diretamente
 make k8s-status        # mostra pods, serviços e jobs
-make k8s-down          # remove o cluster e os dados locais
+make k8s-destroy       # remove o cluster e os dados locais
 ```
 
 Pré-requisitos completos, portas, detalhes do registry e solução de problemas estão em [`docs/kubernetes-kind.md`](docs/kubernetes-kind.md).
@@ -101,7 +104,7 @@ curl -s http://localhost:8082/products/sku/<sku>   # status da análise feita pe
 
 Os secrets das aplicações ficam num HashiCorp Vault em modo dev (decisão em [ADR-0003](docs/adr/0003-vault-para-secrets-das-aplicacoes.md)). Nenhum secret de aplicação é versionado.
 
-- `make env` (chamado pelo `make k8s-up`) gera o `.env` a partir do `.env.example`: cada `__GENERATE__` vira um valor aleatório. Chaves que já existem no `.env` nunca são reescritas, então as senhas não mudam entre execuções. Os logins de admin do Keycloak e do Grafana ficam fixos em `admin`/`admin`.
+- `make env` (chamado pelo `make k8s-deploy`) gera o `.env` a partir do `.env.example`: cada `__GENERATE__` vira um valor aleatório. Chaves que já existem no `.env` nunca são reescritas, então as senhas não mudam entre execuções. Os logins de admin do Keycloak e do Grafana ficam fixos em `admin`/`admin`.
 - O job `vault-init` grava `secret/catalog-service`, `secret/compliance-service`, `secret/order-service` e `secret/bff-gateway` e cria um AppRole por serviço, que só lê o próprio path. Cada aplicação lê seus secrets ao subir e não sobe sem o Vault.
 - O Vault em modo dev guarda tudo em memória. A implantação pelo kind executa o job de bootstrap da stack; no caminho Compose, veja os comandos da seção opcional ao final.
 - Para rodar um serviço fora do cluster pelo código, copie o `<SERVIÇO>_VAULT_ROLE_ID` / `_SECRET_ID` do `.env` da raiz para `VAULT_ROLE_ID` / `VAULT_SECRET_ID` (no `.env` do catalog, do compliance e do order; variáveis exportadas no BFF).
@@ -140,25 +143,26 @@ O Compose continua disponível para quem preferir executar a stack sem Kubernete
 
 Esta alternativa requer Docker Compose v2 (plugin `docker compose`).
 
-O ambiente está em `docker-compose.yaml`, com configurações montadas de `docker/`. `make up` cria/completa o `.env` (ignorado pelo git) e sobe Keycloak, Vault, Postgres, Kafka, observabilidade, WireMock e as aplicações:
+O ambiente está em `docker-compose.yaml`, com configurações montadas de `docker/`. Os alvos Compose usam o prefixo `compose-`. `make compose-up` cria/completa o `.env` (ignorado pelo git) e sobe Keycloak, Vault, Postgres, Kafka, observabilidade, WireMock e as aplicações:
 
 ```bash
 make            # lista os comandos
-make up         # sobe tudo, com build das aplicações
-make up-infra   # sobe a infraestrutura sem as aplicações
-make ps         # estado dos containers
-make logs s=kafka
-make topics     # aplica tópicos de docker/kafka/create-topics.sh
-make down       # para os containers e mantém os dados
-make clean      # para e apaga os volumes e dados locais
-make env        # cria/completa o .env
-make vault      # regrava os secrets após reiniciar o Vault
+make compose-up         # sobe tudo, com build das aplicações
+make compose-up-infra   # sobe a infraestrutura sem as aplicações
+make compose-ps         # mostra o estado dos containers
+make compose-logs s=kafka
+make compose-topics     # aplica tópicos de docker/kafka/create-topics.sh
+make compose-down       # para os containers e mantém os dados
+make compose-clean      # para e apaga os volumes e dados locais
+make compose-restart    # reinicia toda a stack
+make env                # cria/completa o .env compartilhado
+make compose-vault      # regrava os secrets após reiniciar o Vault
 ```
 
-Para rodar uma aplicação pelo código (por exemplo, com hot reload ou debugger), use `make up-infra` e inicie o serviço fora do Compose. Para evitar conflito com portas ocupadas, configure-as no comando ou no `.env`:
+Para rodar uma aplicação pelo código (por exemplo, com hot reload ou debugger), use `make compose-up-infra` e inicie o serviço fora do Compose. Para evitar conflito com portas ocupadas, configure-as no comando ou no `.env`:
 
 ```bash
-BFF_PORT=8081 GRAFANA_PORT=3001 make up
+BFF_PORT=8081 GRAFANA_PORT=3001 make compose-up
 ```
 
 | Componente | Endereço | Credenciais |
@@ -182,4 +186,4 @@ BFF_PORT=8081 GRAFANA_PORT=3001 make up
 | billing-service | http://localhost:8086 | — |
 | marketplace-gateway | http://localhost:8087 | — |
 
-O Postgres mantém a senha com que o volume foi criado. Se apagar o `.env`, mudar uma senha ou precisar reaplicar o realm do Keycloak, `make clean` apaga os volumes; depois execute `make up` para recriá-los.
+O Postgres mantém a senha com que o volume foi criado. Se apagar o `.env`, mudar uma senha ou precisar reaplicar o realm do Keycloak, `make compose-clean` apaga os volumes; depois execute `make compose-up` para recriá-los.

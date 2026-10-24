@@ -257,7 +257,7 @@ O arquivo é XML sem compressão, com 2 páginas, e os shapes C4 guardam os text
 
 ### Análise
 
-- O passo 1 da issue cita `make up-all`, que **não existe**. O target certo é `make up`.
+- O passo 1 da issue cita `make compose-up-all`, que **não existe**. O target certo é `make compose-up`.
 - O BFF **não tem Swagger**: o `SecurityConfig` libera os paths, mas o `pom.xml` não tem `springdoc`. A demo vai então por uma coleção `.http`, que funciona tanto no IntelliJ quanto no VS Code (REST Client).
 - O que já roda ponta a ponta:
   1. Token do Keycloak (`admin`/`customer`; as personas da #9 ainda não estão no realm).
@@ -272,7 +272,7 @@ O arquivo é XML sem compressão, com 2 páginas, e os shapes C4 guardam os text
 
 1. **`docs/demo/README.md`**, o roteiro, com:
    - **Pré-requisitos:** Docker, portas livres, `BFF_PORT`/`GRAFANA_PORT`. Inclui o equivalente sem `make` (`docker compose up -d --build`).
-   - **Preparação do zero:** `make clean && make up` e uma checagem de saúde de cada serviço (`/actuator/health`, `/health`), com os tempos esperados (o Keycloak leva até cerca de 2 minutos no primeiro start).
+   - **Preparação do zero:** `make compose-clean && make compose-up` e uma checagem de saúde de cada serviço (`/actuator/health`, `/health`), com os tempos esperados (o Keycloak leva até cerca de 2 minutos no primeiro start).
    - **Atos da demo**, cada um com comando, o que mostrar (Kafka UI, Grafana) e o resultado esperado:
      1. Autenticação: token por persona e uma chamada negada sem token (401) e com `customer` (403).
      2. Importação pelo BFF.
@@ -284,14 +284,14 @@ O arquivo é XML sem compressão, com 2 páginas, e os shapes C4 guardam os text
      - Sem marketplace-gateway: o pedido entra publicando `order.order.placed.v1` à mão, ou `marketplace.order.received.v1` se o order já consumir.
      - Sem billing: mostrar o `order.order.confirmed.v1` no Kafka UI como "gatilho da cobrança".
      - Mensagem no Kafka UI pronta para copiar e colar, para cada caso.
-   - **Troubleshooting:** realm não reimportado (`make clean`), porta ocupada, Keycloak lento.
+   - **Troubleshooting:** realm não reimportado (`make compose-clean`), porta ocupada, Keycloak lento.
 2. **`docs/demo/omni-market.http`**: a coleção com as variáveis (`@bff`, `@keycloak`, `@catalog`), a captura do token por persona e todas as requisições dos atos.
 3. **`docs/demo/catalog-demo.xlsx`**: uma planilha com 3 a 4 produtos, para não alterar o `catalog-import.xlsx` usado no README:
    - um aprovado com estoque 2, usado no ato de estoque;
    - um reprovado por termo proibido;
    - um reprovado por preço acima do teto.
    - O arquivo é gerado por script, com o mesmo cabeçalho do original (`sku, name, description, price, category, stock`).
-4. **Ensaio do zero** numa execução real (`make clean && make up`, com o Docker rodando), anotando no roteiro os tempos e as saídas reais.
+4. **Ensaio do zero** numa execução real (`make compose-clean && make compose-up`, com o Docker rodando), anotando no roteiro os tempos e as saídas reais.
 5. **Ajustes de documentação:** o README passa a apontar para `docs/demo/`, e o `docs/demo-estoque.md` vira um anexo referenciado pelo roteiro, sem duplicar o conteúdo.
 6. **Revisão na véspera (27/10):** atualizar o ato 6 conforme o que tiver sido mergeado em `dev`.
 
@@ -336,7 +336,7 @@ O arquivo é XML sem compressão, com 2 páginas, e os shapes C4 guardam os text
      4. Polling do `GET /products/sku/:sku` até `APPROVED` no produto válido e `REJECTED` nos inválidos.
      5. Estoque: publicar `order.order.placed.v1` com um `orderId` aleatório (via `docker exec kafka ... console-producer`), fazer polling do estoque até baixar e consumir o `catalog.stock.reserved.v1` daquele `orderId`. Depois publicar `cancelled` e verificar a devolução.
      6. Etapas futuras (anúncio, pedido pelo marketplace, pedido confirmado, cobrança): cada uma é ativada quando o serviço responder ao health check. Se o serviço não estiver no compose, a etapa aparece como `PENDENTE` no relatório, sem falhar. Com `E2E_STRICT=1` ela falha, o que serve para a entrega final.
-   - Os SKUs e `orderId`s são únicos por execução (sufixo com timestamp), o que permite rodar várias vezes sem `make clean`.
+   - Os SKUs e `orderId`s são únicos por execução (sufixo com timestamp), o que permite rodar várias vezes sem `make compose-clean`.
    - Saída com um relatório por etapa (✔/✘/PENDENTE) e o código de saída ≠ 0 em caso de falha.
 2. **`Makefile`**: target `e2e: ## roda o teste ponta a ponta (scripts/e2e-smoke.sh)`.
 3. **Opcional:** `.github/workflows/e2e.yml` com `workflow_dispatch`, que sobe o compose no runner e roda `E2E_STRICT=1 make e2e`. Sobe o stack inteiro (cerca de 15 containers) no ubuntu-latest, então é manual e não roda a cada push.

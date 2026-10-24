@@ -134,7 +134,7 @@ admin() { # admin <método> <caminho> [corpo]
 }
 
 curl -fsS -o /dev/null "$WIREMOCK_URL/__admin/mappings" 2> /dev/null || {
-  echo "Não consegui falar com o WireMock em $WIREMOCK_URL (make up-infra sobe o WireMock)." >&2
+  echo "Não consegui falar com o WireMock em $WIREMOCK_URL (make compose-up-infra sobe o WireMock)." >&2
   exit 1
 }
 

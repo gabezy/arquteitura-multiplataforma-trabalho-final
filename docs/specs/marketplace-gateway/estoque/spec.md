@@ -64,7 +64,7 @@ Uma venda reduz o estoque no catalog, que é o dono dele (ADR-0004) e publica `c
 10. WHEN o estoque é gravado THEN o `stock` e o `updatedAt` do `Listing` na API SHALL mostrar o novo valor. (`MKTSTK-10`)
 11. WHEN um estoque mais novo é gravado enquanto o anterior está a caminho THEN o gateway SHALL manter o anúncio como não enviado, e a rodada seguinte SHALL enviar o novo. (`MKTSTK-11`)
 
-**Independent Test**: Com `make up` e um produto publicado, publicar `{"productId":"<uuid>","sku":"<sku>","stock":0}` em `catalog.product.stock-changed.v1` (pela Kafka UI, `localhost:8090`). Em poucos segundos `localhost:8089/__admin/requests` mostra 3 chamadas de atualização com o estoque 0, e `GET localhost:8087/listings?sku=<sku>` mostra `stock: 0` nos 3 anúncios.
+**Independent Test**: Com `make compose-up` e um produto publicado, publicar `{"productId":"<uuid>","sku":"<sku>","stock":0}` em `catalog.product.stock-changed.v1` (pela Kafka UI, `localhost:8090`). Em poucos segundos `localhost:8089/__admin/requests` mostra 3 chamadas de atualização com o estoque 0, e `GET localhost:8087/listings?sku=<sku>` mostra `stock: 0` nos 3 anúncios.
 
 ---
 
@@ -153,6 +153,6 @@ Caminhos relativos a `marketplace-gateway/src/`. `infra/listing.module.int.spec.
 
 ## Success Criteria
 
-- [ ] Com `make up`, um `catalog.product.stock-changed.v1` muda o `stock` dos 3 anúncios de `GET localhost:8087/listings?sku=<sku>`, e o WireMock registra 3 chamadas de atualização.
+- [ ] Com `make compose-up`, um `catalog.product.stock-changed.v1` muda o `stock` dos 3 anúncios de `GET localhost:8087/listings?sku=<sku>`, e o WireMock registra 3 chamadas de atualização.
 - [ ] Com `scripts/simulate-failure.sh shopee unavailable`, a Amazon e o Mercado Livre recebem o estoque e a Shopee o recebe só depois do `off`, sem repetir o envio às outras.
 - [ ] `npm test` passa, e o workflow `marketplace-gateway` fica verde no PR.

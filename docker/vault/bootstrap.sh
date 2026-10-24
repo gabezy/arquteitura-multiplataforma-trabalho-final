@@ -1,5 +1,5 @@
 #!/bin/sh
-# Run by the one-shot vault-init service (make vault re-runs it). Writes each service's secrets to
+# Run by the one-shot vault-init service (make compose-vault re-runs it). Writes each service's secrets to
 # KV v2 and gives the service an AppRole whose policy reads only its own path. Dev mode keeps
 # everything in memory, so this runs again after every Vault restart; it is idempotent.
 set -eu

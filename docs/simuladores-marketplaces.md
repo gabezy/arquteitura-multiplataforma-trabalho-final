@@ -7,7 +7,7 @@ O trabalho não integra com os marketplaces reais. O `marketplace-gateway` conve
 
 ## Como subir e conferir
 
-`make up-infra` (ou `make up`) sobe o WireMock na porta 8089 (`http://localhost:8089` na máquina, `http://wiremock:8080` na rede do compose). Os mappings são carregados de `docker/wiremock/mappings/` e as respostas com template ficam em `docker/wiremock/__files/<marketplace>/`.
+`make compose-up-infra` (ou `make compose-up`) sobe o WireMock na porta 8089 (`http://localhost:8089` na máquina, `http://wiremock:8080` na rede do compose). Os mappings são carregados de `docker/wiremock/mappings/` e as respostas com template ficam em `docker/wiremock/__files/<marketplace>/`.
 
 ```bash
 WM=http://localhost:8089
