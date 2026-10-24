@@ -292,8 +292,8 @@ Source: the 110 `push` runs of `gh api repos/gabezy/arquteitura-multiplataforma-
 
 ### T6: Check the README tables and sync the spec copy
 
-**What**: Compare the README services and components tables with the compose (PLAT-17, PLAT-18), fix any mismatch, and copy the spec to `docs/specs/platform/new-services-infra/spec.md`.
-**Where**: `README.md`, `docs/specs/platform/new-services-infra/spec.md`
+**What**: Compare the README services and components tables with the compose (PLAT-17, PLAT-18), fix any mismatch, and copy the spec to `docs/specs/plataforma/infra-servicos-novos/spec.md`.
+**Where**: `README.md`, `docs/specs/plataforma/infra-servicos-novos/spec.md`
 **Depends on**: None
 **Reuses**: the existing table rows of `catalog-db` and `compliance-db`
 **Requirement**: PLAT-17, PLAT-18
@@ -307,7 +307,7 @@ Source: the 110 `push` runs of `gh api repos/gabezy/arquteitura-multiplataforma-
 
 - [x] Services table: `order-service` 8084, `billing-service` 8086, `marketplace-gateway` 8087 (PLAT-17)
 - [x] Components table: `order-db` 5434, `billing-db` 5435, `marketplace-db` 5436, each with its user and password source (PLAT-18)
-- [x] `diff .specs/features/new-services-infra/spec.md docs/specs/platform/new-services-infra/spec.md` prints nothing
+- [x] `diff .specs/features/new-services-infra/spec.md docs/specs/plataforma/infra-servicos-novos/spec.md` prints nothing
 - [x] PLAT-17 and PLAT-18 marked `Implementing`
 
 **Tests**: none (static check)
@@ -318,7 +318,7 @@ Source: the 110 `push` runs of `gh api repos/gabezy/arquteitura-multiplataforma-
 - README services table (PLAT-17): `README.md:24` `order-service` … `8084`; `README.md:25` `billing-service` … `8086`; `README.md:26` `marketplace-gateway` … `8087`. These match the compose ports from T2.
 - README components table (PLAT-18): `README.md:61` `order-db` `localhost:5434` `orders` / `ORDER_DB_PASSWORD` do `.env`; `README.md:62` `billing-db` `localhost:5435` `billing` / `billing`; `README.md:63` `marketplace-db` `localhost:5436` `marketplace` / `marketplace`. These match the compose defaults (`BILLING_DB_PASSWORD:-billing`, `MARKETPLACE_DB_PASSWORD:-marketplace`).
 - No gap found; `README.md` unchanged.
-- Spec copied to `docs/specs/platform/new-services-infra/spec.md` after this task's traceability update; `diff` prints nothing.
+- Spec copied to `docs/specs/plataforma/infra-servicos-novos/spec.md` after this task's traceability update; `diff` prints nothing.
 
 **Status**: ✅ Complete
 

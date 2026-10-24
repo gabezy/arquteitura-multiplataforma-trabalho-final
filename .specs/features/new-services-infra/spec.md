@@ -1,7 +1,7 @@
 # New services infra Specification
 
 Issue: #14 · Owner: José Ricardo Ciola Bricio (@zeciola) · Milestone: M1 — Fundação e contratos · Date: 2026-10-24
-Copy kept in sync at `docs/specs/platform/new-services-infra/spec.md`; this file is the source.
+Copy kept in sync at `docs/specs/plataforma/infra-servicos-novos/spec.md`; this file is the source.
 
 References: ADR-0001 (monorepo and CI per service), C4 container diagram (`docs/c4/Omni Market - C4 Model Contexto.drawio`, page `C4 - Container`, exported to `docs/c4/Omni Market - C4 Model Contexto-C4 - Container.drawio.png`), event catalog (`docs/eventos.md`).
 
@@ -61,7 +61,7 @@ The order-service, billing-service and marketplace-gateway need their own databa
 | C4 technology of the new services | `billing-service`: `Go 1.27, net/http`; `marketplace-gateway`: `Node.js 22, TypeScript, Express 5` | Same style as `order-service`, taken from `go.mod`, `package.json` and the Dockerfile | n |
 | C4 PNG export | Edit the `c4Technology` and `c4Description` attributes in the `.drawio` XML; re-export the container PNG in draw.io desktop | The draw.io CLI is not installed here; the PNG is what the README and the delivery show | n |
 | Makefile target names | `make compose-up`, `make compose-up-infra`, `make compose-topics`, `make compose-ps`, `make compose-clean` | The issue says `make up` and `make topics`; `dev` renamed the targets after the issue was written, and they run the same `docker compose` commands | y |
-| Spec language and location | English, source in `.specs/features/new-services-infra/`, copy in `docs/specs/platform/new-services-infra/spec.md` | Same convention as the order-service and billing-service specs | y |
+| Spec language and location | English, source in `.specs/features/new-services-infra/`, copy in `docs/specs/plataforma/infra-servicos-novos/spec.md` | Same convention as the order-service and billing-service specs. The first level of `docs/specs/` is the service; #14 belongs to no service, so it uses `plataforma`, the area name of the issue label and the `[plataforma]` issue prefix, with the folder name in Portuguese like the latest specs (`pedidos`, `anuncios`, `preco`) | y |
 
 **Open questions:** none - all resolved or logged above. Rows marked `n` are the defaults the owner confirms when approving this spec.
 
