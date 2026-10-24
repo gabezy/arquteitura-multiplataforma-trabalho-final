@@ -4,13 +4,15 @@ O ambiente de demonstração pode ser executado num cluster Kubernetes local cri
 
 ## Pré-requisitos
 
-- Linux ou WSL2 para executar o wrapper local de `act`
+- Linux, WSL2 ou macOS (Intel ou Apple Silicon) para executar o wrapper local de `act`
 - Docker CLI e Engine em execução
 - `make` e `curl`
 
 Para instalar o `act`, use o alvo opcional `make act-install`, que o instala em `~/.local/bin`. Docker CLI e o Docker Engine ativo são os pré-requisitos de sistema para executar o fluxo local. O workflow instala `kubectl`, Helm e kind no runner e descreve cada operação de provisionamento como etapas próprias. Para implantar diretamente no kind pelo host, instale `kubectl` e Helm; o projeto instala `kind` automaticamente.
 
 No WSL2 com Docker Desktop, habilite a integração do Docker Desktop para a distribuição Linux e o host networking (Docker Desktop 4.34 ou superior), necessário para o runner alcançar o cluster kind ([host networking](https://docs.docker.com/engine/network/drivers/host/#docker-desktop), [integração WSL](https://docs.docker.com/desktop/features/wsl/)).
+
+No macOS, o OrbStack já oferece host networking; no Docker Desktop, habilite-o em **Settings → Resources → Network** (4.34 ou superior). O socket `/var/run/docker.sock` precisa existir (padrão no OrbStack e no Docker Desktop com "Allow the default Docker socket"). O runner usa o Docker CLI da própria imagem, porque o binário do macOS não roda no container Linux, e a arquitetura do host (arm64 no Apple Silicon).
 
 O fluxo padrão executa localmente o workflow [`deploy`](../.github/workflows/deploy.yaml), que é acionado no GitHub pelo evento `workflow_dispatch`. Suas etapas geram/completam `.env`, instalam ferramentas, criam o cluster `omni-market`, iniciam o registry, constroem e publicam as imagens, preparam a configuração do chart e fazem o deploy gradual com Helm. O workflow [`destroy`](../.github/workflows/destroy.yaml), também manual, remove o cluster e o registry locais. As credenciais são geradas localmente; `.env` não deve ser versionado.
 
