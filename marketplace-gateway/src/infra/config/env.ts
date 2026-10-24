@@ -21,6 +21,11 @@ export interface OrderPollingConfig {
   initialLookbackMs: number;
 }
 
+export interface StockSyncConfig {
+  intervalMs: number;
+  batchSize: number;
+}
+
 export interface AppConfig {
   port: number;
   logLevel: string;
@@ -31,7 +36,9 @@ export interface AppConfig {
   marketplaces: MarketplacesConfig;
   catalog: CatalogConfig;
   orderPolling: OrderPollingConfig;
+  stockSync: StockSyncConfig;
   catalogProductApprovedTopic: string;
+  catalogStockChangedTopic: string;
   catalogProductDeadLetterTopic: string;
   orderCancelledTopic: string;
   orderCancelledDeadLetterTopic: string;
@@ -77,7 +84,12 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       overlapMs: parsePositiveInt(env, 'ORDER_POLL_OVERLAP_MS', 60_000),
       initialLookbackMs: parsePositiveInt(env, 'ORDER_POLL_LOOKBACK_MS', 86_400_000),
     },
+    stockSync: {
+      intervalMs: parsePositiveInt(env, 'STOCK_SYNC_INTERVAL_MS', 2000),
+      batchSize: parsePositiveInt(env, 'STOCK_SYNC_BATCH_SIZE', 50),
+    },
     catalogProductApprovedTopic: env.CATALOG_PRODUCT_APPROVED_TOPIC ?? 'catalog.product.approved.v1',
+    catalogStockChangedTopic: env.CATALOG_STOCK_CHANGED_TOPIC ?? 'catalog.product.stock-changed.v1',
     catalogProductDeadLetterTopic: env.CATALOG_PRODUCT_DLQ_TOPIC ?? 'marketplace.catalog-product.dlq',
     orderCancelledTopic: env.ORDER_CANCELLED_TOPIC ?? 'order.order.cancelled.v1',
     orderCancelledDeadLetterTopic: env.ORDER_CANCELLED_DLQ_TOPIC ?? 'marketplace.order-cancelled.dlq',
