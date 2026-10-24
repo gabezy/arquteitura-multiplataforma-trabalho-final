@@ -50,10 +50,16 @@ class InMemoryOrderRepository implements OrderRepositoryPort {
     return order ? copy(order) : null;
   }
 
-  async saveNew(order: Order): Promise<void> {
+  async saveNew(order: Order, eventId?: string): Promise<{ orderId: string; created: boolean }> {
     this.failIfAsked();
+    const existing = [...this.orders.values()].find(candidate =>
+      candidate.marketplace.equals(order.marketplace) && candidate.externalOrderId === order.externalOrderId,
+    );
+    if (existing) return { orderId: existing.id.value, created: false };
+    void eventId;
     this.saves.push({ kind: 'new', status: order.status.value, events: order.pullDomainEvents() });
     this.orders.set(order.id.value, copy(order));
+    return { orderId: order.id.value, created: true };
   }
 
   async save(order: Order): Promise<void> {

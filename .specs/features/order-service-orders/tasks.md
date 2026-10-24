@@ -10,7 +10,7 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 
 **Spec**: `.specs/features/order-service-orders/spec.md`
 **Design**: `.specs/features/order-service-orders/design.md`
-**Status**: Approved (2026-10-24)
+**Status**: Done (independent Verifier PASS in round 2: 488 tests, 12/14 mutants killed; the 2 survivors are the `main.ts` wiring of the shutdown steps and an equivalent `clearTimeout`)
 
 **Granularity:** cohesive tasks, one commit each, as in `.specs/features/billing-service/tasks.md`. Each task is one deliverable that builds, passes its gate and can be reverted alone.
 
@@ -247,7 +247,7 @@ T8 → T9 → T10
 **Where**: `order-service/src/infra/messaging/`
 **Depends on**: T6
 **Reuses**: `catalog-service` patterns
-**Requirement**: ORD-01, ORD-04, ORD-05, STK-01, STK-02, STK-04, PAY-01, PAY-02, PAY-04, INF-03
+**Requirement**: ORD-01, ORD-04, ORD-05, STK-01, STK-02, STK-04, STK-05, PAY-01, PAY-02, PAY-04, PAY-05, INF-03
 
 **Tools**:
 
@@ -256,16 +256,18 @@ T8 → T9 → T10
 
 **Done when**:
 
-- [ ] Every valid message reaches the facade with the data of the contract
-- [ ] Every violation of ORD-04 goes to the dead letter of its group with the `dlq-*` headers
-- [ ] A domain error goes to the dead letter and a transient error is rethrown
-- [ ] Gate check passes: quick gate; test count ≥ 20
+- [x] Every valid message reaches the facade with the data of the contract
+- [x] Every violation of ORD-04, STK-05 and PAY-05 goes to the dead letter of its group with the `dlq-*` headers
+- [x] A contradicting outcome or an unknown order is logged and skipped (STK-04, PAY-04); any other domain error goes to the dead letter and a transient error is rethrown
+- [x] Gate check passes: quick gate; 15 tests in `marketplace-order.consumer.spec.ts` (`a4b953d`) and 42 in `order-outcome.consumer.spec.ts`
 
 **Tests**: unit
 **Gate**: quick
 
 **Commit**: `feat(order): consome os pedidos, o estoque e o pagamento`
 
+
+**Status**: ✅ Complete (marketplace consumer by Paulo in `a4b953d`; stock and payment consumers on the same branch, sharing `cloud-event.ts`)
 ---
 
 
@@ -286,15 +288,17 @@ T8 → T9 → T10
 
 **Done when**:
 
-- [ ] The three dead letter topics exist in the script with one partition and 14 days of retention
-- [ ] The shutdown order disconnects consumers, closes the server, stops the relay and the producer
-- [ ] Gate check passes: build gate
+- [x] The three dead letter topics exist in the script with one partition and 14 days of retention
+- [x] The shutdown order disconnects consumers, closes the server, stops the relay and the producer
+- [x] Gate check passes: build gate (462 tests; 6 in `order.factory.spec.ts`)
 
 **Tests**: unit
 **Gate**: build
 
 **Commit**: `feat(order): liga os consumers e as DLQs no composition root`
 
+
+**Status**: ✅ Complete (`docker compose up -d --force-recreate kafka-init` lists both new DLQs)
 ---
 
 
@@ -313,16 +317,20 @@ T8 → T9 → T10
 
 **Done when**:
 
-- [ ] One iPhone confirmed and paid, seven cancelled for payment and one without stock cancelled, each with the events of the contract
-- [ ] A repeated marketplace order leaves one order and one `placed`
-- [ ] The report of those orders matches the demo
-- [ ] Gate check passes: full gate; test count ≥ 3
+- [x] One iPhone confirmed and paid, one order cancelled for payment and one without stock cancelled, each with the events of the contract
+- [x] A repeated marketplace order leaves one order and one `placed`; late and contradicting outcomes change nothing and publish nothing
+- [x] The report of those orders counts the paid iPhone and no cancelled order
+- [x] Gate check passes: full gate; 2 tests in `order.flow.spec.ts`, 464 in total
 
 **Tests**: integration
 **Gate**: full
 
 **Commit**: `test(order): cobre o ciclo do pedido ponta a ponta no Postgres`
 
+
+**Status**: ✅ Complete
+
+**Deviations**: the refused order has 2 monitors instead of the 7 iPhones of the demo, because the test publishes the payment result itself and the PSP threshold does not apply; the 7 iPhones run in the smoke of T10. The test drives the real consumers (`createOrderModule` with fake Kafka clients) and reads orders and the report through the HTTP API, so the wiring of T8 is covered too. Two tests instead of three: the duplicate intake and the late outcomes share one.
 ---
 
 
@@ -341,15 +349,21 @@ T8 → T9 → T10
 
 **Done when**:
 
-- [ ] The CLAUDE.md describes the aggregate, the consumers, the API and the settings
-- [ ] The states of the order events in the catalog say Implementado
-- [ ] Gate check passes: docs gate
+- [x] The CLAUDE.md describes the aggregate, the consumers, the API and the settings
+- [x] The states of the order events in the catalog say Implementado
+- [x] Gate check passes: docs gate
 
 **Tests**: none
 **Gate**: docs
 
 **Commit**: `docs(order): documenta o ciclo do pedido e a demo`
 
+
+**Status**: ✅ Complete
+
+**Smoke (2026-10-24, `make up`)**: 1 iPhone on Mercado Livre ended `PAID`; 7 iPhones on Shopee (R$ 105.000,00) ended `CANCELLED(PAYMENT_FAILED)` with the stock back from 2 to 9; 50 on Amazon ended `CANCELLED(OUT_OF_STOCK)`; the same sale 3 more times left one order; a late `reserved` and a contradicting `insufficient` changed nothing (one `warn`); `{}` went to `order.stock-response.dlq`; the outbox had 3 `placed`, 2 `confirmed`, 2 `cancelled`; `GET /orders` through the BFF answered 200 and the report counted only the paid order. The smoke found that the billing compresses with Snappy, fixed in `c1b5932`.
+
+**Deviations**: the README needed no change (it already lists the order-service); the demo script is `docs/demo-pedidos.md`.
 ---
 
 

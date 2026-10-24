@@ -23,14 +23,7 @@ export class OrderFacade implements ReceiveOrderPort, ApplyStockOutcomePort, App
     // A marketplace order that is already known is kept as it is, whatever message brings it again.
     async receive(input: ReceiveOrderPortInput): Promise<ReceiveOrderPortOutput> {
         const order = Order.receive(input, this.clock());
-
-        const existing = await this.repository.findByExternalId(order.marketplace, order.externalOrderId);
-        if (existing) {
-            return { orderId: existing.id.value, created: false };
-        }
-
-        await this.repository.saveNew(order);
-        return { orderId: order.id.value, created: true };
+        return this.repository.saveNew(order, input.eventId);
     }
 
     async applyStockReserved({ orderId }: StockOutcomePortInput): Promise<void> {

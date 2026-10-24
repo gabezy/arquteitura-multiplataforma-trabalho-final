@@ -70,6 +70,7 @@ describe('KnexOrderRepository', () => {
   afterEach(async () => {
     await db('orders').truncate();
     await db('outbox').truncate();
+    await db('processed_events').truncate();
   });
 
   afterAll(async () => {
@@ -122,13 +123,25 @@ describe('KnexOrderRepository', () => {
       expect(order.pullDomainEvents()).toEqual([]);
     });
 
-    it('fails with a ConcurrentModificationError for a marketplace order that already exists, keeping the first and its event only', async () => {
+    it('ignores a marketplace order that already exists, keeping the first and its event only', async () => {
       const first = received();
-      await repository.saveNew(first);
+      const saved = await repository.saveNew(first);
 
-      await expect(repository.saveNew(received())).rejects.toThrow(ConcurrentModificationError);
+      const duplicate = await repository.saveNew(received());
 
+      expect(saved).toEqual({ orderId: first.id.value, created: true });
+      expect(duplicate).toEqual({ orderId: first.id.value, created: false });
       expect(await db('orders').pluck('id')).toEqual([first.id.value]);
+      expect(await outboxRows()).toHaveLength(1);
+    });
+
+    it('stores the consumed event id with the order and outbox event in one transaction', async () => {
+      const order = received();
+
+      await repository.saveNew(order, 'marketplace-event-1');
+
+      expect(await db('processed_events').where({ event_id: 'marketplace-event-1' }).pluck('event_type'))
+        .toEqual(['marketplace.order.received.v1']);
       expect(await outboxRows()).toHaveLength(1);
     });
 
@@ -140,11 +153,10 @@ describe('KnexOrderRepository', () => {
     });
 
     it('lets only one of two deliveries of the same marketplace order win when they run at the same time', async () => {
-      const results = await Promise.allSettled([repository.saveNew(received()), repository.saveNew(received())]);
+      const results = await Promise.all([repository.saveNew(received()), repository.saveNew(received())]);
 
-      expect(results.filter(result => result.status === 'fulfilled')).toHaveLength(1);
-      const failure = results.find(result => result.status === 'rejected') as PromiseRejectedResult;
-      expect(failure.reason).toBeInstanceOf(ConcurrentModificationError);
+      expect(results.filter(result => result.created)).toHaveLength(1);
+      expect(results.filter(result => !result.created)).toHaveLength(1);
       expect(await db('orders').count({ total: '*' }).first()).toEqual({ total: '1' });
       expect(await outboxRows()).toHaveLength(1);
     });

@@ -1,4 +1,5 @@
 export interface ReceiveOrderPortInput {
+    eventId?: string;
     marketplace: string;
     externalOrderId: string;
     items: { sku: string; quantity: number; unitPrice: number }[];
