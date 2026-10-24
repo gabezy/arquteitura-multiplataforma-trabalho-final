@@ -32,7 +32,8 @@ The root `Makefile` wraps these (`make` lists targets): `up` (everything), `up-i
 
 **Keycloak** (26.x) runs on http://localhost:8085 (admin console: `admin`/`admin`). The realm is `omni-market` and the issuer is `http://localhost:8085/realms/omni-market`.
 
-- Realm roles: `admin`, `customer`. Services map them to `ROLE_<role>` and scopes to `SCOPE_<scope>`.
+- Realm roles: `admin`, `customer` and one per persona (`store`, `specialist`, `fiscal`, `csm`). Services map them to `ROLE_<role>` and scopes to `SCOPE_<scope>`. The route × role matrix is in `docs/matriz-de-permissoes.md`.
+- Persona users, with the password equal to the username: `loja` (`store`), `especialista` (`specialist`), `fiscal` (`fiscal`), `csm` (`csm`).
 - Users: `admin`/`admin` (roles `admin` and `customer`), `customer`/`customer` (role `customer`).
 - Client `bff-gateway` is confidential (secret `BFF_CLIENT_SECRET` from `.env`, replaced into the realm on import) and has direct access grants enabled, so you can get a token with:
 

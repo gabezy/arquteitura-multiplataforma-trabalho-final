@@ -9,7 +9,11 @@
   "roles": {
     "realm": [
       { "name": "customer", "description": "Cliente do marketplace" },
-      { "name": "admin", "description": "Administrador do marketplace" }
+      { "name": "admin", "description": "Administrador do marketplace" },
+      { "name": "store", "description": "Loja de produtos hospitalares" },
+      { "name": "specialist", "description": "Especialista do negócio" },
+      { "name": "fiscal", "description": "Fiscal (auditoria, somente leitura)" },
+      { "name": "csm", "description": "Customer Success Manager (acompanhamento, somente leitura)" }
     ]
   },
   "defaultRoles": ["customer"],
@@ -52,6 +56,46 @@
       "emailVerified": true,
       "credentials": [{ "type": "password", "value": "admin", "temporary": false }],
       "realmRoles": ["customer", "admin"]
+    },
+    {
+      "username": "loja",
+      "email": "loja@omni-market.local",
+      "firstName": "Loja",
+      "lastName": "Test",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [{ "type": "password", "value": "loja", "temporary": false }],
+      "realmRoles": ["store"]
+    },
+    {
+      "username": "especialista",
+      "email": "especialista@omni-market.local",
+      "firstName": "Especialista",
+      "lastName": "Test",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [{ "type": "password", "value": "especialista", "temporary": false }],
+      "realmRoles": ["specialist"]
+    },
+    {
+      "username": "fiscal",
+      "email": "fiscal@omni-market.local",
+      "firstName": "Fiscal",
+      "lastName": "Test",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [{ "type": "password", "value": "fiscal", "temporary": false }],
+      "realmRoles": ["fiscal"]
+    },
+    {
+      "username": "csm",
+      "email": "csm@omni-market.local",
+      "firstName": "CSM",
+      "lastName": "Test",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [{ "type": "password", "value": "csm", "temporary": false }],
+      "realmRoles": ["csm"]
     }
   ]
 }
