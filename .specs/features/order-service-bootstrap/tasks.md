@@ -10,7 +10,7 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 
 **Spec**: `.specs/features/order-service-bootstrap/spec.md`
 **Design**: skipped - the bootstrap copies and adapts `catalog-service` patterns; no new architectural decision
-**Status**: In Progress
+**Status**: Done (Verifier PASS, `validation.md`)
 
 **Granularity (user decision, 2026-10-23):** 8 cohesive tasks, one commit each, instead of one task per file. Each task is one deliverable that works and can be reverted on its own; `Where` names a directory when the deliverable spans several files.
 
@@ -289,7 +289,7 @@ T6 → T8
 **Done when**:
 
 - [x] The workflow differs from `catalog-service.yml` only in service name, paths and image name
-- [ ] After the push (with user go-ahead), the `order-service` run on the branch is green and no other service's workflow ran for the order-only commits (checked after the push, recorded in validation)
+- [x] After the push (with user go-ahead), the `order-service` run on the branch is green and no other service's workflow ran for the order-only commits ([run 40043761679](https://github.com/gabezy/arquteitura-multiplataforma-trabalho-final/actions/runs/40043761679))
 - [x] Gate check passes: build gate from T6
 
 **Tests**: none
