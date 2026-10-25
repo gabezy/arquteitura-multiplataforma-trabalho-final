@@ -8,7 +8,11 @@
 
 Corroborated across multiple features. Safe to apply as guidance.
 
-_none_
+### L-015 - Give every clause of a compound acceptance criterion its own asserting test.
+- signal: `ac_gap` · recurrence: 2 feature(s) · scope: `acceptance-tests` · harmful: 0
+- features: billing-service, e2e-smoke
+- evidence: BOOT-06: .specs/features/billing-service/spec.md:96 (clauses of the shutdown criterion without a test) (acceptance-tests) (+1 more)
+- last seen: 2026-10-24T17:39:02Z
 
 ## Candidates (under observation - do NOT load as guidance yet)
 
@@ -98,12 +102,6 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - evidence: S1, S2: billing-service/internal/app/app.go:30,49,119 (BOOT-06) (shutdown)
 - last seen: 2026-10-24T09:34:31Z
 
-### L-015 - Give every clause of a compound acceptance criterion its own asserting test.
-- signal: `ac_gap` · recurrence: 1 feature(s) · scope: `acceptance-tests` · harmful: 0
-- features: billing-service
-- evidence: BOOT-06: .specs/features/billing-service/spec.md:96 (clauses of the shutdown criterion without a test) (acceptance-tests)
-- last seen: 2026-10-24T09:34:31Z
-
 ### L-016 - State in the spec what a graceful shutdown does with the unsent rest of a batch.
 - signal: `spec_precision_gap` · recurrence: 1 feature(s) · scope: `spec` · harmful: 0
 - features: billing-service
@@ -139,6 +137,42 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - features: billing-service
 - evidence: C04: billing-service/internal/infra/observability/telemetry.go:78 (BOOT-05) (observability)
 - last seen: 2026-10-24T10:20:16Z
+
+### L-022 - For every check an end-to-end script makes, the scenario harness must include a fault that makes that check fail, or the check can be deleted unnoticed
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `e2e` · harmful: 0
+- features: e2e-smoke
+- evidence: scripts/e2e-smoke.sh:83 (M1, E2E-06) (e2e) (+1 more)
+- last seen: 2026-10-24T17:39:02Z
+
+### L-023 - When a required step is a no-op on an already prepared environment, the harness needs a scenario that starts from an unprepared state, or the spec must declare the step verified by inspection
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `e2e` · harmful: 0
+- features: e2e-smoke
+- evidence: scripts/e2e-smoke.sh:71 (MB, E2E-02, post-merge) (e2e)
+- last seen: 2026-10-24T18:34:05Z
+
+### L-024 - Build run-unique ids with fixed-width formatting; never slice a variable-length random suffix or pass zero-padded digits to printf %d
+- signal: `ac_gap` · recurrence: 1 feature(s) · scope: `e2e` · harmful: 0
+- features: e2e-smoke
+- evidence: scripts/e2e-smoke.sh:22,29-32 (E2E-15, v2) (e2e)
+- last seen: 2026-10-25T15:42:54Z
+
+### L-025 - A resilience behavior declared only in Assumptions, such as a retry, needs one harness check or an explicit verified-by-inspection note in the spec
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `e2e` · harmful: 0
+- features: e2e-smoke
+- evidence: scripts/e2e-smoke.sh:125 (N7, v2) (e2e)
+- last seen: 2026-10-25T15:42:54Z
+
+### L-026 - When a harness checks a retry or timeout, count the attempts in the output instead of asserting on wall-clock time
+- signal: `gate_fail` · recurrence: 1 feature(s) · scope: `e2e` · harmful: 0
+- features: e2e-smoke
+- evidence: scripts/e2e-smoke.test.sh:127 (retry check failed 3/3 alone on unmodified code: 32, 37, 37 s) (e2e)
+- last seen: 2026-10-25T16:20:46Z
+
+### L-027 - When a test counts attempts from log lines, log every attempt including the last so the count pins the number of attempts
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `e2e` · harmful: 0
+- features: e2e-smoke
+- evidence: scripts/e2e-smoke.sh:122 (N10, v2-3: 4 attempts print the same 4 lines as 5) (e2e)
+- last seen: 2026-10-25T16:44:17Z
 
 ## Quarantined (failed when applied - ignore)
 

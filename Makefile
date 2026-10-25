@@ -8,7 +8,7 @@ HELM := $(shell command -v helm 2>/dev/null)
 K8S_CONTEXT := kind-omni-market
 
 .DEFAULT_GOAL := help
-.PHONY: help env compose-up compose-up-infra compose-down compose-clean compose-restart compose-ps compose-logs compose-topics compose-vault kind-install k8s-deploy k8s-registry k8s-build k8s-push k8s-load k8s-config k8s-apply k8s-status k8s-destroy act-install act-list act-deploy act-destroy
+.PHONY: help env compose-up compose-up-infra compose-down compose-clean compose-restart compose-ps compose-logs compose-topics compose-vault kind-install k8s-deploy k8s-registry k8s-build k8s-push k8s-load k8s-config k8s-apply k8s-status k8s-destroy act-install act-list act-deploy act-destroy e2e
 
 help: ## lista os comandos disponíveis
 	@grep -E '^[a-zA-Z0-9_-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -116,3 +116,6 @@ act-deploy: ## executa localmente com act o workflow de deploy
 
 act-destroy: ## executa localmente com act o workflow de destroy
 	sh scripts/act-workflow.sh destroy.yaml
+
+e2e: env ## roda o teste ponta a ponta no ambiente Docker Compose (scripts/e2e-smoke.sh)
+	bash scripts/e2e-smoke.sh
