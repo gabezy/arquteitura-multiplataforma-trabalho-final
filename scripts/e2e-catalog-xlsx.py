@@ -1,7 +1,8 @@
 """Writes the E2E catalog spreadsheet (xlsx) to stdout.
 
 The SKUs carry the run id given as the first argument, so every run imports new products
-(the catalog rejects a SKU that already exists). Standard library only: scripts/e2e-smoke.sh
+(the catalog rejects a SKU that already exists). Two products are approved by compliance (A and D)
+and two are rejected (B by a prohibited term, C above the price ceiling). Standard library only: scripts/e2e-smoke.sh
 runs it in a throwaway python container, so the host needs nothing but Docker.
 """
 import io
@@ -18,6 +19,9 @@ rows = [
      2.5, "descartaveis", 100),
     (f"E2E-{run}-C", "Tomografo computadorizado", "Tomografo de 64 canais para diagnostico por imagem",
      3500000, "imagem", 1),
+    # Under the compliance ceiling (R$ 100.000) per unit, but 2 units reach the PSP refusal threshold.
+    (f"E2E-{run}-D", "Monitor multiparametrico", "Monitor de sinais vitais com ECG e SpO2 para UTI",
+     60000, "monitoramento", 2),
 ]
 
 
