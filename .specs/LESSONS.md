@@ -150,6 +150,30 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - evidence: scripts/e2e-smoke.sh:71 (MB, E2E-02, post-merge) (e2e)
 - last seen: 2026-10-24T18:34:05Z
 
+### L-024 - Build run-unique ids with fixed-width formatting; never slice a variable-length random suffix or pass zero-padded digits to printf %d
+- signal: `ac_gap` · recurrence: 1 feature(s) · scope: `e2e` · harmful: 0
+- features: e2e-smoke
+- evidence: scripts/e2e-smoke.sh:22,29-32 (E2E-15, v2) (e2e)
+- last seen: 2026-10-25T15:42:54Z
+
+### L-025 - A resilience behavior declared only in Assumptions, such as a retry, needs one harness check or an explicit verified-by-inspection note in the spec
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `e2e` · harmful: 0
+- features: e2e-smoke
+- evidence: scripts/e2e-smoke.sh:125 (N7, v2) (e2e)
+- last seen: 2026-10-25T15:42:54Z
+
+### L-026 - When a harness checks a retry or timeout, count the attempts in the output instead of asserting on wall-clock time
+- signal: `gate_fail` · recurrence: 1 feature(s) · scope: `e2e` · harmful: 0
+- features: e2e-smoke
+- evidence: scripts/e2e-smoke.test.sh:127 (retry check failed 3/3 alone on unmodified code: 32, 37, 37 s) (e2e)
+- last seen: 2026-10-25T16:20:46Z
+
+### L-027 - When a test counts attempts from log lines, log every attempt including the last so the count pins the number of attempts
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `e2e` · harmful: 0
+- features: e2e-smoke
+- evidence: scripts/e2e-smoke.sh:122 (N10, v2-3: 4 attempts print the same 4 lines as 5) (e2e)
+- last seen: 2026-10-25T16:44:17Z
+
 ## Quarantined (failed when applied - ignore)
 
 A confirmed lesson that recurred alongside failure. Kept for the maintainer to review.

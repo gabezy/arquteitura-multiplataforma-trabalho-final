@@ -3,7 +3,7 @@
   "promote_threshold": 2,
   "window_days": 45,
   "quarantine_threshold": 2,
-  "next_id": 24,
+  "next_id": 28,
   "lessons": [
     {
       "id": "L-001",
@@ -421,6 +421,78 @@
       ],
       "created": "2026-10-24T18:34:05Z",
       "last_seen": "2026-10-24T18:34:05Z"
+    },
+    {
+      "id": "L-024",
+      "key": "ac_gap::build run unique ids with fixed width formatting never slice a variable length random suffix or pass zero padded digits to printf d",
+      "text": "Build run-unique ids with fixed-width formatting; never slice a variable-length random suffix or pass zero-padded digits to printf %d",
+      "signal": "ac_gap",
+      "scope": "e2e",
+      "status": "candidate",
+      "features": [
+        "e2e-smoke"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "scripts/e2e-smoke.sh:22,29-32 (E2E-15, v2) (e2e)"
+      ],
+      "created": "2026-10-25T15:42:54Z",
+      "last_seen": "2026-10-25T15:42:54Z"
+    },
+    {
+      "id": "L-025",
+      "key": "surviving_mutant::a resilience behavior declared only in assumptions such as a retry needs one harness check or an explicit verified by inspection note in the spec",
+      "text": "A resilience behavior declared only in Assumptions, such as a retry, needs one harness check or an explicit verified-by-inspection note in the spec",
+      "signal": "surviving_mutant",
+      "scope": "e2e",
+      "status": "candidate",
+      "features": [
+        "e2e-smoke"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "scripts/e2e-smoke.sh:125 (N7, v2) (e2e)"
+      ],
+      "created": "2026-10-25T15:42:54Z",
+      "last_seen": "2026-10-25T15:42:54Z"
+    },
+    {
+      "id": "L-026",
+      "key": "gate_fail::when a harness checks a retry or timeout count the attempts in the output instead of asserting on wall clock time",
+      "text": "When a harness checks a retry or timeout, count the attempts in the output instead of asserting on wall-clock time",
+      "signal": "gate_fail",
+      "scope": "e2e",
+      "status": "candidate",
+      "features": [
+        "e2e-smoke"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "scripts/e2e-smoke.test.sh:127 (retry check failed 3/3 alone on unmodified code: 32, 37, 37 s) (e2e)"
+      ],
+      "created": "2026-10-25T16:20:46Z",
+      "last_seen": "2026-10-25T16:20:46Z"
+    },
+    {
+      "id": "L-027",
+      "key": "surviving_mutant::when a test counts attempts from log lines log every attempt including the last so the count pins the number of attempts",
+      "text": "When a test counts attempts from log lines, log every attempt including the last so the count pins the number of attempts",
+      "signal": "surviving_mutant",
+      "scope": "e2e",
+      "status": "candidate",
+      "features": [
+        "e2e-smoke"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "scripts/e2e-smoke.sh:122 (N10, v2-3: 4 attempts print the same 4 lines as 5) (e2e)"
+      ],
+      "created": "2026-10-25T16:44:17Z",
+      "last_seen": "2026-10-25T16:44:17Z"
     }
   ]
 }
