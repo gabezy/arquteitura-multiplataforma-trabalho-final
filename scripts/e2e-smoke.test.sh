@@ -41,7 +41,7 @@ PSP_APPROVES_ALL=e2e00000-0000-4000-8000-0000000000f1
 stub() { curl -s -o /dev/null -X POST "$WIREMOCK/mappings" -H 'Content-Type: application/json' -d "$1"; }
 unstub() { for id in "$@"; do curl -s -o /dev/null -X DELETE "$WIREMOCK/mappings/$id"; done; }
 amazon_mode() { curl -s -o /dev/null -X PUT "$WIREMOCK/scenarios/amazon-mode/state" -H 'Content-Type: application/json' -d "{\"state\":\"$1\"}"; }
-run_stubs_left() { curl -s "$WIREMOCK/mappings" | grep -c "e2e000[0a-f][ad]-0000-4000-8000-$(printf '%012d' "${1: -12}")"; }
+run_stubs_left() { curl -s "$WIREMOCK/mappings" | grep -c "e2e000[0a-f][ad]-0000-4000-8000-${1: -12}"; }
 
 restore() {
   for app in compliance-service keycloak catalog-service order-service; do reconnect "$app"; done
@@ -117,10 +117,14 @@ check "the script uses BFF_CLIENT_SECRET for the token (E2E-25)" \
 
 # Edge case: Keycloak gives no token
 isolate keycloak
+started=$SECONDS
 e2e E2E_SKIP_UP=1
+elapsed=$((SECONDS - started))
 reconnect keycloak
 check "no token fails the authentication step with the HTTP status (edge case)" \
   '[ "$code" = 1 ] && has "[FALHA] autenticacao: o Keycloak respondeu HTTP 000 sem access_token"'
+# 5 attempts of up to 10 s, 2 s apart: without the retry the step gives up after one 10 s attempt.
+check "the token request is tried again while Keycloak gives no answer (Assumptions: Timeouts)" '[ "$elapsed" -ge 40 ]'
 
 # Edge case: the import does not answer 200 (the BFF cannot reach the catalog)
 isolate catalog-service
