@@ -3,11 +3,10 @@
 #
 #   make e2e                      # or: bash scripts/e2e-smoke.sh
 #   E2E_SKIP_UP=1                 # do not run docker compose up (stack already running)
-#   E2E_STRICT=1                  # pending steps fail the run (final delivery)
 #   E2E_TIMEOUT=300               # seconds to wait for the stack to be healthy
 #   BFF_PORT=8080                 # same variable as the compose file
-#   E2E_ORDER_ID=<uuid>           # order id of the stock steps (default: a new UUID per run)
 #   BFF_CLIENT_SECRET=...         # default: read from .env, which make env generates
+#   E2E_ORDER_QUANTITY=1          # units of the paid order (a test hook for the harness)
 #
 # Needs bash, curl and Docker. It never deletes containers, volumes or data.
 set -uo pipefail
@@ -16,24 +15,34 @@ cd "$(dirname "$0")/.."
 BFF="http://localhost:${BFF_PORT:-8080}"
 CATALOG=http://localhost:8082
 KEYCLOAK=http://localhost:8085/realms/omni-market/protocol/openid-connect/token
+WIREMOCK=http://localhost:8089/__admin/mappings
 STACK_TIMEOUT=${E2E_TIMEOUT:-300}
 STEP_TIMEOUT=60
-APPS=(keycloak bff-gateway catalog-service compliance-service order-service)
+APPS=(keycloak bff-gateway catalog-service compliance-service order-service billing-service marketplace-gateway)
 RUN="$(date +%s)$RANDOM"
-APPROVED="E2E-$RUN-A"
+CHEAP="E2E-$RUN-A"
 PROHIBITED_TERM="E2E-$RUN-B"
 ABOVE_CEILING="E2E-$RUN-C"
+EXPENSIVE="E2E-$RUN-D"
+QUANTITY=${E2E_ORDER_QUANTITY:-1}
+# Mercado Livre order ids are numbers; the stub ids are UUIDs. Both carry the run id.
+PAID_ORDER="1${RUN: -12}"
+REFUSED_ORDER="2${RUN: -12}"
+PAID_STUB="e2e0000a-0000-4000-8000-$(printf '%012d' "${RUN: -12}")"
+REFUSED_STUB="e2e0000d-0000-4000-8000-$(printf '%012d' "${RUN: -12}")"
 
 tmp=$(mktemp -d)
-trap 'rm -rf "$tmp"' EXIT
+cleanup() {
+  for stub in "$PAID_STUB" "$REFUSED_STUB"; do curl -s -o /dev/null --max-time 5 -X DELETE "$WIREMOCK/$stub"; done
+  rm -rf "$tmp"
+}
+trap cleanup EXIT
 
 passed=0
 failed=0
-pending=0
 
 ok() { echo "[OK] $1"; passed=$((passed + 1)); }
-pending() { echo "[PENDENTE] $1"; pending=$((pending + 1)); }
-summary() { echo "Resumo: $passed ok, $failed falha(s), $pending pendente(s)"; }
+summary() { echo "Resumo: $passed ok, $failed falha(s)"; }
 fail() {
   echo "[FALHA] $1: $2"
   failed=$((failed + 1))
@@ -42,18 +51,44 @@ fail() {
 }
 
 # wait_for <step> <what> <expected> <command...>: polls the command until it prints the expected value.
+# The expected value may list alternatives separated by "|".
 wait_for() {
   local step=$1 what=$2 expected=$3 value deadline=$((SECONDS + STEP_TIMEOUT))
   shift 3
   while :; do
     value=$("$@")
-    [ "$value" = "$expected" ] && return 0
+    [[ "|$expected|" == *"|$value|"* ]] && [ -n "$value" ] && return 0
     [ "$SECONDS" -ge "$deadline" ] && fail "$step" "$what: esperado '$expected', ultimo valor '$value' apos ${STEP_TIMEOUT}s"
     sleep 1
   done
 }
 
 product_field() { curl -s --max-time 10 "$CATALOG/products/sku/$1" | sed -nE "s/.*\"$2\":\"?([^\",}]*).*/\1/p"; }
+bff_get() { curl -s --max-time 10 -H "Authorization: Bearer $token" "$BFF$1"; }
+published_listings() { bff_get "/listings?sku=$1" | grep -o '"status":"PUBLISHED"' | wc -l | tr -d ' '; }
+# order_field <externalOrderId> <field>: one order per line, starting at its id.
+order_field() {
+  bff_get "/orders?marketplace=MERCADO_LIVRE&limit=100" | sed 's/{"id":"/\n{"id":"/g' \
+    | grep "\"externalOrderId\":\"$1\"" | sed -nE "s/.*\"$2\":\"?([^\",}]*).*/\1/p" | head -1
+}
+order_outcome() { echo "$(order_field "$1" status)/$(order_field "$1" cancellationReason)"; }
+invoice_status() { bff_get "/invoices?orderId=$1" | grep -o '"status":"[A-Z_]*"' | head -1 | cut -d'"' -f4; }
+
+# register_order <stub id> <order id> <sku> <quantity> <unit price>: an order in the Mercado Livre
+# simulator. The marketplace-gateway finds it on its next poll (every 5 s).
+register_order() {
+  local total
+  total=$(awk -v q="$4" -v p="$5" 'BEGIN { printf "%.2f", q * p }')
+  curl -s --max-time 10 -o /dev/null -w '%{http_code}' -X POST "$WIREMOCK" -H 'Content-Type: application/json' -d "{
+    \"id\": \"$1\", \"priority\": 1, \"persistent\": false,
+    \"request\": { \"method\": \"GET\", \"urlPath\": \"/mercadolivre/orders/search\" },
+    \"response\": { \"status\": 200, \"headers\": { \"Content-Type\": \"application/json\" }, \"jsonBody\": {
+      \"results\": [{ \"id\": $2, \"status\": \"paid\", \"date_created\": \"$(date -u +%Y-%m-%dT%H:%M:%S.000Z)\",
+        \"total_amount\": $total, \"currency_id\": \"BRL\",
+        \"order_items\": [{ \"item\": { \"id\": \"MLB1000000001\", \"seller_custom_field\": \"$3\" },
+          \"quantity\": $4, \"unit_price\": $5 }] }],
+      \"paging\": { \"total\": 1, \"offset\": 0, \"limit\": 50 } } } }"
+}
 
 unhealthy_apps() {
   local app status
@@ -81,10 +116,15 @@ ok ambiente
 # The client secret is generated into .env (Vault, ADR-0003); the variable wins when it is set.
 CLIENT_SECRET=${BFF_CLIENT_SECRET:-$(sed -n 's/^BFF_CLIENT_SECRET=//p' .env 2> /dev/null | tr -d '\r')}
 [ -n "$CLIENT_SECRET" ] || fail autenticacao "BFF_CLIENT_SECRET ausente no ambiente e no .env (rode make env)"
-status=$(curl -s --max-time 10 -o "$tmp/token.json" -w '%{http_code}' -X POST "$KEYCLOAK" \
-  -d grant_type=password -d client_id=bff-gateway -d client_secret="$CLIENT_SECRET" \
-  -d username=admin -d password=admin)
-token=$(sed -nE 's/.*"access_token":"([^"]+)".*/\1/p' "$tmp/token.json")
+# A few attempts: a token request now and then gets no answer from a busy Keycloak.
+for attempt in 1 2 3 4 5; do
+  status=$(curl -s --max-time 10 -o "$tmp/token.json" -w '%{http_code}' -X POST "$KEYCLOAK" \
+    -d grant_type=password -d client_id=bff-gateway -d client_secret="$CLIENT_SECRET" \
+    -d username=admin -d password=admin)
+  token=$(sed -nE 's/.*"access_token":"([^"]+)".*/\1/p' "$tmp/token.json" 2> /dev/null)
+  [ -n "$token" ] || [ "$status" != 000 ] && break
+  sleep 2
+done
 [ -n "$token" ] || fail autenticacao "o Keycloak respondeu HTTP $status sem access_token"
 status=$(curl -s --max-time 10 -o /dev/null -w '%{http_code}' -F file=sem-token "$BFF/catalog/import/xlsx")
 [ "$status" = 401 ] || fail autenticacao "importacao sem token respondeu HTTP $status, esperado 401"
@@ -95,51 +135,41 @@ docker run --rm -i python:3.13-alpine python - "$RUN" < scripts/e2e-catalog-xlsx
   || fail importacao "nao foi possivel gerar a planilha: $(tail -3 "$tmp/xlsx.log")"
 status=$(curl -s --max-time 30 -o "$tmp/import.json" -w '%{http_code}' -H "Authorization: Bearer $token" \
   -F "file=@$tmp/catalog.xlsx" "$BFF/catalog/import/xlsx")
-[ "$status" = 200 ] && grep -qE '"importedProducts":3[,}]' "$tmp/import.json" \
+[ "$status" = 200 ] && grep -qE '"importedProducts":4[,}]' "$tmp/import.json" \
   || fail importacao "HTTP $status: $(cat "$tmp/import.json" 2> /dev/null)"
 ok importacao
 
-wait_for compliance "analysisStatus de $APPROVED" APPROVED product_field "$APPROVED" analysisStatus
+wait_for compliance "analysisStatus de $CHEAP" APPROVED product_field "$CHEAP" analysisStatus
+wait_for compliance "analysisStatus de $EXPENSIVE" APPROVED product_field "$EXPENSIVE" analysisStatus
 wait_for compliance "analysisStatus de $PROHIBITED_TERM" REJECTED product_field "$PROHIBITED_TERM" analysisStatus
 wait_for compliance "analysisStatus de $ABOVE_CEILING" REJECTED product_field "$ABOVE_CEILING" analysisStatus
 ok compliance
 
-# Until the order-service publishes orders (#20), the test publishes the order events itself.
-# MSYS_NO_PATHCONV keeps Git Bash from rewriting the /opt/... paths given to docker exec.
-publish() {
-  printf '%s|%s\n' "$2" "$3" | MSYS_NO_PATHCONV=1 docker exec -i kafka /opt/kafka/bin/kafka-console-producer.sh \
-    --bootstrap-server kafka:19092 --topic "$1" \
-    --reader-property parse.key=true --reader-property key.separator='|' > /dev/null 2>&1
-}
-messages_keyed() {
-  MSYS_NO_PATHCONV=1 docker exec kafka /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server kafka:19092 \
-    --topic "$1" --from-beginning --timeout-ms 5000 --formatter-property print.key=true 2>/dev/null \
-    | grep -c "^$2"
-}
-order=${E2E_ORDER_ID:-$(printf '%04x%04x-%04x-4%03x-%04x-%04x%04x%04x' $RANDOM $RANDOM $RANDOM \
-  $((RANDOM & 0xfff)) $(((RANDOM & 0x3fff) | 0x8000)) $RANDOM $RANDOM $RANDOM)}
+wait_for anuncio "anuncios PUBLISHED de $CHEAP" 3 published_listings "$CHEAP"
+ok anuncio
 
-wait_for "estoque: reserva" "estoque inicial de $APPROVED" 2 product_field "$APPROVED" stock
-publish order.order.placed.v1 "$order" "{\"orderId\":\"$order\",\"items\":[{\"sku\":\"$APPROVED\",\"quantity\":1}]}" \
-  || fail "estoque: reserva" "nao foi possivel publicar order.order.placed.v1"
-wait_for "estoque: reserva" "estoque de $APPROVED" 1 product_field "$APPROVED" stock
-wait_for "estoque: reserva" "mensagens em catalog.stock.reserved.v1 com a chave $order" 1 \
-  messages_keyed catalog.stock.reserved.v1 "$order"
-ok "estoque: reserva"
+status=$(register_order "$PAID_STUB" "$PAID_ORDER" "$CHEAP" "$QUANTITY" 59.9)
+[ "$status" = 201 ] || fail pedido "o simulador do Mercado Livre respondeu HTTP $status ao registrar o pedido"
+wait_for pedido "pedido $PAID_ORDER no order-service" "$PAID_ORDER" order_field "$PAID_ORDER" externalOrderId
+ok pedido
 
-publish order.order.cancelled.v1 "$order" "{\"orderId\":\"$order\",\"reason\":\"PAYMENT_FAILED\"}" \
-  || fail "estoque: devolucao" "nao foi possivel publicar order.order.cancelled.v1"
-wait_for "estoque: devolucao" "estoque de $APPROVED" 2 product_field "$APPROVED" stock
-ok "estoque: devolucao"
+wait_for confirmacao "status do pedido $PAID_ORDER" "CONFIRMED|PAID" order_field "$PAID_ORDER" status
+wait_for confirmacao "estoque de $CHEAP" 1 product_field "$CHEAP" stock
+ok confirmacao
 
-# Steps of the services still under construction; the final version of #37 automates them.
-pending "anuncio nos marketplaces (#21)"
-pending "pedido recebido do marketplace (#20, #22)"
-pending "confirmacao do pedido (#20, #29)"
-pending "cobranca (#23)"
+order_id=$(order_field "$PAID_ORDER" id)
+wait_for cobranca "fatura do pedido $PAID_ORDER" PAID invoice_status "$order_id"
+wait_for cobranca "status do pedido $PAID_ORDER" PAID order_field "$PAID_ORDER" status
+ok cobranca
+
+# 2 units of R$ 60.000: the PSP simulator refuses a charge of R$ 100.000 or more.
+status=$(register_order "$REFUSED_STUB" "$REFUSED_ORDER" "$EXPENSIVE" 2 60000)
+[ "$status" = 201 ] || fail devolucao "o simulador do Mercado Livre respondeu HTTP $status ao registrar o pedido"
+wait_for devolucao "pedido $REFUSED_ORDER no order-service" "$REFUSED_ORDER" order_field "$REFUSED_ORDER" externalOrderId
+refused_id=$(order_field "$REFUSED_ORDER" id)
+wait_for devolucao "fatura do pedido $REFUSED_ORDER" PAYMENT_FAILED invoice_status "$refused_id"
+wait_for devolucao "status do pedido $REFUSED_ORDER" CANCELLED/PAYMENT_FAILED order_outcome "$REFUSED_ORDER"
+wait_for devolucao "estoque de $EXPENSIVE" 2 product_field "$EXPENSIVE" stock
+ok devolucao
 
 summary
-if [ "${E2E_STRICT:-}" = 1 ] && [ "$pending" -gt 0 ]; then
-  echo "[FALHA] E2E_STRICT=1 e ha $pending etapa(s) pendente(s)"
-  exit 1
-fi
