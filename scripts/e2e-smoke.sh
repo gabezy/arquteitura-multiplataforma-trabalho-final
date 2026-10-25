@@ -19,17 +19,19 @@ WIREMOCK=http://localhost:8089/__admin/mappings
 STACK_TIMEOUT=${E2E_TIMEOUT:-300}
 STEP_TIMEOUT=60
 APPS=(keycloak bff-gateway catalog-service compliance-service order-service billing-service marketplace-gateway)
-RUN="$(date +%s)$RANDOM"
+# Always 15 digits (10 of the epoch, 5 of $RANDOM), so the slices below are never short.
+RUN="$(date +%s)$(printf '%05d' "$RANDOM")"
 CHEAP="E2E-$RUN-A"
 PROHIBITED_TERM="E2E-$RUN-B"
 ABOVE_CEILING="E2E-$RUN-C"
 EXPENSIVE="E2E-$RUN-D"
 QUANTITY=${E2E_ORDER_QUANTITY:-1}
-# Mercado Livre order ids are numbers; the stub ids are UUIDs. Both carry the run id.
+# Mercado Livre order ids are numbers; the stub ids are UUIDs. Both carry the run id, used as text
+# (printf %d would read a leading zero as octal).
 PAID_ORDER="1${RUN: -12}"
 REFUSED_ORDER="2${RUN: -12}"
-PAID_STUB="e2e0000a-0000-4000-8000-$(printf '%012d' "${RUN: -12}")"
-REFUSED_STUB="e2e0000d-0000-4000-8000-$(printf '%012d' "${RUN: -12}")"
+PAID_STUB="e2e0000a-0000-4000-8000-${RUN: -12}"
+REFUSED_STUB="e2e0000d-0000-4000-8000-${RUN: -12}"
 
 tmp=$(mktemp -d)
 cleanup() {
