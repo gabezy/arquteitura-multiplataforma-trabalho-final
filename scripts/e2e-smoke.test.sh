@@ -117,14 +117,13 @@ check "the script uses BFF_CLIENT_SECRET for the token (E2E-25)" \
 
 # Edge case: Keycloak gives no token
 isolate keycloak
-started=$SECONDS
 e2e E2E_SKIP_UP=1
-elapsed=$((SECONDS - started))
 reconnect keycloak
 check "no token fails the authentication step with the HTTP status (edge case)" \
   '[ "$code" = 1 ] && has "[FALHA] autenticacao: o Keycloak respondeu HTTP 000 sem access_token"'
-# 5 attempts of up to 10 s, 2 s apart: without the retry the step gives up after one 10 s attempt.
-check "the token request is tried again while Keycloak gives no answer (Assumptions: Timeouts)" '[ "$elapsed" -ge 40 ]'
+# Counted from the output, not timed: how long a refused attempt takes depends on the host's port proxy.
+check "the token request is tried 5 times while Keycloak gives no answer (Assumptions: Timeouts)" \
+  '[ "$(grep -c "^autenticacao: tentativa [1-4] de 5 sem resposta do Keycloak$" <<< "$output")" = 4 ]'
 
 # Edge case: the import does not answer 200 (the BFF cannot reach the catalog)
 isolate catalog-service

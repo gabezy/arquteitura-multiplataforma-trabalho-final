@@ -124,7 +124,8 @@ for attempt in 1 2 3 4 5; do
     -d grant_type=password -d client_id=bff-gateway -d client_secret="$CLIENT_SECRET" \
     -d username=admin -d password=admin)
   token=$(sed -nE 's/.*"access_token":"([^"]+)".*/\1/p' "$tmp/token.json" 2> /dev/null)
-  [ -n "$token" ] || [ "$status" != 000 ] && break
+  [ -n "$token" ] || [ "$status" != 000 ] || [ "$attempt" = 5 ] && break
+  echo "autenticacao: tentativa $attempt de 5 sem resposta do Keycloak"
   sleep 2
 done
 [ -n "$token" ] || fail autenticacao "o Keycloak respondeu HTTP $status sem access_token"
