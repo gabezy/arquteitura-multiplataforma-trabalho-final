@@ -161,8 +161,8 @@ The demo script (#27) proves the flow by hand, and nothing re-checks it when a s
 
 | Requirement ID | Story | Phase | Status |
 | --- | --- | --- | --- |
-| E2E-01 | P1 Run: `make e2e` runs the script | Execute | Implementing |
-| E2E-02 | P1 Run: `generate-env.sh` and `docker compose up -d --build` | Execute | Implementing |
+| E2E-01 | P1 Run: `make e2e` runs the script | Execute | Verified |
+| E2E-02 | P1 Run: `generate-env.sh` and `docker compose up -d --build` | Execute | Verified |
 | E2E-03 | P1 Run: `E2E_SKIP_UP=1` skips the up | Execute | Verified |
 | E2E-04 | P1 Run: waits for the five apps healthy | Execute | Verified |
 | E2E-05 | P1 Run: admin token | Execute | Verified |
@@ -185,9 +185,9 @@ The demo script (#27) proves the flow by hand, and nothing re-checks it when a s
 | E2E-22 | P2 Docs: README section | Execute | Verified |
 | E2E-23 | P2 Docs: `e2e` in `make help` | Execute | Verified |
 | E2E-24 | P1 Run: `E2E_ORDER_ID` sets the order id | Execute | Verified |
-| E2E-25 | P1 Run: client secret from `BFF_CLIENT_SECRET` or `.env` | Execute | Implementing |
+| E2E-25 | P1 Run: client secret from `BFF_CLIENT_SECRET` or `.env` | Execute | Verified |
 
-**Coverage:** 25 total, 25 mapped to Execute, 0 unmapped; 22 verified (`validation.md`, iteration 3), 3 re-implemented after the dev merge
+**Coverage:** 25 total, 25 mapped to Execute, 0 unmapped; 25 verified (`validation.md`, post-merge re-verification; E2E-02 through a declared limitation)
 
 ---
 
