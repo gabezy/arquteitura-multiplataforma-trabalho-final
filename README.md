@@ -113,7 +113,7 @@ Os secrets das aplicações ficam num HashiCorp Vault em modo dev (decisão em [
 
 `make e2e` (ou `bash scripts/e2e-smoke.sh`) sobe o ambiente Docker Compose (o mesmo do `make compose-up`) e verifica o fluxo pelas APIs: autenticação no BFF, importação de uma planilha gerada na hora, resultado do compliance e reserva e devolução de estoque. Cada etapa imprime `[OK]`, `[FALHA]` ou `[PENDENTE]`, e uma falha encerra o teste com código 1 e o motivo.
 
-- Precisa só de `bash`, `curl` e Docker. O `make e2e` roda o `make env` antes, e o script lê o `BFF_CLIENT_SECRET` do `.env`. A planilha é gerada num container Python descartável, com SKUs únicos por execução, então o teste pode rodar várias vezes no mesmo ambiente.
+- Precisa só de `bash`, `curl` e Docker, mais `sh` e `openssl` na primeira vez, quando o `.env` é gerado. O `make e2e` roda o `make env` antes, e o script lê o `BFF_CLIENT_SECRET` do `.env`. A planilha é gerada num container Python descartável, com SKUs únicos por execução, então o teste pode rodar várias vezes no mesmo ambiente.
 - Não apaga containers, volumes nem dados.
 - As etapas de anúncio, pedido vindo do marketplace, confirmação do pedido e cobrança ainda aparecem como `[PENDENTE]`: a automação delas fica para a versão final da #37.
 

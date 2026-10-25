@@ -29,7 +29,7 @@ The demo script (#27) proves the flow by hand, and nothing re-checks it when a s
 
 | Assumption / decision | Chosen default | Rationale | Confirmed? |
 | --- | --- | --- | --- |
-| Prerequisites | `bash`, `curl` and Docker with Compose; `make` only for the `make e2e` shortcut | #37: "numa máquina limpa com Docker"; the Windows dev machine has no `jq`, `make` or reliable `python` | y |
+| Prerequisites | `bash`, `curl` and Docker with Compose; `make` only for the `make e2e` shortcut; `sh` and `openssl` when `scripts/generate-env.sh` creates the `.env` | #37: "numa máquina limpa com Docker"; the Windows dev machine has no `jq`, `make` or reliable `python` | y |
 | Spreadsheet | Generated on every run with SKUs suffixed by a run id, by a throwaway `python:3.13-alpine` container that writes the xlsx to stdout | The catalog rejects repeated SKUs, so a fixed file only passes once per environment; a container keeps Docker as the only prerequisite | y |
 | Bringing the stack up | The script runs `docker compose up -d --build` and waits for the five apps to be healthy, unless `E2E_SKIP_UP=1` | #37 says the script "sobe a infra"; `up -d` is a no-op on a running stack; skipping helps when the stack is already up | y |
 | JSON parsing | `grep`/`sed` on the response bodies | No `jq` on the target machines | y |
@@ -41,6 +41,7 @@ The demo script (#27) proves the flow by hand, and nothing re-checks it when a s
 | What "never deletes" covers (E2E-17) | No `down`, `rm` or `volume rm`; every volume survives. Containers that `docker compose up --build` recreates because an image changed do not count | Found during Execute: the first harness run saw catalog and compliance recreated by the compose up, with their volumes intact; that is compose's normal behavior, not data loss | y |
 | Choosing the order id (E2E-24) | `E2E_ORDER_ID` overrides the generated order id | Found by the Verifier (iteration 1): without it no scenario could make the reserved-message check fail, so deleting that check went unnoticed | y |
 | Client secret (E2E-25) | `BFF_CLIENT_SECRET` from the environment, else from the `.env` that `scripts/generate-env.sh` creates; `make e2e` depends on `make env` | The dev merge brought Vault (ADR-0003, #48): the realm reads the secret from `.env` and the fixed `bff-gateway-secret` no longer exists | y |
+| How E2E-02 is verified | Both calls, `scripts/generate-env.sh` and `docker compose up -d --build`, are checked through the "Subindo o ambiente" banner and by reading the code; no scenario proves the calls ran | On a running stack with a complete `.env` both calls change nothing, so a scenario cannot observe them. Covering it would mean deleting keys from the developer's `.env`, which holds the secrets. A missing call cannot produce a false pass: without `.env` the compose file stops with "run make env", and `make e2e` runs `make env` anyway. Decided by the owner after the post-merge verification (mutant MB) | y |
 | Output language | Report lines in Portuguese (`[OK]`, `[FALHA]`, `[PENDENTE]`), ASCII only | The team's docs are in Portuguese; ASCII avoids broken characters in the Windows console | y |
 
 **Open questions:** none - all resolved or logged above.
