@@ -160,44 +160,44 @@ v2 keeps the v1 IDs that still apply, retires the ones of the hand-published eve
 
 | Requirement ID | Story | Phase | Status |
 | --- | --- | --- | --- |
-| E2E-01 | P1 Run: `make e2e` runs the script | Execute | Implementing |
-| E2E-02 | P1 Run: `generate-env.sh` and `docker compose up -d --build` | Execute | Implementing |
-| E2E-03 | P1 Run: `E2E_SKIP_UP=1` skips the up | Execute | Implementing |
-| E2E-04 | P1 Run: waits for the seven apps healthy | Execute | Implementing |
-| E2E-05 | P1 Run: admin token | Execute | Implementing |
-| E2E-06 | P1 Run: 401 without token | Execute | Implementing |
-| E2E-07 | P1 Run: import with `importedProducts` 4 | Execute | Implementing |
-| E2E-08 | P1 Run: compliance statuses | Execute | Implementing |
+| E2E-01 | P1 Run: `make e2e` runs the script | Execute | Verified |
+| E2E-02 | P1 Run: `generate-env.sh` and `docker compose up -d --build` | Execute | Verified |
+| E2E-03 | P1 Run: `E2E_SKIP_UP=1` skips the up | Execute | Verified |
+| E2E-04 | P1 Run: waits for the seven apps healthy | Execute | Verified |
+| E2E-05 | P1 Run: admin token | Execute | Verified |
+| E2E-06 | P1 Run: 401 without token | Execute | Verified |
+| E2E-07 | P1 Run: import with `importedProducts` 4 | Execute | Verified |
+| E2E-08 | P1 Run: compliance statuses | Execute | Verified |
 | E2E-09 | v1: reservation by a hand-published `order.order.placed.v1` | - | Retired (v2, replaced by E2E-27..29) |
 | E2E-10 | v1: stock back by a hand-published `order.order.cancelled.v1` | - | Retired (v2, replaced by E2E-32..34) |
-| E2E-11 | P1 Run: nine `[OK]` lines in order and exit 0 | Execute | Implementing |
-| E2E-12 | P1 Fail: `[FALHA]` and exit 1, stop | Execute | Implementing |
-| E2E-13 | P1 Fail: stack timeout lists unhealthy services | Execute | Implementing |
-| E2E-14 | P1 Fail: async timeout prints last value | Execute | Implementing |
-| E2E-15 | P1 Repeat: run-unique SKUs and order ids | Execute | Implementing |
-| E2E-16 | P1 Repeat: two runs pass | Execute | Implementing |
-| E2E-17 | P1 Repeat: no deletion | Execute | Implementing |
+| E2E-11 | P1 Run: nine `[OK]` lines in order and exit 0 | Execute | Verified |
+| E2E-12 | P1 Fail: `[FALHA]` and exit 1, stop | Execute | Verified |
+| E2E-13 | P1 Fail: stack timeout lists unhealthy services | Execute | Verified |
+| E2E-14 | P1 Fail: async timeout prints last value | Execute | Verified |
+| E2E-15 | P1 Repeat: run-unique SKUs and order ids | Execute | Verified |
+| E2E-16 | P1 Repeat: two runs pass | Execute | Verified |
+| E2E-17 | P1 Repeat: no deletion | Execute | Verified |
 | E2E-18 | v1: four `[PENDENTE]` lines | - | Retired (v2, no pending steps) |
 | E2E-19 | v1: exit 0 with pending steps | - | Retired (v2) |
 | E2E-20 | v1: `E2E_STRICT=1` | - | Retired (v2) |
-| E2E-21 | P1 Fail: summary line of passed and failed steps | Execute | Implementing |
-| E2E-22 | P2 Docs: README section | Execute | Implementing |
-| E2E-23 | P2 Docs: `e2e` in `make help` | Execute | Implementing |
+| E2E-21 | P1 Fail: summary line of passed and failed steps | Execute | Verified |
+| E2E-22 | P2 Docs: README section | Execute | Verified |
+| E2E-23 | P2 Docs: `e2e` in `make help` | Execute | Verified |
 | E2E-24 | v1: `E2E_ORDER_ID` | - | Retired (v2, replaced by E2E-36) |
-| E2E-25 | P1 Run: client secret from `BFF_CLIENT_SECRET` or `.env` | Execute | Implementing |
-| E2E-26 | P1 Run: listing `PUBLISHED` in 3 marketplaces | Execute | Implementing |
-| E2E-27 | P1 Run: simulated Mercado Livre order received | Execute | Implementing |
-| E2E-28 | P1 Run: order `CONFIRMED` or `PAID` | Execute | Implementing |
-| E2E-29 | P1 Run: stock of the cheap product is 1 | Execute | Implementing |
-| E2E-30 | P1 Run: invoice `PAID` | Execute | Implementing |
-| E2E-31 | P1 Run: order `PAID` | Execute | Implementing |
-| E2E-32 | P1 Run: refused invoice `PAYMENT_FAILED` | Execute | Implementing |
-| E2E-33 | P1 Run: order `CANCELLED` with `PAYMENT_FAILED` | Execute | Implementing |
-| E2E-34 | P1 Run: stock of the expensive product back to 2 | Execute | Implementing |
-| E2E-35 | P1 Run: simulator stubs removed at the end | Execute | Implementing |
-| E2E-36 | P1 Run: `E2E_ORDER_QUANTITY` sets the units of the paid order | Execute | Implementing |
+| E2E-25 | P1 Run: client secret from `BFF_CLIENT_SECRET` or `.env` | Execute | Verified |
+| E2E-26 | P1 Run: listing `PUBLISHED` in 3 marketplaces | Execute | Verified |
+| E2E-27 | P1 Run: simulated Mercado Livre order received | Execute | Verified |
+| E2E-28 | P1 Run: order `CONFIRMED` or `PAID` | Execute | Verified |
+| E2E-29 | P1 Run: stock of the cheap product is 1 | Execute | Verified |
+| E2E-30 | P1 Run: invoice `PAID` | Execute | Verified |
+| E2E-31 | P1 Run: order `PAID` | Execute | Verified |
+| E2E-32 | P1 Run: refused invoice `PAYMENT_FAILED` | Execute | Verified |
+| E2E-33 | P1 Run: order `CANCELLED` with `PAYMENT_FAILED` | Execute | Verified |
+| E2E-34 | P1 Run: stock of the expensive product back to 2 | Execute | Verified |
+| E2E-35 | P1 Run: simulator stubs removed at the end | Execute | Verified |
+| E2E-36 | P1 Run: `E2E_ORDER_QUANTITY` sets the units of the paid order | Execute | Verified |
 
-**Coverage:** 36 IDs; 6 retired, 30 active, 30 mapped to Execute, 0 unmapped
+**Coverage:** 36 IDs; 6 retired, 30 active, 30 verified (`validation.md`, v2 iteration 3; E2E-02, -31, -33 and -34 through declared limitations)
 
 ---
 
