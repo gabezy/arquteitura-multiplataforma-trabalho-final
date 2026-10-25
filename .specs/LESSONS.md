@@ -144,6 +144,12 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - evidence: scripts/e2e-smoke.sh:83 (M1, E2E-06) (e2e) (+1 more)
 - last seen: 2026-10-24T17:39:02Z
 
+### L-023 - When a required step is a no-op on an already prepared environment, the harness needs a scenario that starts from an unprepared state, or the spec must declare the step verified by inspection
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `e2e` · harmful: 0
+- features: e2e-smoke
+- evidence: scripts/e2e-smoke.sh:71 (MB, E2E-02, post-merge) (e2e)
+- last seen: 2026-10-24T18:34:05Z
+
 ## Quarantined (failed when applied - ignore)
 
 A confirmed lesson that recurred alongside failure. Kept for the maintainer to review.

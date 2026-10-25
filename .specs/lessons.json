@@ -3,7 +3,7 @@
   "promote_threshold": 2,
   "window_days": 45,
   "quarantine_threshold": 2,
-  "next_id": 23,
+  "next_id": 24,
   "lessons": [
     {
       "id": "L-001",
@@ -403,6 +403,24 @@
       ],
       "created": "2026-10-24T17:39:02Z",
       "last_seen": "2026-10-24T17:39:02Z"
+    },
+    {
+      "id": "L-023",
+      "key": "surviving_mutant::when a required step is a no op on an already prepared environment the harness needs a scenario that starts from an unprepared state or the spec must declare the step verified by inspection",
+      "text": "When a required step is a no-op on an already prepared environment, the harness needs a scenario that starts from an unprepared state, or the spec must declare the step verified by inspection",
+      "signal": "surviving_mutant",
+      "scope": "e2e",
+      "status": "candidate",
+      "features": [
+        "e2e-smoke"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "scripts/e2e-smoke.sh:71 (MB, E2E-02, post-merge) (e2e)"
+      ],
+      "created": "2026-10-24T18:34:05Z",
+      "last_seen": "2026-10-24T18:34:05Z"
     }
   ]
 }
