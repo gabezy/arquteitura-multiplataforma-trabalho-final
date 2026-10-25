@@ -111,22 +111,31 @@ Os secrets das aplicações ficam num HashiCorp Vault em modo dev (decisão em [
 
 ## Teste ponta a ponta
 
-`make e2e` (ou `bash scripts/e2e-smoke.sh`) sobe o ambiente Docker Compose (o mesmo do `make compose-up`) e verifica o fluxo pelas APIs: autenticação no BFF, importação de uma planilha gerada na hora, resultado do compliance e reserva e devolução de estoque. Cada etapa imprime `[OK]`, `[FALHA]` ou `[PENDENTE]`, e uma falha encerra o teste com código 1 e o motivo.
+`make e2e` (ou `bash scripts/e2e-smoke.sh`) sobe o ambiente Docker Compose (o mesmo do `make compose-up`) e percorre o fluxo inteiro pelas interfaces públicas, sem publicar nada no Kafka à mão:
 
-- Precisa só de `bash`, `curl` e Docker, mais `sh` e `openssl` na primeira vez, quando o `.env` é gerado. O `make e2e` roda o `make env` antes, e o script lê o `BFF_CLIENT_SECRET` do `.env`. A planilha é gerada num container Python descartável, com SKUs únicos por execução, então o teste pode rodar várias vezes no mesmo ambiente.
-- Não apaga containers, volumes nem dados.
-- As etapas de anúncio, pedido vindo do marketplace, confirmação do pedido e cobrança ainda aparecem como `[PENDENTE]`: a automação delas fica para a versão final da #37.
+1. autenticação no Keycloak e 401 do BFF sem token;
+2. importação de uma planilha gerada na hora, pelo BFF;
+3. resultado do compliance: dois produtos aprovados e dois reprovados;
+4. anúncio do produto aprovado nos três marketplaces;
+5. pedido registrado no simulador do Mercado Livre e recebido pelo order-service;
+6. confirmação do pedido e baixa do estoque;
+7. fatura e pedido pagos;
+8. pedido de R$ 120.000,00, que o PSP recusa: fatura recusada, pedido cancelado e estoque devolvido.
+
+Cada etapa imprime `[OK]` ou `[FALHA] <etapa>: <motivo>`, e uma falha encerra o teste com código 1. O fluxo leva cerca de 25 s com o ambiente no ar.
+
+- Precisa só de `bash`, `curl` e Docker, mais `sh` e `openssl` na primeira vez, quando o `.env` é gerado. O `make e2e` roda o `make env` antes, e o script lê o `BFF_CLIENT_SECRET` do `.env`.
+- Os SKUs e os pedidos são únicos por execução, então o teste pode rodar várias vezes no mesmo ambiente. Ele não apaga containers, volumes nem dados, e remove no fim os stubs que registra no WireMock.
 
 | Variável | Padrão | Efeito |
 | --- | --- | --- |
 | `E2E_SKIP_UP` | — | `1` não roda `docker compose up` (ambiente já no ar) |
-| `E2E_STRICT` | — | `1` faz as etapas pendentes falharem o teste (entrega final) |
 | `E2E_TIMEOUT` | `300` | segundos de espera até os serviços ficarem `healthy` |
 | `BFF_PORT` | `8080` | porta do BFF, a mesma variável do compose |
-| `E2E_ORDER_ID` | um UUID novo | id do pedido usado nas etapas de estoque |
 | `BFF_CLIENT_SECRET` | o do `.env` | client secret do BFF no Keycloak |
+| `E2E_ORDER_QUANTITY` | `1` | unidades do pedido pago (usado pelos testes do próprio teste) |
 
-`bash scripts/e2e-smoke.test.sh` testa o próprio teste: roda os cenários da spec (`.specs/features/e2e-smoke/spec.md`) contra o ambiente no ar, tirando um serviço por vez da rede do compose e restaurando no fim.
+`bash scripts/e2e-smoke.test.sh` testa o próprio teste: roda os cenários da spec (`.specs/features/e2e-smoke/spec.md`) contra o ambiente no ar, provocando uma falha por vez (serviço fora da rede do compose, simulador em modo de falha, PSP que recusa ou aprova tudo) e desfazendo cada uma no fim.
 
 ## Fluxo de eventos
 
