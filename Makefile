@@ -89,7 +89,6 @@ k8s-config: ## sincroniza os arquivos de configuração do Docker Compose com o 
 	cp docker/loki/config.yaml k8s/helm/omni-market/files/loki-config.yaml
 	cp docker/tempo/config.yaml k8s/helm/omni-market/files/tempo-config.yaml
 	cp docker/otel-collector/config.yaml k8s/helm/omni-market/files/otel-collector-config.yaml
-	cp docker/prometheus/prometheus.yml k8s/helm/omni-market/files/prometheus.yml
 
 k8s-apply: env k8s-config ## aplica os manifests e aguarda os workloads em kind existente
 	$(KUBECTL) --context $(K8S_CONTEXT) apply -f k8s/namespace.yaml

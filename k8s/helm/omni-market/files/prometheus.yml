@@ -1,8 +1,48 @@
 global:
   scrape_interval: 15s
 
+# Kubernetes. Unlike the other files of this directory it is not copied from docker/ by
+# `make k8s-config`: the Compose version scrapes a cadvisor container instead of the kubelet.
+# Both give the container metrics the same `service` label (the compose service / container name).
 scrape_configs:
   - job_name: otel-collector
     honor_labels: true
+    # Protobuf carries the creation time of each counter, and created-timestamp-zero-ingestion
+    # (Prometheus flag) turns it into a 0 sample. Without it rate() misses the first increment of a new
+    # series, and the service_graph connector drops the edges idle for 15 min: the first calls after a
+    # pause would not show in the dashboard.
+    scrape_protocols: [PrometheusProto, OpenMetricsText1.0.0, PrometheusText0.0.4]
     static_configs:
       - targets: ["otel-collector:8889"]
+
+  # cAdvisor embedded in the kubelet, reached through the API server proxy. Needs the
+  # `prometheus` ServiceAccount (templates/prometheus-rbac.yaml).
+  - job_name: kubelet-cadvisor
+    scheme: https
+    authorization:
+      credentials_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+    tls_config:
+      ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+    kubernetes_sd_configs:
+      - role: node
+    relabel_configs:
+      - target_label: __address__
+        replacement: kubernetes.default.svc:443
+      - source_labels: [__meta_kubernetes_node_name]
+        target_label: __metrics_path__
+        replacement: /api/v1/nodes/$1/proxy/metrics/cadvisor
+    metric_relabel_configs:
+      - source_labels: [namespace]
+        regex: omni-market
+        action: keep
+      - source_labels: [container]
+        regex: (.+)
+        target_label: service
+      # The network is measured per pod: the service comes from the pod name of the Deployment.
+      - source_labels: [__name__, pod]
+        regex: container_network_.+;(.+)-[a-z0-9]+-[a-z0-9]{5}
+        target_label: service
+      # Pod-level series (container "" or the sandbox "POD") would count the containers twice.
+      - source_labels: [service]
+        regex: "|POD"
+        action: drop
