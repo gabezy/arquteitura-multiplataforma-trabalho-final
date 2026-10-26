@@ -36,6 +36,7 @@ apps:
       - { name: ORDER_SERVICE_URL, value: http://order-service:8084 }
       - { name: BILLING_SERVICE_URL, value: http://billing-service:8086 }
       - { name: MARKETPLACE_GATEWAY_URL, value: http://marketplace-gateway:8087 }
+      - { name: REDIS_HOST, value: redis }
       - { name: VAULT_ADDR, value: http://vault:8200 }
       - name: VAULT_ROLE_ID
         secretKey: BFF_VAULT_ROLE_ID
@@ -117,6 +118,15 @@ apps:
       - { name: CATALOG_SERVICE_URL, value: http://catalog-service:8082 }
 
 infrastructure:
+  # Cache and rate limit of the bff-gateway (ADR-0012). Kubernetes expands $(REDIS_PASSWORD) in the args.
+  - name: redis
+    image: redis:8.2-alpine
+    port: 6379
+    command: ["redis-server", "--requirepass", "$(REDIS_PASSWORD)"]
+    env:
+      - name: REDIS_PASSWORD
+        valueFrom:
+          secretKeyRef: { name: omni-market-secrets, key: REDIS_PASSWORD }
   - name: kafka-ui
     image: kafbat/kafka-ui:v1.5.0
     port: 8080

@@ -7,7 +7,9 @@ import br.com.puc.multiplataforma.bffgateway.core.shared.domain.Page;
 import br.com.puc.multiplataforma.bffgateway.core.shared.domain.PageRequest;
 import br.com.puc.multiplataforma.bffgateway.infra.billing.gateway.model.InvoicePagePayload;
 import br.com.puc.multiplataforma.bffgateway.infra.billing.gateway.model.InvoicePayload;
+import br.com.puc.multiplataforma.bffgateway.infra.cache.CacheNames;
 import br.com.puc.multiplataforma.bffgateway.infra.shared.gateway.DownstreamClient;
+import org.springframework.cache.annotation.Cacheable;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -21,6 +23,7 @@ public class BillingServiceClientGateway implements BillingGateway {
     }
 
     @Override
+    @Cacheable(cacheNames = CacheNames.INVOICES, key = "#filter.toString() + ':' + #pageRequest.toString()")
     public Page<Invoice> list(InvoiceFilter filter, PageRequest pageRequest) {
         return billingService.get(uri -> uri
                         .path("/invoices")
@@ -34,6 +37,7 @@ public class BillingServiceClientGateway implements BillingGateway {
     }
 
     @Override
+    @Cacheable(cacheNames = CacheNames.INVOICE, key = "#id", unless = "#result == null")
     public Optional<Invoice> findById(UUID id) {
         return billingService.find(uri -> uri.path("/invoices/{id}").build(id), InvoicePayload.class)
                 .map(InvoicePayload::toDomain);

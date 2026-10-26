@@ -1,6 +1,6 @@
 # Omni Market local em kind
 
-O ambiente de demonstração pode ser executado num cluster Kubernetes local criado pelo [kind](https://kind.sigs.k8s.io/). O Helm instala aplicações, bancos, Kafka, Keycloak, Vault, WireMock e observabilidade no namespace `omni-market`. As imagens são publicadas num registry `registry:3` em `localhost:5001` e puxadas pelo cluster, simulando um registry remoto.
+O ambiente de demonstração pode ser executado num cluster Kubernetes local criado pelo [kind](https://kind.sigs.k8s.io/). O Helm instala aplicações, bancos, Kafka, Keycloak, Vault, Redis, WireMock e observabilidade no namespace `omni-market`. As imagens são publicadas num registry `registry:3` em `localhost:5001` e puxadas pelo cluster, simulando um registry remoto.
 
 ## Pré-requisitos
 

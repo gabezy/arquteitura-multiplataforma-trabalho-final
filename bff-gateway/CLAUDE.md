@@ -21,7 +21,7 @@ make -C .. up-infra                        # infra without the apps: Keycloak on
 ./mvnw package                             # build jar
 ```
 
-Secrets come from Vault through Spring Cloud Vault (`spring.config.import: optional:vault://` in `application.yaml`, `../docs/adr/0003-vault-para-secrets-das-aplicacoes.md`). The BFF logs in with the AppRole in `VAULT_ADDR` / `VAULT_ROLE_ID` / `VAULT_SECRET_ID` (export `BFF_VAULT_ROLE_ID` / `_SECRET_ID` from the root `.env` under those names) and reads `secret/bff-gateway` (`default-context` is off: the policy denies `secret/application`). `keycloak.client-secret` binds to `infra/security/KeycloakClientProperties`, which is `@NotBlank`, so the app does not start without it. New BFF credentials (e.g. Redis) go in the same path. Tests turn Vault off in `src/test/resources/config/application.yaml` and set a fixed client secret there.
+Secrets come from Vault through Spring Cloud Vault (`spring.config.import: optional:vault://` in `application.yaml`, `../docs/adr/0003-vault-para-secrets-das-aplicacoes.md`). The BFF logs in with the AppRole in `VAULT_ADDR` / `VAULT_ROLE_ID` / `VAULT_SECRET_ID` (export `BFF_VAULT_ROLE_ID` / `_SECRET_ID` from the root `.env` under those names) and reads `secret/bff-gateway` (`default-context` is off: the policy denies `secret/application`). `keycloak.client-secret` binds to `infra/security/KeycloakClientProperties`, which is `@NotBlank`, so the app does not start without it. `spring.data.redis.password` comes from the same path, and new BFF credentials go there too. Tests turn Vault off in `src/test/resources/config/application.yaml` and set a fixed client secret there.
 
 `TestcontainersConfiguration` starts a `grafana/otel-lgtm` container, so any test that imports it needs Docker. `@WebMvcTest` slices and plain unit tests don't need Docker.
 
@@ -68,6 +68,15 @@ Rules to keep when adding code:
 - The wire format lives in `infra/<domain>/gateway/model` (records with `toDomain()`, unknown fields ignored), so a change in a service's contract touches only the adapter. The contracts the BFF expects are in `../docs/api-do-bff.md`.
 - A new route comes with a controller test, a security test (one allowed and one denied role) and a gateway test with `MockRestServiceServer`, including the service-unavailable case.
 - The mock gateways share one demo story (same order ids, SKUs and prices across orders, invoices and listings), and `MockDemoDataConsistencyTest` keeps them in step. Full-context tests that use the mocks put `@MockGatewaysTest` on the class, so they share one Spring context.
+
+## Redis: read cache and rate limit
+
+Decision in `../docs/adr/0012-cache-distribuido-no-bff-gateway.md`. Redis is `REDIS_HOST` / `REDIS_PORT` (default `localhost:6379`).
+
+- `infra/cache/RedisCacheConfig`: `@Cacheable` on the `*ServiceClientGateway` methods (never in `core`), one cache per read in `CacheNames`. The key is the call's arguments (filter + page, id or period), never the user, so a cached route must not filter its answer by user. Each cache has a TTL in `app.cache.ttl.<cache>` and a serializer bound to its type, both registered in `RedisCacheConfig`: a cache without a TTL stops startup, and a cache name missing from the config is not created, so its call fails. A missing resource (`Optional.empty()`) is not cached. A write the BFF makes evicts what it changes (`@CacheEvict` on `changePrice` clears `listings` and `listing`). Writes are immediate (`immediateWrites`), because the default writer clears asynchronously, and a full clear walks the keys with SCAN, not KEYS.
+- `infra/ratelimit`: `RateLimitFilter` runs after the bearer token filter and counts requests per token `sub` in a fixed one-minute window (`RedisRateLimiter`, a Lua script that runs `INCR` and `EXPIRE` atomically). Over `app.rate-limit.requests-per-minute` (100, must be positive or startup fails) it answers 429 with `Retry-After` and a `ProblemDetail`. Requests without a token are not counted.
+- Fail-open: a Redis error is logged; the cache becomes a miss and the rate limit lets the request through.
+- Tests run with `spring.cache.type: none` and `app.rate-limit.enabled: false`. The tests in `infra/cache` and `RedisRateLimiterTest` turn them on with a Redis container (Docker needed); `StubService` stands in for the downstream services and counts the calls.
 
 ## Security model
 

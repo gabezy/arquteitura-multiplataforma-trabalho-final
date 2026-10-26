@@ -225,6 +225,11 @@ spec:
                 secretKeyRef:
                   name: omni-market-secrets
                   key: BFF_CLIENT_SECRET
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: omni-market-secrets
+                  key: REDIS_PASSWORD
           volumeMounts:
             - { name: config, mountPath: /scripts, readOnly: true }
       volumes:

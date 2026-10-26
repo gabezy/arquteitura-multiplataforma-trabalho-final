@@ -24,6 +24,16 @@ spring:
       resourceserver:
         jwt:
           issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8085/realms/omni-market}
+  # The password comes from Vault (secret/bff-gateway, key spring.data.redis.password).
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      # Short, because with Redis down every request waits for it up to three times (rate limit, cache get and put).
+      timeout: 200ms
+      connect-timeout: 200ms
+  cache:
+    type: redis
   servlet:
     multipart:
       max-file-size: 8MB
@@ -47,8 +57,26 @@ app:
     order: rest
     billing: rest
     marketplace: rest
+  # Requests per user (token sub) in a fixed one-minute window (ADR-0012).
+  rate-limit:
+    enabled: true
+    requests-per-minute: 100
+  # TTL of each read cache (ADR-0012). The BFF also evicts the listings when it changes a price.
+  cache:
+    ttl:
+      listings: 30s
+      listing: 30s
+      orders: 30s
+      order: 30s
+      sales-by-marketplace: 60s
+      invoices: 30s
+      invoice: 30s
 
 management:
+  # Redis is optional (fail-open, ADR-0012): it must not take /actuator/health, and with it the probes, down.
+  health:
+    redis:
+      enabled: false
   tracing:
     sampling:
       probability: 1.0

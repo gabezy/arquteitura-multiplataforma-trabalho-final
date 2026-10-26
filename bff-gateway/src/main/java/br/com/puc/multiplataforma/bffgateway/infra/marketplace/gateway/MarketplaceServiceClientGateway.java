@@ -5,9 +5,11 @@ import br.com.puc.multiplataforma.bffgateway.core.marketplace.domain.ListingFilt
 import br.com.puc.multiplataforma.bffgateway.core.marketplace.gateway.MarketplaceGateway;
 import br.com.puc.multiplataforma.bffgateway.core.shared.domain.Page;
 import br.com.puc.multiplataforma.bffgateway.core.shared.domain.PageRequest;
+import br.com.puc.multiplataforma.bffgateway.infra.cache.CacheNames;
 import br.com.puc.multiplataforma.bffgateway.infra.marketplace.gateway.model.ListingPagePayload;
 import br.com.puc.multiplataforma.bffgateway.infra.marketplace.gateway.model.ListingPayload;
 import br.com.puc.multiplataforma.bffgateway.infra.shared.gateway.DownstreamClient;
+import org.springframework.cache.annotation.Cacheable;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -21,6 +23,7 @@ public class MarketplaceServiceClientGateway implements MarketplaceGateway {
     }
 
     @Override
+    @Cacheable(cacheNames = CacheNames.LISTINGS, key = "#filter.toString() + ':' + #pageRequest.toString()")
     public Page<Listing> list(ListingFilter filter, PageRequest pageRequest) {
         return marketplaceGateway.get(uri -> uri
                         .path("/listings")
@@ -34,6 +37,7 @@ public class MarketplaceServiceClientGateway implements MarketplaceGateway {
     }
 
     @Override
+    @Cacheable(cacheNames = CacheNames.LISTING, key = "#id", unless = "#result == null")
     public Optional<Listing> findById(UUID id) {
         return marketplaceGateway.find(uri -> uri.path("/listings/{id}").build(id), ListingPayload.class)
                 .map(ListingPayload::toDomain);
