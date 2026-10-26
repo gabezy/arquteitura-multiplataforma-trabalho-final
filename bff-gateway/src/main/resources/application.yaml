@@ -29,7 +29,9 @@ spring:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
-      timeout: 1s
+      # Short, because with Redis down every request waits for it up to three times (rate limit, cache get and put).
+      timeout: 200ms
+      connect-timeout: 200ms
   cache:
     type: redis
   servlet:
