@@ -73,6 +73,10 @@ app:
       invoice: 30s
 
 management:
+  # Redis is optional (fail-open, ADR-0012): it must not take /actuator/health, and with it the probes, down.
+  health:
+    redis:
+      enabled: false
   tracing:
     sampling:
       probability: 1.0
