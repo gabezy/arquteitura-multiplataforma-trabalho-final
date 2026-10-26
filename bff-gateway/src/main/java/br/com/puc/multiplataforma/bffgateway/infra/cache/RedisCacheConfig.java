@@ -1,6 +1,9 @@
 package br.com.puc.multiplataforma.bffgateway.infra.cache;
 
+import br.com.puc.multiplataforma.bffgateway.core.billing.domain.Invoice;
 import br.com.puc.multiplataforma.bffgateway.core.marketplace.domain.Listing;
+import br.com.puc.multiplataforma.bffgateway.core.order.domain.Order;
+import br.com.puc.multiplataforma.bffgateway.core.order.domain.SalesByMarketplaceReport;
 import br.com.puc.multiplataforma.bffgateway.core.shared.domain.Page;
 import org.springframework.boot.cache.autoconfigure.RedisCacheManagerBuilderCustomizer;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -56,7 +59,12 @@ public class RedisCacheConfig implements CachingConfigurer {
     private static Map<String, JavaType> cachedTypes(TypeFactory types) {
         return Map.of(
                 CacheNames.LISTINGS, types.constructParametricType(Page.class, Listing.class),
-                CacheNames.LISTING, types.constructType(Listing.class)
+                CacheNames.LISTING, types.constructType(Listing.class),
+                CacheNames.ORDERS, types.constructParametricType(Page.class, Order.class),
+                CacheNames.ORDER, types.constructType(Order.class),
+                CacheNames.SALES_BY_MARKETPLACE, types.constructType(SalesByMarketplaceReport.class),
+                CacheNames.INVOICES, types.constructParametricType(Page.class, Invoice.class),
+                CacheNames.INVOICE, types.constructType(Invoice.class)
         );
     }
 
