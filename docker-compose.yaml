@@ -246,6 +246,8 @@ services:
     volumes:
       - grafana-data:/var/lib/grafana
       - ./docker/grafana/datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
+      - ./docker/grafana/dashboards.yaml:/etc/grafana/provisioning/dashboards/dashboards.yaml
+      - ./docker/grafana/dashboards:/etc/grafana/dashboards:ro
   
   loki:
     image: grafana/loki:3.7.0

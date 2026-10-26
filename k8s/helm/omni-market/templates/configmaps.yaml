@@ -11,6 +11,10 @@ data:
 {{ .Files.Get "files/create-topics.sh" | indent 4 }}
   grafana-datasources.yaml: |-
 {{ .Files.Get "files/grafana-datasources.yaml" | indent 4 }}
+  grafana-dashboards.yaml: |-
+{{ .Files.Get "files/grafana-dashboards.yaml" | indent 4 }}
+  grafana-dashboard-omni-market.json: |-
+{{ .Files.Get "files/grafana-dashboard-omni-market.json" | indent 4 }}
   loki-config.yaml: |-
 {{ .Files.Get "files/loki-config.yaml" | indent 4 }}
   tempo-config.yaml: |-
