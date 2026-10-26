@@ -2,6 +2,15 @@ auth_enabled: false
 
 server:
   http_listen_port: 3100
+  # The querier answers through gRPC, limited to 4 MiB by default: 1000 lines of the BFF error logs
+  # (Explore and the dashboard) are larger than that: the error logs carry the stack trace (~17 KB).
+  grpc_server_max_recv_msg_size: 67108864
+  grpc_server_max_send_msg_size: 67108864
+
+frontend_worker:
+  grpc_client_config:
+    max_recv_msg_size: 67108864
+    max_send_msg_size: 67108864
 
 common:
   path_prefix: /loki
