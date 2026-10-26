@@ -13,6 +13,7 @@ import org.springframework.cache.interceptor.CacheErrorHandler;
 import org.springframework.cache.interceptor.LoggingCacheErrorHandler;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.data.redis.cache.BatchStrategies;
 import org.springframework.data.redis.cache.RedisCacheConfiguration;
 import org.springframework.data.redis.cache.RedisCacheWriter;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
@@ -29,20 +30,27 @@ import java.util.Map;
  * Caches the reads the BFF forwards to the other services in Redis (ADR-0012). Each cache has its own TTL
  * ({@code app.cache.ttl.<cache>}) and a serializer bound to the type it holds, so a cached page comes back with
  * its items typed. Writes are immediate: by default Lettuce clears a cache asynchronously, and a read right after
- * a price change could still get the old listings. A Redis failure is logged and the call goes to the service
- * (fail-open).
+ * a price change could still get the old listings. Clearing a whole cache walks the keys with SCAN, because KEYS
+ * would block Redis for every other client. Only the caches listed here exist: a {@code @Cacheable} with any
+ * other name fails on the call instead of caching with the defaults (no TTL, JDK serialization). A Redis failure
+ * is logged and the call goes to the service (fail-open).
  */
 @Configuration(proxyBeanMethods = false)
 @EnableCaching
 @EnableConfigurationProperties(CacheTtlProperties.class)
 public class RedisCacheConfig implements CachingConfigurer {
 
+    private static final int SCAN_BATCH_SIZE = 1000;
+
     @Bean
     public RedisCacheManagerBuilderCustomizer perCacheTtlAndType(RedisConnectionFactory connectionFactory,
                                                                  CacheTtlProperties properties, JsonMapper jsonMapper) {
         Map<String, JavaType> types = cachedTypes(jsonMapper.getTypeFactory());
         return builder -> {
-            builder.cacheWriter(RedisCacheWriter.create(connectionFactory, RedisCacheWriter.RedisCacheWriterConfigurer::immediateWrites));
+            builder.cacheWriter(RedisCacheWriter.create(connectionFactory, writer -> writer
+                            .immediateWrites()
+                            .batchStrategy(BatchStrategies.scan(SCAN_BATCH_SIZE))))
+                    .disableCreateOnMissingCache();
             types.forEach((cache, type) -> builder.withCacheConfiguration(cache,
                     RedisCacheConfiguration.defaultCacheConfig()
                             .entryTtl(ttlOf(properties, cache))

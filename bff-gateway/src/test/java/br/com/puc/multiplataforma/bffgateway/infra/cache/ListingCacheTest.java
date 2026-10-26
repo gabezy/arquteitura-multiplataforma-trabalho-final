@@ -8,6 +8,9 @@ import org.springframework.boot.micrometer.tracing.test.autoconfigure.AutoConfig
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.cache.CacheManager;
+import org.springframework.data.redis.core.Cursor;
+import org.springframework.data.redis.core.ScanOptions;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -18,6 +21,8 @@ import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import static br.com.puc.multiplataforma.bffgateway.infra.security.TestTokens.withRole;
@@ -53,7 +58,10 @@ class ListingCacheTest {
 
     @Container
     @ServiceConnection(name = "redis")
-    static final GenericContainer<?> REDIS = new GenericContainer<>("redis:8.2-alpine").withExposedPorts(6379);
+    // KEYS blocks Redis while it walks every key; it is disabled so the cache has to clear with SCAN.
+    static final GenericContainer<?> REDIS = new GenericContainer<>("redis:8.2-alpine")
+            .withCommand("redis-server", "--rename-command", "KEYS", "")
+            .withExposedPorts(6379);
 
     static final StubService SERVICES = StubService.start()
             .on("GET", "/listings", 200, LISTINGS_PAGE)
@@ -65,6 +73,9 @@ class ListingCacheTest {
 
     @Autowired
     private StringRedisTemplate redis;
+
+    @Autowired
+    private CacheManager cacheManager;
 
     @DynamicPropertySource
     static void serviceUrls(DynamicPropertyRegistry registry) {
@@ -120,7 +131,7 @@ class ListingCacheTest {
                         .content("{\"price\": 17000.00}")
                         .with(withRole("store")))
                 .andExpect(status().isNoContent());
-        assertThat(redis.keys("listings::*")).isEmpty();
+        assertThat(keys("listings::*")).isEmpty();
         listingsPage();
 
         assertThat(SERVICES.calls("GET", "/listings")).isEqualTo(2);
@@ -130,7 +141,7 @@ class ListingCacheTest {
     void appliesTheConfiguredTtl() throws Exception {
         listingsPage();
 
-        String key = redis.keys("listings::*").iterator().next();
+        String key = keys("listings::*").getFirst();
         assertThat(redis.getExpire(key, TimeUnit.SECONDS)).isBetween(1L, 30L);
     }
 
@@ -138,8 +149,21 @@ class ListingCacheTest {
     void countsTheRequestInTheUsersRateLimitWindow() throws Exception {
         listingsPage().andExpect(status().isOk());
 
-        assertThat(redis.keys("rate-limit:user:*")).singleElement()
+        assertThat(keys("rate-limit:user:*")).singleElement()
                 .satisfies(key -> assertThat(redis.opsForValue().get(key)).isEqualTo("1"));
+    }
+
+    @Test
+    void doesNotCreateACacheThatIsNotConfigured() {
+        assertThat(cacheManager.getCache("not-configured")).isNull();
+    }
+
+    private List<String> keys(String pattern) {
+        List<String> keys = new ArrayList<>();
+        try (Cursor<String> cursor = redis.scan(ScanOptions.scanOptions().match(pattern).build())) {
+            cursor.forEachRemaining(keys::add);
+        }
+        return keys;
     }
 
     private ResultActions listingsPage() throws Exception {
