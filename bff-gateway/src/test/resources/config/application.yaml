@@ -1,7 +1,10 @@
 # Tests run without Vault: the secrets it would provide are set here.
+# Redis is off too; the cache and rate limit tests turn it back on.
 spring:
   cloud:
     vault:
       enabled: false
+  cache:
+    type: none
 keycloak:
   client-secret: test-client-secret

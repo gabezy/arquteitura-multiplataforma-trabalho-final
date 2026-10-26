@@ -24,6 +24,14 @@ spring:
       resourceserver:
         jwt:
           issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8085/realms/omni-market}
+  # The password comes from Vault (secret/bff-gateway, key spring.data.redis.password).
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 1s
+  cache:
+    type: redis
   servlet:
     multipart:
       max-file-size: 8MB
@@ -47,6 +55,16 @@ app:
     order: rest
     billing: rest
     marketplace: rest
+  # TTL of each read cache (ADR-0012). The BFF also evicts the listings when it changes a price.
+  cache:
+    ttl:
+      listings: 30s
+      listing: 30s
+      orders: 30s
+      order: 30s
+      sales-by-marketplace: 60s
+      invoices: 30s
+      invoice: 30s
 
 management:
   tracing:

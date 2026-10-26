@@ -4,10 +4,12 @@ import br.com.puc.multiplataforma.bffgateway.core.catalog.domain.NewProduct;
 import br.com.puc.multiplataforma.bffgateway.core.catalog.domain.PriceChange;
 import br.com.puc.multiplataforma.bffgateway.core.catalog.gateway.CatalogGateway;
 import br.com.puc.multiplataforma.bffgateway.core.catalog.gateway.ProductPriceGateway;
+import br.com.puc.multiplataforma.bffgateway.infra.cache.CacheNames;
 import br.com.puc.multiplataforma.bffgateway.infra.catalog.gateway.model.PriceUpdate;
 import br.com.puc.multiplataforma.bffgateway.infra.shared.gateway.DownstreamClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.CacheEvict;
 
 import java.util.List;
 
@@ -31,6 +33,7 @@ public class CatalogServiceClientGateway implements CatalogGateway, ProductPrice
     }
 
     @Override
+    @CacheEvict(cacheNames = {CacheNames.LISTINGS, CacheNames.LISTING}, allEntries = true)
     public boolean changePrice(PriceChange priceChange) {
         log.info("Changing price of product {}", priceChange.sku());
 
