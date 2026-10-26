@@ -14,6 +14,52 @@ processors:
     limit_mib: 512
     spike_limit_mib: 128
 
+  # Each SDK names the HTTP attributes in its own way: Spring (Micrometer) uses status/method/uri and
+  # the FastAPI instrumentation the old semantic conventions (http.status_code, http.method). They
+  # are copied to the current names, so the span metrics have the same labels for every service.
+  transform/http-semconv:
+    error_mode: ignore
+    trace_statements:
+      - set(span.attributes["http.response.status_code"], Int(span.attributes["http.status_code"])) where span.attributes["http.response.status_code"] == nil and span.attributes["http.status_code"] != nil
+      - set(span.attributes["http.response.status_code"], Int(span.attributes["status"])) where span.attributes["http.response.status_code"] == nil and span.attributes["status"] != nil and IsMatch(span.attributes["status"], "^[0-9]{3}$")
+      - set(span.attributes["http.request.method"], span.attributes["http.method"]) where span.attributes["http.request.method"] == nil and span.attributes["http.method"] != nil
+      - set(span.attributes["http.request.method"], span.attributes["method"]) where span.attributes["http.request.method"] == nil and span.attributes["method"] != nil and span.attributes["outcome"] != nil
+      - set(span.attributes["http.route"], span.attributes["uri"]) where span.attributes["http.route"] == nil and span.kind == SPAN_KIND_SERVER and span.attributes["uri"] != nil and span.attributes["uri"] != "none"
+      # A 5xx answered without an exception would stay UNSET and out of the error rate.
+      - set(span.status.code, STATUS_CODE_ERROR) where span.kind == SPAN_KIND_SERVER and span.attributes["http.response.status_code"] != nil and span.attributes["http.response.status_code"] >= 500
+
+# The latency, traffic and error metrics of the Grafana dashboard come from the traces, so they are
+# the same for every service, whatever its language or HTTP library.
+connectors:
+  # RED metrics per service and operation: traces_span_metrics_calls_total and
+  # traces_span_metrics_duration_seconds_bucket.
+  span_metrics:
+    histogram:
+      unit: s
+      explicit:
+        buckets: [1ms, 2ms, 5ms, 10ms, 20ms, 50ms, 100ms, 200ms, 500ms, 1s, 2s, 5s, 10s]
+    dimensions:
+      - name: http.request.method
+      - name: http.route
+      - name: http.response.status_code
+      - name: messaging.destination.name
+    exemplars:
+      enabled: true
+    metrics_flush_interval: 15s
+
+  # Calls between services (HTTP client -> server, Kafka producer -> consumer):
+  # traces_service_graph_request_total and traces_service_graph_request_server_seconds_bucket.
+  # Also the source of the Service Graph tab of the Tempo datasource.
+  service_graph:
+    latency_histogram_buckets: [1ms, 2ms, 5ms, 10ms, 20ms, 50ms, 100ms, 200ms, 500ms, 1s, 2s, 5s, 10s]
+    dimensions: [messaging.destination.name]
+    # Names the nodes that send no spans (Postgres, Kafka, the WireMock simulators) instead of "unknown".
+    virtual_node_peer_attributes: [peer.service, server.address, db.namespace, db.name, messaging.system, net.peer.name]
+    store:
+      ttl: 30s
+      max_items: 10000
+    metrics_flush_interval: 15s
+
 exporters:
   otlp/tempo:
     endpoint: tempo:4317
@@ -22,6 +68,8 @@ exporters:
 
   prometheus:
     endpoint: "0.0.0.0:8889"
+    # Needed for the exemplars (trace_id of a slow request) to reach Prometheus.
+    enable_open_metrics: true
 
   otlphttp/loki:
     endpoint: http://loki:3100/otlp
@@ -33,11 +81,11 @@ service:
   pipelines:
     traces:
       receivers: [otlp]
-      processors: [memory_limiter, batch]
-      exporters: [otlp/tempo, debug]
+      processors: [memory_limiter, transform/http-semconv, batch]
+      exporters: [otlp/tempo, span_metrics, service_graph, debug]
 
     metrics:
-      receivers: [otlp]
+      receivers: [otlp, span_metrics, service_graph]
       processors: [memory_limiter, batch]
       exporters: [prometheus, debug]
 
