@@ -97,6 +97,17 @@ class RedisRateLimiterTest {
     }
 
     @Test
+    void setsTheExpiryOfACounterLeftWithoutOne() {
+        String key = "rate-limit:user-a:" + NOW.getEpochSecond() / 60;
+        redis.opsForValue().set(key, "1");
+
+        limiterAt(NOW).tryAcquire("user-a");
+
+        assertThat(redis.opsForValue().get(key)).isEqualTo("2");
+        assertThat(redis.getExpire(key, TimeUnit.SECONDS)).isBetween(1L, 60L);
+    }
+
+    @Test
     void allowsWhenRedisIsDown() {
         LettuceConnectionFactory unreachable = connectionFactory("127.0.0.1", freePort());
         try {
