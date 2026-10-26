@@ -55,6 +55,10 @@ app:
     order: rest
     billing: rest
     marketplace: rest
+  # Requests per user (token sub) in a fixed one-minute window (ADR-0012).
+  rate-limit:
+    enabled: true
+    requests-per-minute: 100
   # TTL of each read cache (ADR-0012). The BFF also evicts the listings when it changes a price.
   cache:
     ttl:

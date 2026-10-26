@@ -8,3 +8,6 @@ spring:
     type: none
 keycloak:
   client-secret: test-client-secret
+app:
+  rate-limit:
+    enabled: false

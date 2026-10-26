@@ -27,7 +27,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest(properties = {"spring.cache.type=redis", "app.gateways.marketplace=rest"})
+@SpringBootTest(properties = {"spring.cache.type=redis", "app.gateways.marketplace=rest", "app.rate-limit.enabled=true"})
 @AutoConfigureMockMvc
 @AutoConfigureTracing
 @Testcontainers
@@ -132,6 +132,14 @@ class ListingCacheTest {
 
         String key = redis.keys("listings::*").iterator().next();
         assertThat(redis.getExpire(key, TimeUnit.SECONDS)).isBetween(1L, 30L);
+    }
+
+    @Test
+    void countsTheRequestInTheUsersRateLimitWindow() throws Exception {
+        listingsPage().andExpect(status().isOk());
+
+        assertThat(redis.keys("rate-limit:user:*")).singleElement()
+                .satisfies(key -> assertThat(redis.opsForValue().get(key)).isEqualTo("1"));
     }
 
     private ResultActions listingsPage() throws Exception {
