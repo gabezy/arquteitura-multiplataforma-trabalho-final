@@ -35,4 +35,4 @@ configure_service order-service "$ORDER_VAULT_ROLE_ID" "$ORDER_VAULT_SECRET_ID" 
   db_username="$ORDER_DB_USER" db_password="$ORDER_DB_PASSWORD"
 
 configure_service bff-gateway "$BFF_VAULT_ROLE_ID" "$BFF_VAULT_SECRET_ID" \
-  keycloak.client-secret="$BFF_CLIENT_SECRET"
+  keycloak.client-secret="$BFF_CLIENT_SECRET" spring.data.redis.password="$REDIS_PASSWORD"
