@@ -158,9 +158,33 @@ Cada etapa imprime `[OK]` ou `[FALHA] <etapa>: <motivo>`, e uma falha encerra o 
 
 Os eventos usam CloudEvents (binary mode), e cada consumidor tem a sua DLQ. Todos os tópicos, payloads, DLQs e chamadas REST entre os serviços, inclusive o fluxo de pedido e cobrança, estão no [catálogo de eventos](docs/eventos.md).
 
+## Arquitetura (C4)
+
+O modelo C4 fica em [`docs/c4/Omni Market - C4 Model Contexto.drawio`](docs/c4/Omni%20Market%20-%20C4%20Model%20Contexto.drawio), com uma página por diagrama, e os PNGs exportados ficam ao lado dele. Os componentes do nível 3 têm os mesmos nomes das classes, fachadas e adaptadores do código de cada serviço.
+
+**Contexto:** as personas, o Omni Market, os três marketplaces e o provedor de pagamento.
+
+![C4 - Contexto](docs/c4/Omni%20Market%20-%20C4%20Model%20Contexto-C4%20Model%20-%20Contexto.drawio.png)
+
+**Containers:** o BFF, os cinco serviços com os seus bancos, o Kafka, o Keycloak e o Redis.
+
+![C4 - Containers](docs/c4/Omni%20Market%20-%20C4%20Model%20Contexto-C4%20-%20Container.drawio.png)
+
+**Componentes**, um diagrama por serviço. A estrutura hexagonal aparece em três colunas: adaptadores de entrada (HTTP, consumidores Kafka e timers), fachadas do `core` e adaptadores de saída (repositórios, outbox e clientes HTTP).
+
+- [catalog-service](docs/c4/Omni%20Market%20-%20C4%20Model%20Contexto-C4%20-%20Componentes%20-%20catalog-service.drawio.png)
+- [order-service](docs/c4/Omni%20Market%20-%20C4%20Model%20Contexto-C4%20-%20Componentes%20-%20order-service.drawio.png)
+- [billing-service](docs/c4/Omni%20Market%20-%20C4%20Model%20Contexto-C4%20-%20Componentes%20-%20billing-service.drawio.png)
+- [marketplace-gateway](docs/c4/Omni%20Market%20-%20C4%20Model%20Contexto-C4%20-%20Componentes%20-%20marketplace-gateway.drawio.png)
+
+**Deployment:** o cluster kind com o namespace `omni-market`, as portas publicadas e o registry local.
+
+![C4 - Deployment](docs/c4/Omni%20Market%20-%20C4%20Model%20Contexto-C4%20-%20Deployment%20%28kind%29.drawio.png)
+
 ## Documentação
 
 - `docs/adr/` — decisões de arquitetura
+- `docs/c4/` — modelo C4 (contexto, containers, componentes e deployment)
 - `docs/demo/` — roteiro da demo ponta a ponta
 - `docs/eventos.md` — catálogo de eventos e contratos entre os serviços
 - `docs/superpowers/specs/` — especificações de design
