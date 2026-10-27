@@ -235,6 +235,8 @@ O Grafana provisiona o dashboard **Omni Market - Serviços** (pasta Omni Market)
 
 - **Latência**: P50, P90, P95 e P99 das chamadas entre serviços (HTTP e Kafka) e de cada rota ou tópico consumido.
 - **Erros**: taxa de erro, respostas 4xx/5xx, operações com erro e logs de erro (Loki).
+- **Mensagens em DLQ**: envios para os tópicos `*.dlq`, por tópico e serviço.
+- **Compliance**: produtos aprovados e reprovados, violações por regra e tempo médio de análise (`compliance.analyses`, `compliance.rule.violations`, `compliance.analysis.duration`).
 - **Hardware**: CPU, memória, rede e disco de cada container.
 
 As métricas de latência, tráfego e erro vêm dos traces: os connectors `span_metrics` e `service_graph` do otel-collector (`docker/otel-collector/config.yaml`) as geram iguais para todas as linguagens, sem código nos serviços. As de hardware vêm do cAdvisor: o container `cadvisor` no Compose e o kubelet no Kubernetes, os dois com o label `service` (nome do serviço no Compose ou do container no chart).
