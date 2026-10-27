@@ -9,8 +9,7 @@ scrape_configs:
     honor_labels: true
     # Protobuf carries the creation time of each counter, and created-timestamp-zero-ingestion
     # (Prometheus flag) turns it into a 0 sample. Without it rate() misses the first increment of a new
-    # series, and the service_graph connector drops the edges idle for 15 min: the first calls after a
-    # pause would not show in the dashboard.
+    # series: a new operation or edge, or every series after the collector restarts.
     scrape_protocols: [PrometheusProto, OpenMetricsText1.0.0, PrometheusText0.0.4]
     static_configs:
       - targets: ["otel-collector:8889"]

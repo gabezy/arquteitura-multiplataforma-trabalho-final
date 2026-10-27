@@ -58,6 +58,10 @@ connectors:
     store:
       ttl: 30s
       max_items: 10000
+    # The cache cleanup drops an edge idle for 15 min, and its counter restarts from zero with the
+    # same start timestamp: Prometheus cannot tell, and rate() misses the calls after a pause. Once a
+    # year means never in practice; the cost is the memory of the few edges of the system.
+    cache_loop: 8760h
     metrics_flush_interval: 15s
 
 exporters:
