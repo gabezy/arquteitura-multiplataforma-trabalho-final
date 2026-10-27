@@ -731,4 +731,241 @@
       </root>
     </mxGraphModel>
   </diagram>
+  <diagram name="C4 - Componentes - marketplace-gateway" id="c4-cmp-marketplace">
+    <mxGraphModel dx="1800" dy="1200" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <object placeholders="1" label="&lt;font style=&quot;font-size: 16px&quot;&gt;&lt;b&gt;&lt;div style=&quot;text-align: left&quot;&gt;%c4Name%&lt;/div&gt;&lt;/b&gt;&lt;/font&gt;&lt;div style=&quot;text-align: left&quot;&gt;[%c4Application%]&lt;/div&gt;" id="c4-cmp-marketplace-boundary" c4Name="marketplace-gateway" c4Type="ContainerScopeBoundary" c4Application="Container: Node.js 22, TypeScript, Express 5">
+          <mxCell parent="1" vertex="1" style="rounded=1;fontSize=11;whiteSpace=wrap;html=1;dashed=1;arcSize=20;fillColor=none;strokeColor=#666666;fontColor=#333333;labelBackgroundColor=none;align=left;verticalAlign=bottom;labelBorderColor=none;spacingTop=0;spacing=10;dashPattern=8 4;metaEdit=1;rotatable=0;perimeter=rectanglePerimeter;noLabel=0;labelPadding=0;allowArrows=0;connectable=0;expand=0;recursiveResize=0;editable=1;pointerEvents=0;absoluteArcSize=1;points=[[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],[0.75,1,0],[0.5,1,0],[0.25,1,0],[0,0.75,0],[0,0.5,0],[0,0.25,0]];">
+            <mxGeometry x="0" y="0" width="1860" height="1060" as="geometry" />
+          </mxCell>
+        </object>
+        <object placeholders="1" label="&lt;font style=&quot;font-size: 14px&quot;&gt;&lt;b&gt;%c4Name%&lt;/b&gt;&lt;/font&gt;&lt;div&gt;[%c4Type%: %c4Technology%]&lt;/div&gt;&lt;br&gt;&lt;div&gt;&lt;font style=&quot;font-size: 11px&quot;&gt;&lt;font color=&quot;#F2F2F2&quot;&gt;%c4Description%&lt;/font&gt;&lt;/div&gt;" id="c4-cmp-marketplace-controller" c4Name="ListingController" c4Type="Component" c4Technology="Express 5, zod" c4Description="GET /listings (filtros) e GET /listings/:id">
+          <mxCell parent="1" vertex="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;labelBackgroundColor=none;fillColor=#63BEF2;fontColor=#ffffff;align=center;arcSize=8;strokeColor=#2086C9;metaEdit=1;points=[[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],[0.75,1,0],[0.5,1,0],[0.25,1,0],[0,0.75,0],[0,0.5,0],[0,0.25,0]];">
+            <mxGeometry x="60" y="60" width="300" height="140" as="geometry" />
+          </mxCell>
+        </object>
+        <object placeholders="1" label="&lt;font style=&quot;font-size: 14px&quot;&gt;&lt;b&gt;%c4Name%&lt;/b&gt;&lt;/font&gt;&lt;div&gt;[%c4Type%: %c4Technology%]&lt;/div&gt;&lt;br&gt;&lt;div&gt;&lt;font style=&quot;font-size: 11px&quot;&gt;&lt;font color=&quot;#F2F2F2&quot;&gt;%c4Description%&lt;/font&gt;&lt;/div&gt;" id="c4-cmp-marketplace-catalog-consumer" c4Name="CatalogProductConsumer" c4Type="Component" c4Technology="kafkajs" c4Description="Anuncia o produto aprovado e registra estoque e preço novos; idempotente pela inbox, inválidas vão para a DLQ">
+          <mxCell parent="1" vertex="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;labelBackgroundColor=none;fillColor=#63BEF2;fontColor=#ffffff;align=center;arcSize=8;strokeColor=#2086C9;metaEdit=1;points=[[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],[0.75,1,0],[0.5,1,0],[0.25,1,0],[0,0.75,0],[0,0.5,0],[0,0.25,0]];">
+            <mxGeometry x="60" y="250" width="300" height="140" as="geometry" />
+          </mxCell>
+        </object>
+        <object placeholders="1" label="&lt;font style=&quot;font-size: 14px&quot;&gt;&lt;b&gt;%c4Name%&lt;/b&gt;&lt;/font&gt;&lt;div&gt;[%c4Type%: %c4Technology%]&lt;/div&gt;&lt;br&gt;&lt;div&gt;&lt;font style=&quot;font-size: 11px&quot;&gt;&lt;font color=&quot;#F2F2F2&quot;&gt;%c4Description%&lt;/font&gt;&lt;/div&gt;" id="c4-cmp-marketplace-synchronizers" c4Name="StockSynchronizers e PriceSynchronizers" c4Type="Component" c4Technology="timer, a cada 2 s" c4Description="Envia aos marketplaces o estoque e o preço pendentes, um laço por marketplace">
+          <mxCell parent="1" vertex="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;labelBackgroundColor=none;fillColor=#63BEF2;fontColor=#ffffff;align=center;arcSize=8;strokeColor=#2086C9;metaEdit=1;points=[[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],[0.75,1,0],[0.5,1,0],[0.25,1,0],[0,0.75,0],[0,0.5,0],[0,0.25,0]];">
+            <mxGeometry x="60" y="440" width="300" height="140" as="geometry" />
+          </mxCell>
+        </object>
+        <object placeholders="1" label="&lt;font style=&quot;font-size: 14px&quot;&gt;&lt;b&gt;%c4Name%&lt;/b&gt;&lt;/font&gt;&lt;div&gt;[%c4Type%: %c4Technology%]&lt;/div&gt;&lt;br&gt;&lt;div&gt;&lt;font style=&quot;font-size: 11px&quot;&gt;&lt;font color=&quot;#F2F2F2&quot;&gt;%c4Description%&lt;/font&gt;&lt;/div&gt;" id="c4-cmp-marketplace-cancelled-consumer" c4Name="OrderCancelledConsumer" c4Type="Component" c4Technology="kafkajs" c4Description="Cancela no marketplace o pedido cancelado; idempotente pela inbox, inválidas vão para a DLQ">
+          <mxCell parent="1" vertex="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;labelBackgroundColor=none;fillColor=#63BEF2;fontColor=#ffffff;align=center;arcSize=8;strokeColor=#2086C9;metaEdit=1;points=[[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],[0.75,1,0],[0.5,1,0],[0.25,1,0],[0,0.75,0],[0,0.5,0],[0,0.25,0]];">
+            <mxGeometry x="60" y="630" width="300" height="140" as="geometry" />
+          </mxCell>
+        </object>
+        <object placeholders="1" label="&lt;font style=&quot;font-size: 14px&quot;&gt;&lt;b&gt;%c4Name%&lt;/b&gt;&lt;/font&gt;&lt;div&gt;[%c4Type%: %c4Technology%]&lt;/div&gt;&lt;br&gt;&lt;div&gt;&lt;font style=&quot;font-size: 11px&quot;&gt;&lt;font color=&quot;#F2F2F2&quot;&gt;%c4Description%&lt;/font&gt;&lt;/div&gt;" id="c4-cmp-marketplace-pollers" c4Name="OrderPollers" c4Type="Component" c4Technology="timer, a cada 5 s" c4Description="Busca os pedidos novos de cada marketplace por polling (ADR-0010)">
+          <mxCell parent="1" vertex="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;labelBackgroundColor=none;fillColor=#63BEF2;fontColor=#ffffff;align=center;arcSize=8;strokeColor=#2086C9;metaEdit=1;points=[[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],[0.75,1,0],[0.5,1,0],[0.25,1,0],[0,0.75,0],[0,0.5,0],[0,0.25,0]];">
+            <mxGeometry x="60" y="820" width="300" height="140" as="geometry" />
+          </mxCell>
+        </object>
+        <object placeholders="1" label="&lt;font style=&quot;font-size: 14px&quot;&gt;&lt;b&gt;%c4Name%&lt;/b&gt;&lt;/font&gt;&lt;div&gt;[%c4Type%: %c4Technology%]&lt;/div&gt;&lt;br&gt;&lt;div&gt;&lt;font style=&quot;font-size: 11px&quot;&gt;&lt;font color=&quot;#F2F2F2&quot;&gt;%c4Description%&lt;/font&gt;&lt;/div&gt;" id="c4-cmp-marketplace-listing-facade" c4Name="ListingFacade" c4Type="Component" c4Technology="core" c4Description="Publica o produto aprovado nos três marketplaces e consulta os anúncios">
+          <mxCell parent="1" vertex="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;labelBackgroundColor=none;fillColor=#63BEF2;fontColor=#ffffff;align=center;arcSize=8;strokeColor=#2086C9;metaEdit=1;points=[[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],[0.75,1,0],[0.5,1,0],[0.25,1,0],[0,0.75,0],[0,0.5,0],[0,0.25,0]];">
+            <mxGeometry x="540" y="60" width="300" height="140" as="geometry" />
+          </mxCell>
+        </object>
+        <object placeholders="1" label="&lt;font style=&quot;font-size: 14px&quot;&gt;&lt;b&gt;%c4Name%&lt;/b&gt;&lt;/font&gt;&lt;div&gt;[%c4Type%: %c4Technology%]&lt;/div&gt;&lt;br&gt;&lt;div&gt;&lt;font style=&quot;font-size: 11px&quot;&gt;&lt;font color=&quot;#F2F2F2&quot;&gt;%c4Description%&lt;/font&gt;&lt;/div&gt;" id="c4-cmp-marketplace-stock-facade" c4Name="StockFacade" c4Type="Component" c4Technology="core" c4Description="Registra e sincroniza o estoque e o preço dos anúncios">
+          <mxCell parent="1" vertex="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;labelBackgroundColor=none;fillColor=#63BEF2;fontColor=#ffffff;align=center;arcSize=8;strokeColor=#2086C9;metaEdit=1;points=[[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],[0.75,1,0],[0.5,1,0],[0.25,1,0],[0,0.75,0],[0,0.5,0],[0,0.25,0]];">
+            <mxGeometry x="540" y="345.0" width="300" height="140" as="geometry" />
+          </mxCell>
+        </object>
+        <object placeholders="1" label="&lt;font style=&quot;font-size: 14px&quot;&gt;&lt;b&gt;%c4Name%&lt;/b&gt;&lt;/font&gt;&lt;div&gt;[%c4Type%: %c4Technology%]&lt;/div&gt;&lt;br&gt;&lt;div&gt;&lt;font style=&quot;font-size: 11px&quot;&gt;&lt;font color=&quot;#F2F2F2&quot;&gt;%c4Description%&lt;/font&gt;&lt;/div&gt;" id="c4-cmp-marketplace-order-facade" c4Name="OrderFacade" c4Type="Component" c4Technology="core" c4Description="Recebe os pedidos a partir do cursor de cada marketplace e cancela pedidos">
+          <mxCell parent="1" vertex="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;labelBackgroundColor=none;fillColor=#63BEF2;fontColor=#ffffff;align=center;arcSize=8;strokeColor=#2086C9;metaEdit=1;points=[[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],[0.75,1,0],[0.5,1,0],[0.25,1,0],[0,0.75,0],[0,0.5,0],[0,0.25,0]];">
+            <mxGeometry x="540" y="725.0" width="300" height="140" as="geometry" />
+          </mxCell>
+        </object>
+        <object placeholders="1" label="&lt;font style=&quot;font-size: 14px&quot;&gt;&lt;b&gt;%c4Name%&lt;/b&gt;&lt;/font&gt;&lt;div&gt;[%c4Type%: %c4Technology%]&lt;/div&gt;&lt;br&gt;&lt;div&gt;&lt;font style=&quot;font-size: 11px&quot;&gt;&lt;font color=&quot;#F2F2F2&quot;&gt;%c4Description%&lt;/font&gt;&lt;/div&gt;" id="c4-cmp-marketplace-catalog-client" c4Name="HttpProductCatalog" c4Type="Component" c4Technology="fetch" c4Description="Busca nome, descrição e preço do produto no catalog-service (ADR-0011)">
+          <mxCell parent="1" vertex="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;labelBackgroundColor=none;fillColor=#63BEF2;fontColor=#ffffff;align=center;arcSize=8;strokeColor=#2086C9;metaEdit=1;points=[[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],[0.75,1,0],[0.5,1,0],[0.25,1,0],[0,0.75,0],[0,0.5,0],[0,0.25,0]];">
+            <mxGeometry x="1020" y="60" width="300" height="140" as="geometry" />
+          </mxCell>
+        </object>
+        <object placeholders="1" label="&lt;font style=&quot;font-size: 14px&quot;&gt;&lt;b&gt;%c4Name%&lt;/b&gt;&lt;/font&gt;&lt;div&gt;[%c4Type%: %c4Technology%]&lt;/div&gt;&lt;br&gt;&lt;div&gt;&lt;font style=&quot;font-size: 11px&quot;&gt;&lt;font color=&quot;#F2F2F2&quot;&gt;%c4Description%&lt;/font&gt;&lt;/div&gt;" id="c4-cmp-marketplace-repos" c4Name="Repositórios Knex" c4Type="Component" c4Technology="Knex" c4Description="Anúncios, pedidos recebidos e cursores do polling; eventos no outbox na mesma transação; inbox">
+          <mxCell parent="1" vertex="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;labelBackgroundColor=none;fillColor=#63BEF2;fontColor=#ffffff;align=center;arcSize=8;strokeColor=#2086C9;metaEdit=1;points=[[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],[0.75,1,0],[0.5,1,0],[0.25,1,0],[0,0.75,0],[0,0.5,0],[0,0.25,0]];">
+            <mxGeometry x="1020" y="345.0" width="300" height="140" as="geometry" />
+          </mxCell>
+        </object>
+        <object placeholders="1" label="&lt;font style=&quot;font-size: 14px&quot;&gt;&lt;b&gt;%c4Name%&lt;/b&gt;&lt;/font&gt;&lt;div&gt;[%c4Type%: %c4Technology%]&lt;/div&gt;&lt;br&gt;&lt;div&gt;&lt;font style=&quot;font-size: 11px&quot;&gt;&lt;font color=&quot;#F2F2F2&quot;&gt;%c4Description%&lt;/font&gt;&lt;/div&gt;" id="c4-cmp-marketplace-resilient" c4Name="ResilientMarketplace" c4Type="Component" c4Technology="circuit breaker" c4Description="Retry com backoff e jitter e circuit breaker por marketplace (ADR-0009)">
+          <mxCell parent="1" vertex="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;labelBackgroundColor=none;fillColor=#63BEF2;fontColor=#ffffff;align=center;arcSize=8;strokeColor=#2086C9;metaEdit=1;points=[[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],[0.75,1,0],[0.5,1,0],[0.25,1,0],[0,0.75,0],[0,0.5,0],[0,0.25,0]];">
+            <mxGeometry x="1020" y="630" width="300" height="140" as="geometry" />
+          </mxCell>
+        </object>
+        <object placeholders="1" label="&lt;font style=&quot;font-size: 14px&quot;&gt;&lt;b&gt;%c4Name%&lt;/b&gt;&lt;/font&gt;&lt;div&gt;[%c4Type%: %c4Technology%]&lt;/div&gt;&lt;br&gt;&lt;div&gt;&lt;font style=&quot;font-size: 11px&quot;&gt;&lt;font color=&quot;#F2F2F2&quot;&gt;%c4Description%&lt;/font&gt;&lt;/div&gt;" id="c4-cmp-marketplace-relay" c4Name="OutboxRelay" c4Type="Component" c4Technology="kafkajs" c4Description="Lê o outbox a cada 1 s e publica os eventos no Kafka; marca cada linha publicada">
+          <mxCell parent="1" vertex="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;labelBackgroundColor=none;fillColor=#63BEF2;fontColor=#ffffff;align=center;arcSize=8;strokeColor=#2086C9;metaEdit=1;points=[[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],[0.75,1,0],[0.5,1,0],[0.25,1,0],[0,0.75,0],[0,0.5,0],[0,0.25,0]];">
+            <mxGeometry x="1020" y="858.0" width="300" height="140" as="geometry" />
+          </mxCell>
+        </object>
+        <object placeholders="1" label="&lt;font style=&quot;font-size: 14px&quot;&gt;&lt;b&gt;%c4Name%&lt;/b&gt;&lt;/font&gt;&lt;div&gt;[%c4Type%: %c4Technology%]&lt;/div&gt;&lt;br&gt;&lt;div&gt;&lt;font style=&quot;font-size: 11px&quot;&gt;&lt;font color=&quot;#F2F2F2&quot;&gt;%c4Description%&lt;/font&gt;&lt;/div&gt;" id="c4-cmp-marketplace-acl-amazon" c4Name="AmazonMarketplace" c4Type="Component" c4Technology="fetch" c4Description="Adapter da API da Amazon (ADR-0008): traduz anúncios, estoque, preço e pedidos">
+          <mxCell parent="1" vertex="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;labelBackgroundColor=none;fillColor=#63BEF2;fontColor=#ffffff;align=center;arcSize=8;strokeColor=#2086C9;metaEdit=1;points=[[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],[0.75,1,0],[0.5,1,0],[0.25,1,0],[0,0.75,0],[0,0.5,0],[0,0.25,0]];">
+            <mxGeometry x="1500" y="440" width="300" height="140" as="geometry" />
+          </mxCell>
+        </object>
+        <object placeholders="1" label="&lt;font style=&quot;font-size: 16px&quot;&gt;&lt;b&gt;%c4Name%&lt;/b&gt;&lt;/font&gt;&lt;div&gt;[%c4Type%]&lt;/div&gt;&lt;br&gt;&lt;div&gt;&lt;font style=&quot;font-size: 11px&quot;&gt;&lt;font color=&quot;#cccccc&quot;&gt;%c4Description%&lt;/font&gt;&lt;/div&gt;" id="c4-cmp-marketplace-amazon" c4Name="Amazon" c4Type="Software System" c4Description="Marketplace externo, simulado no WireMock">
+          <mxCell parent="1" vertex="1" style="rounded=1;whiteSpace=wrap;html=1;labelBackgroundColor=none;fillColor=#8C8496;fontColor=#ffffff;align=center;arcSize=10;strokeColor=#736782;metaEdit=1;points=[[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],[0.75,1,0],[0.5,1,0],[0.25,1,0],[0,0.75,0],[0,0.5,0],[0,0.25,0]];">
+            <mxGeometry x="1960" y="450" width="240" height="120" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="c4-cmp-marketplace-rel-1" edge="1" parent="1" source="c4-cmp-marketplace-acl-amazon" target="c4-cmp-marketplace-amazon" value="&lt;b&gt;API do marketplace&lt;/b&gt;&lt;br&gt;[REST/JSON]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontSize=10;fontColor=#404040;labelBackgroundColor=#FFFFFF;strokeColor=#828282;endArrow=blockThin;endFill=1;endSize=12;jumpStyle=arc;jumpSize=12;exitX=1;exitY=0.5;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;entryPerimeter=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c4-cmp-marketplace-rel-2" edge="1" parent="1" source="c4-cmp-marketplace-resilient" target="c4-cmp-marketplace-acl-amazon" value="&lt;b&gt;MarketplacePort&lt;/b&gt;&lt;br&gt;[chamada]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontSize=10;fontColor=#404040;labelBackgroundColor=#FFFFFF;strokeColor=#828282;endArrow=blockThin;endFill=1;endSize=12;jumpStyle=arc;jumpSize=12;exitX=1;exitY=0.25;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;entryPerimeter=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <object placeholders="1" label="&lt;font style=&quot;font-size: 14px&quot;&gt;&lt;b&gt;%c4Name%&lt;/b&gt;&lt;/font&gt;&lt;div&gt;[%c4Type%: %c4Technology%]&lt;/div&gt;&lt;br&gt;&lt;div&gt;&lt;font style=&quot;font-size: 11px&quot;&gt;&lt;font color=&quot;#F2F2F2&quot;&gt;%c4Description%&lt;/font&gt;&lt;/div&gt;" id="c4-cmp-marketplace-acl-ml" c4Name="MercadoLivreMarketplace" c4Type="Component" c4Technology="fetch" c4Description="Adapter da API da Mercado Livre (ADR-0008): traduz anúncios, estoque, preço e pedidos">
+          <mxCell parent="1" vertex="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;labelBackgroundColor=none;fillColor=#63BEF2;fontColor=#ffffff;align=center;arcSize=8;strokeColor=#2086C9;metaEdit=1;points=[[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],[0.75,1,0],[0.5,1,0],[0.25,1,0],[0,0.75,0],[0,0.5,0],[0,0.25,0]];">
+            <mxGeometry x="1500" y="630" width="300" height="140" as="geometry" />
+          </mxCell>
+        </object>
+        <object placeholders="1" label="&lt;font style=&quot;font-size: 16px&quot;&gt;&lt;b&gt;%c4Name%&lt;/b&gt;&lt;/font&gt;&lt;div&gt;[%c4Type%]&lt;/div&gt;&lt;br&gt;&lt;div&gt;&lt;font style=&quot;font-size: 11px&quot;&gt;&lt;font color=&quot;#cccccc&quot;&gt;%c4Description%&lt;/font&gt;&lt;/div&gt;" id="c4-cmp-marketplace-ml" c4Name="Mercado Livre" c4Type="Software System" c4Description="Marketplace externo, simulado no WireMock">
+          <mxCell parent="1" vertex="1" style="rounded=1;whiteSpace=wrap;html=1;labelBackgroundColor=none;fillColor=#8C8496;fontColor=#ffffff;align=center;arcSize=10;strokeColor=#736782;metaEdit=1;points=[[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],[0.75,1,0],[0.5,1,0],[0.25,1,0],[0,0.75,0],[0,0.5,0],[0,0.25,0]];">
+            <mxGeometry x="1960" y="640" width="240" height="120" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="c4-cmp-marketplace-rel-3" edge="1" parent="1" source="c4-cmp-marketplace-acl-ml" target="c4-cmp-marketplace-ml" value="&lt;b&gt;API do marketplace&lt;/b&gt;&lt;br&gt;[REST/JSON]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontSize=10;fontColor=#404040;labelBackgroundColor=#FFFFFF;strokeColor=#828282;endArrow=blockThin;endFill=1;endSize=12;jumpStyle=arc;jumpSize=12;exitX=1;exitY=0.5;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;entryPerimeter=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c4-cmp-marketplace-rel-4" edge="1" parent="1" source="c4-cmp-marketplace-resilient" target="c4-cmp-marketplace-acl-ml" value="&lt;b&gt;MarketplacePort&lt;/b&gt;&lt;br&gt;[chamada]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontSize=10;fontColor=#404040;labelBackgroundColor=#FFFFFF;strokeColor=#828282;endArrow=blockThin;endFill=1;endSize=12;jumpStyle=arc;jumpSize=12;exitX=1;exitY=0.5;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;entryPerimeter=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <object placeholders="1" label="&lt;font style=&quot;font-size: 14px&quot;&gt;&lt;b&gt;%c4Name%&lt;/b&gt;&lt;/font&gt;&lt;div&gt;[%c4Type%: %c4Technology%]&lt;/div&gt;&lt;br&gt;&lt;div&gt;&lt;font style=&quot;font-size: 11px&quot;&gt;&lt;font color=&quot;#F2F2F2&quot;&gt;%c4Description%&lt;/font&gt;&lt;/div&gt;" id="c4-cmp-marketplace-acl-shopee" c4Name="ShopeeMarketplace" c4Type="Component" c4Technology="fetch" c4Description="Adapter da API da Shopee (ADR-0008): traduz anúncios, estoque, preço e pedidos">
+          <mxCell parent="1" vertex="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;labelBackgroundColor=none;fillColor=#63BEF2;fontColor=#ffffff;align=center;arcSize=8;strokeColor=#2086C9;metaEdit=1;points=[[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],[0.75,1,0],[0.5,1,0],[0.25,1,0],[0,0.75,0],[0,0.5,0],[0,0.25,0]];">
+            <mxGeometry x="1500" y="820" width="300" height="140" as="geometry" />
+          </mxCell>
+        </object>
+        <object placeholders="1" label="&lt;font style=&quot;font-size: 16px&quot;&gt;&lt;b&gt;%c4Name%&lt;/b&gt;&lt;/font&gt;&lt;div&gt;[%c4Type%]&lt;/div&gt;&lt;br&gt;&lt;div&gt;&lt;font style=&quot;font-size: 11px&quot;&gt;&lt;font color=&quot;#cccccc&quot;&gt;%c4Description%&lt;/font&gt;&lt;/div&gt;" id="c4-cmp-marketplace-shopee" c4Name="Shopee" c4Type="Software System" c4Description="Marketplace externo, simulado no WireMock">
+          <mxCell parent="1" vertex="1" style="rounded=1;whiteSpace=wrap;html=1;labelBackgroundColor=none;fillColor=#8C8496;fontColor=#ffffff;align=center;arcSize=10;strokeColor=#736782;metaEdit=1;points=[[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],[0.75,1,0],[0.5,1,0],[0.25,1,0],[0,0.75,0],[0,0.5,0],[0,0.25,0]];">
+            <mxGeometry x="1960" y="830" width="240" height="120" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="c4-cmp-marketplace-rel-5" edge="1" parent="1" source="c4-cmp-marketplace-acl-shopee" target="c4-cmp-marketplace-shopee" value="&lt;b&gt;API do marketplace&lt;/b&gt;&lt;br&gt;[REST/JSON]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontSize=10;fontColor=#404040;labelBackgroundColor=#FFFFFF;strokeColor=#828282;endArrow=blockThin;endFill=1;endSize=12;jumpStyle=arc;jumpSize=12;exitX=1;exitY=0.5;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;entryPerimeter=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c4-cmp-marketplace-rel-6" edge="1" parent="1" source="c4-cmp-marketplace-resilient" target="c4-cmp-marketplace-acl-shopee" value="&lt;b&gt;MarketplacePort&lt;/b&gt;&lt;br&gt;[chamada]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontSize=10;fontColor=#404040;labelBackgroundColor=#FFFFFF;strokeColor=#828282;endArrow=blockThin;endFill=1;endSize=12;jumpStyle=arc;jumpSize=12;exitX=1;exitY=0.75;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;entryPerimeter=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <object placeholders="1" label="&lt;font style=&quot;font-size: 16px&quot;&gt;&lt;b&gt;%c4Name%&lt;/b&gt;&lt;/font&gt;&lt;div&gt;[%c4Type%: %c4Technology%]&lt;/div&gt;&lt;br&gt;&lt;div&gt;&lt;font style=&quot;font-size: 11px&quot;&gt;&lt;font color=&quot;#E6E6E6&quot;&gt;%c4Description%&lt;/font&gt;&lt;/div&gt;" id="c4-cmp-marketplace-bff" c4Name="bff-gateway" c4Type="Container" c4Technology="Java 25, Spring Boot 4.1" c4Description="Consulta anúncios">
+          <mxCell parent="1" vertex="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;labelBackgroundColor=none;fillColor=#23A2D9;fontColor=#ffffff;align=center;arcSize=10;strokeColor=#0E7DAD;metaEdit=1;resizable=0;points=[[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],[0.75,1,0],[0.5,1,0],[0.25,1,0],[0,0.75,0],[0,0.5,0],[0,0.25,0]];">
+            <mxGeometry x="-400" y="50" width="300" height="130" as="geometry" />
+          </mxCell>
+        </object>
+        <object placeholders="1" label="&lt;font style=&quot;font-size: 16px&quot;&gt;&lt;b&gt;%c4Name%&lt;/b&gt;&lt;/font&gt;&lt;div&gt;[%c4Type%: %c4Technology%]&lt;/div&gt;&lt;br&gt;&lt;div&gt;&lt;font style=&quot;font-size: 11px&quot;&gt;&lt;font color=&quot;#E6E6E6&quot;&gt;%c4Description%&lt;/font&gt;&lt;/div&gt;" id="c4-cmp-marketplace-catalog" c4Name="catalog-service" c4Type="Container" c4Technology="Node.js 22, TypeScript, Express 5" c4Description="Dono dos dados do produto">
+          <mxCell parent="1" vertex="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;labelBackgroundColor=none;fillColor=#23A2D9;fontColor=#ffffff;align=center;arcSize=10;strokeColor=#0E7DAD;metaEdit=1;resizable=0;points=[[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],[0.75,1,0],[0.5,1,0],[0.25,1,0],[0,0.75,0],[0,0.5,0],[0,0.25,0]];">
+            <mxGeometry x="1500" y="50" width="300" height="130" as="geometry" />
+          </mxCell>
+        </object>
+        <object placeholders="1" label="&lt;font style=&quot;font-size: 13px&quot;&gt;&lt;b&gt;%c4Name%&lt;/b&gt;&lt;/font&gt;&lt;div&gt;[%c4Type%: %c4Technology%]&lt;/div&gt;&lt;div&gt;&lt;font style=&quot;font-size: 10px&quot;&gt;&lt;font color=&quot;#E6E6E6&quot;&gt;%c4Description%&lt;/font&gt;&lt;/div&gt;" id="c4-cmp-marketplace-kafka" c4Name="Kafka" c4Type="Container" c4Technology="Apache Kafka 4" c4Description="Eventos em CloudEvents (docs/eventos.md)">
+          <mxCell parent="1" vertex="1" style="shape=cylinder3;size=15;whiteSpace=wrap;html=1;boundedLbl=1;rounded=0;labelBackgroundColor=none;fillColor=#23A2D9;fontSize=11;fontColor=#ffffff;align=center;strokeColor=#0E7DAD;metaEdit=1;points=[[0.5,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],[0.5,1,0],[0,0.75,0],[0,0.5,0],[0,0.25,0]];">
+            <mxGeometry x="-360" y="250" width="220" height="520" as="geometry" />
+          </mxCell>
+        </object>
+        <object placeholders="1" label="&lt;font style=&quot;font-size: 13px&quot;&gt;&lt;b&gt;%c4Name%&lt;/b&gt;&lt;/font&gt;&lt;div&gt;[%c4Type%: %c4Technology%]&lt;/div&gt;&lt;div&gt;&lt;font style=&quot;font-size: 10px&quot;&gt;&lt;font color=&quot;#E6E6E6&quot;&gt;%c4Description%&lt;/font&gt;&lt;/div&gt;" id="c4-cmp-marketplace-db" c4Name="marketplace-db" c4Type="Container" c4Technology="PostgreSQL 18" c4Description="listings, marketplace_orders, order_cursors, outbox e processed_events">
+          <mxCell parent="1" vertex="1" style="shape=cylinder3;size=12;whiteSpace=wrap;html=1;boundedLbl=1;rounded=0;labelBackgroundColor=none;fillColor=#23A2D9;fontSize=11;fontColor=#ffffff;align=center;strokeColor=#0E7DAD;metaEdit=1;points=[[0.5,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],[0.5,1,0],[0,0.75,0],[0,0.5,0],[0,0.25,0]];">
+            <mxGeometry x="1990" y="259.5" width="180" height="120" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="c4-cmp-marketplace-rel-7" edge="1" parent="1" source="c4-cmp-marketplace-bff" target="c4-cmp-marketplace-controller" value="&lt;b&gt;Anúncios&lt;/b&gt;&lt;br&gt;[REST/JSON]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontSize=10;fontColor=#404040;labelBackgroundColor=#FFFFFF;strokeColor=#828282;endArrow=blockThin;endFill=1;endSize=12;jumpStyle=arc;jumpSize=12;exitX=1;exitY=0.5;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;entryPerimeter=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c4-cmp-marketplace-rel-8" edge="1" parent="1" source="c4-cmp-marketplace-kafka" target="c4-cmp-marketplace-catalog-consumer" value="&lt;b&gt;catalog.product.approved.v1,&lt;br&gt;.stock-changed.v1 e .price-changed.v1&lt;/b&gt;&lt;br&gt;[Kafka]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontSize=10;fontColor=#404040;labelBackgroundColor=#FFFFFF;strokeColor=#828282;endArrow=blockThin;endFill=1;endSize=12;jumpStyle=arc;jumpSize=12;exitX=1;exitY=0.15;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;entryPerimeter=0;dashed=1;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c4-cmp-marketplace-rel-9" edge="1" parent="1" source="c4-cmp-marketplace-kafka" target="c4-cmp-marketplace-cancelled-consumer" value="&lt;b&gt;order.order.cancelled.v1&lt;/b&gt;&lt;br&gt;[Kafka]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontSize=10;fontColor=#404040;labelBackgroundColor=#FFFFFF;strokeColor=#828282;endArrow=blockThin;endFill=1;endSize=12;jumpStyle=arc;jumpSize=12;exitX=1;exitY=0.85;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;entryPerimeter=0;dashed=1;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c4-cmp-marketplace-rel-10" edge="1" parent="1" source="c4-cmp-marketplace-controller" target="c4-cmp-marketplace-listing-facade" value="&lt;b&gt;FindListings&lt;/b&gt;&lt;br&gt;[chamada]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontSize=10;fontColor=#404040;labelBackgroundColor=#FFFFFF;strokeColor=#828282;endArrow=blockThin;endFill=1;endSize=12;jumpStyle=arc;jumpSize=12;exitX=1;exitY=0.5;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0;entryY=0.3;entryDx=0;entryDy=0;entryPerimeter=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c4-cmp-marketplace-rel-11" edge="1" parent="1" source="c4-cmp-marketplace-catalog-consumer" target="c4-cmp-marketplace-listing-facade" value="&lt;b&gt;PublishApprovedProduct&lt;/b&gt;&lt;br&gt;[chamada]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontSize=10;fontColor=#404040;labelBackgroundColor=#FFFFFF;strokeColor=#828282;endArrow=blockThin;endFill=1;endSize=12;jumpStyle=arc;jumpSize=12;exitX=1;exitY=0.3;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0;entryY=0.75;entryDx=0;entryDy=0;entryPerimeter=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c4-cmp-marketplace-rel-12" edge="1" parent="1" source="c4-cmp-marketplace-catalog-consumer" target="c4-cmp-marketplace-stock-facade" value="&lt;b&gt;RecordProductStock&lt;br&gt;e RecordProductPrice&lt;/b&gt;&lt;br&gt;[chamada]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontSize=10;fontColor=#404040;labelBackgroundColor=#FFFFFF;strokeColor=#828282;endArrow=blockThin;endFill=1;endSize=12;jumpStyle=arc;jumpSize=12;exitX=1;exitY=0.7;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0;entryY=0.3;entryDx=0;entryDy=0;entryPerimeter=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c4-cmp-marketplace-rel-13" edge="1" parent="1" source="c4-cmp-marketplace-synchronizers" target="c4-cmp-marketplace-stock-facade" value="&lt;b&gt;SyncListingStock&lt;br&gt;e SyncListingPrice&lt;/b&gt;&lt;br&gt;[chamada]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontSize=10;fontColor=#404040;labelBackgroundColor=#FFFFFF;strokeColor=#828282;endArrow=blockThin;endFill=1;endSize=12;jumpStyle=arc;jumpSize=12;exitX=1;exitY=0.5;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0;entryY=0.7;entryDx=0;entryDy=0;entryPerimeter=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c4-cmp-marketplace-rel-14" edge="1" parent="1" source="c4-cmp-marketplace-cancelled-consumer" target="c4-cmp-marketplace-order-facade" value="&lt;b&gt;CancelMarketplaceOrder&lt;/b&gt;&lt;br&gt;[chamada]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontSize=10;fontColor=#404040;labelBackgroundColor=#FFFFFF;strokeColor=#828282;endArrow=blockThin;endFill=1;endSize=12;jumpStyle=arc;jumpSize=12;exitX=1;exitY=0.5;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0;entryY=0.3;entryDx=0;entryDy=0;entryPerimeter=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c4-cmp-marketplace-rel-15" edge="1" parent="1" source="c4-cmp-marketplace-pollers" target="c4-cmp-marketplace-order-facade" value="&lt;b&gt;ReceiveMarketplaceOrders&lt;/b&gt;&lt;br&gt;[chamada]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontSize=10;fontColor=#404040;labelBackgroundColor=#FFFFFF;strokeColor=#828282;endArrow=blockThin;endFill=1;endSize=12;jumpStyle=arc;jumpSize=12;exitX=1;exitY=0.5;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0;entryY=0.7;entryDx=0;entryDy=0;entryPerimeter=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c4-cmp-marketplace-rel-16" edge="1" parent="1" source="c4-cmp-marketplace-listing-facade" target="c4-cmp-marketplace-catalog-client" value="&lt;b&gt;ProductCatalog&lt;/b&gt;&lt;br&gt;[chamada]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontSize=10;fontColor=#404040;labelBackgroundColor=#FFFFFF;strokeColor=#828282;endArrow=blockThin;endFill=1;endSize=12;jumpStyle=arc;jumpSize=12;exitX=1;exitY=0.3;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0;entryY=0.3;entryDx=0;entryDy=0;entryPerimeter=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c4-cmp-marketplace-rel-17" edge="1" parent="1" source="c4-cmp-marketplace-listing-facade" target="c4-cmp-marketplace-repos" value="&lt;b&gt;ListingRepository&lt;/b&gt;&lt;br&gt;[chamada]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontSize=10;fontColor=#404040;labelBackgroundColor=#FFFFFF;strokeColor=#828282;endArrow=blockThin;endFill=1;endSize=12;jumpStyle=arc;jumpSize=12;exitX=1;exitY=0.6;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0;entryY=0.15;entryDx=0;entryDy=0;entryPerimeter=0;">
+          <mxGeometry relative="1" as="geometry" x="-0.75">
+            <Array as="points">
+              <mxPoint x="980" y="144.0" />
+              <mxPoint x="980" y="366.0" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="c4-cmp-marketplace-rel-18" edge="1" parent="1" source="c4-cmp-marketplace-listing-facade" target="c4-cmp-marketplace-resilient" value="&lt;b&gt;Publica nos marketplaces&lt;/b&gt;&lt;br&gt;[chamada]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontSize=10;fontColor=#404040;labelBackgroundColor=#FFFFFF;strokeColor=#828282;endArrow=blockThin;endFill=1;endSize=12;jumpStyle=arc;jumpSize=12;exitX=1;exitY=0.85;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0;entryY=0.1;entryDx=0;entryDy=0;entryPerimeter=0;">
+          <mxGeometry relative="1" as="geometry" x="-0.8">
+            <Array as="points">
+              <mxPoint x="1000" y="179.0" />
+              <mxPoint x="1000" y="644.0" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="c4-cmp-marketplace-rel-19" edge="1" parent="1" source="c4-cmp-marketplace-stock-facade" target="c4-cmp-marketplace-repos" value="&lt;b&gt;ListingStockRepository&lt;/b&gt;&lt;br&gt;[chamada]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontSize=10;fontColor=#404040;labelBackgroundColor=#FFFFFF;strokeColor=#828282;endArrow=blockThin;endFill=1;endSize=12;jumpStyle=arc;jumpSize=12;exitX=1;exitY=0.35;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0;entryY=0.35;entryDx=0;entryDy=0;entryPerimeter=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c4-cmp-marketplace-rel-20" edge="1" parent="1" source="c4-cmp-marketplace-stock-facade" target="c4-cmp-marketplace-resilient" value="&lt;b&gt;Envia estoque e preço&lt;/b&gt;&lt;br&gt;[chamada]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontSize=10;fontColor=#404040;labelBackgroundColor=#FFFFFF;strokeColor=#828282;endArrow=blockThin;endFill=1;endSize=12;jumpStyle=arc;jumpSize=12;exitX=1;exitY=0.75;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0;entryY=0.4;entryDx=0;entryDy=0;entryPerimeter=0;">
+          <mxGeometry relative="1" as="geometry" x="-0.75">
+            <Array as="points">
+              <mxPoint x="920" y="450.0" />
+              <mxPoint x="920" y="686.0" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="c4-cmp-marketplace-rel-21" edge="1" parent="1" source="c4-cmp-marketplace-order-facade" target="c4-cmp-marketplace-repos" value="&lt;b&gt;MarketplaceOrder&lt;br&gt;e OrderCursor&lt;/b&gt;&lt;br&gt;[chamada]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontSize=10;fontColor=#404040;labelBackgroundColor=#FFFFFF;strokeColor=#828282;endArrow=blockThin;endFill=1;endSize=12;jumpStyle=arc;jumpSize=12;exitX=1;exitY=0.2;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0;entryY=0.8;entryDx=0;entryDy=0;entryPerimeter=0;">
+          <mxGeometry relative="1" as="geometry" x="-0.8">
+            <Array as="points">
+              <mxPoint x="950" y="753.0" />
+              <mxPoint x="950" y="457.0" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="c4-cmp-marketplace-rel-22" edge="1" parent="1" source="c4-cmp-marketplace-order-facade" target="c4-cmp-marketplace-resilient" value="&lt;b&gt;Busca e cancela pedidos&lt;/b&gt;&lt;br&gt;[chamada]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontSize=10;fontColor=#404040;labelBackgroundColor=#FFFFFF;strokeColor=#828282;endArrow=blockThin;endFill=1;endSize=12;jumpStyle=arc;jumpSize=12;exitX=1;exitY=0.5;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0;entryY=0.95;entryDx=0;entryDy=0;entryPerimeter=0;">
+          <mxGeometry relative="1" as="geometry" x="-0.6">
+            <Array as="points">
+              <mxPoint x="880" y="795.0" />
+              <mxPoint x="880" y="763.0" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="c4-cmp-marketplace-rel-23" edge="1" parent="1" source="c4-cmp-marketplace-catalog-client" target="c4-cmp-marketplace-catalog" value="&lt;b&gt;GET /products/sku/:sku&lt;/b&gt;&lt;br&gt;[REST/JSON]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontSize=10;fontColor=#404040;labelBackgroundColor=#FFFFFF;strokeColor=#828282;endArrow=blockThin;endFill=1;endSize=12;jumpStyle=arc;jumpSize=12;exitX=1;exitY=0.5;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;entryPerimeter=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c4-cmp-marketplace-rel-24" edge="1" parent="1" source="c4-cmp-marketplace-repos" target="c4-cmp-marketplace-db" value="&lt;b&gt;Lê e grava&lt;/b&gt;&lt;br&gt;[SQL]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontSize=10;fontColor=#404040;labelBackgroundColor=#FFFFFF;strokeColor=#828282;endArrow=blockThin;endFill=1;endSize=12;jumpStyle=arc;jumpSize=12;exitX=1;exitY=0.3;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0;entryY=0.3;entryDx=0;entryDy=0;entryPerimeter=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c4-cmp-marketplace-rel-25" edge="1" parent="1" source="c4-cmp-marketplace-relay" target="c4-cmp-marketplace-db" value="&lt;b&gt;Lê o outbox&lt;/b&gt;&lt;br&gt;[SQL]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontSize=10;fontColor=#404040;labelBackgroundColor=#FFFFFF;strokeColor=#828282;endArrow=blockThin;endFill=1;endSize=12;jumpStyle=arc;jumpSize=12;exitX=0.8;exitY=1;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0;entryY=0.75;entryDx=0;entryDy=0;entryPerimeter=0;">
+          <mxGeometry relative="1" as="geometry" x="0.6">
+            <Array as="points">
+              <mxPoint x="1260" y="1040" />
+              <mxPoint x="1910" y="1040" />
+              <mxPoint x="1910" y="349.5" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="c4-cmp-marketplace-rel-26" edge="1" parent="1" source="c4-cmp-marketplace-relay" target="c4-cmp-marketplace-kafka" value="&lt;b&gt;Publica marketplace.listing.*&lt;br&gt;e marketplace.order.received.v1&lt;/b&gt;&lt;br&gt;[Kafka]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontSize=10;fontColor=#404040;labelBackgroundColor=#FFFFFF;strokeColor=#828282;endArrow=blockThin;endFill=1;endSize=12;jumpStyle=arc;jumpSize=12;dashed=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;entryPerimeter=0;">
+          <mxGeometry relative="1" as="geometry" x="0.3">
+            <Array as="points">
+              <mxPoint x="1170.0" y="1110" />
+              <mxPoint x="-250" y="1110" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
 </mxfile>
