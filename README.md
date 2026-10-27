@@ -228,3 +228,24 @@ BFF_PORT=8081 GRAFANA_PORT=3001 make compose-up
 | marketplace-gateway | http://localhost:8087 | — |
 
 O Postgres mantém a senha com que o volume foi criado. Se apagar o `.env`, mudar uma senha ou precisar reaplicar o realm do Keycloak, `make compose-clean` apaga os volumes; depois execute `make compose-up` para recriá-los.
+
+### Dashboard de observabilidade
+
+O Grafana provisiona o dashboard **Omni Market - Serviços** (pasta Omni Market), igual no Compose e no kind:
+
+- **Latência**: P50, P90, P95 e P99 das chamadas entre serviços (HTTP e Kafka) e de cada rota ou tópico consumido.
+- **Erros**: taxa de erro, respostas 4xx/5xx, operações com erro e logs de erro (Loki).
+- **Mensagens em DLQ**: envios para os tópicos `*.dlq`, por tópico e serviço.
+- **Compliance**: produtos aprovados e reprovados, violações por regra e tempo médio de análise (`compliance.analyses`, `compliance.rule.violations`, `compliance.analysis.duration`).
+- **Hardware**: CPU, memória, rede e disco de cada container.
+
+As métricas de latência, tráfego e erro vêm dos traces: os connectors `span_metrics` e `service_graph` do otel-collector (`docker/otel-collector/config.yaml`) as geram iguais para todas as linguagens, sem código nos serviços. As de hardware vêm do cAdvisor: o container `cadvisor` no Compose e o kubelet no Kubernetes, os dois com o label `service` (nome do serviço no Compose ou do container no chart).
+
+O dashboard está em `docker/grafana/dashboards/omni-market.json`, no formato v2 do Grafana 13 (`dashboard.grafana.app/v2`); `make k8s-config` copia para o chart. O Grafana não salva alterações num dashboard provisionado. Para mudar o dashboard:
+
+1. Edite no Grafana.
+2. Exporte em **Export → Export as JSON**.
+3. Do JSON exportado, mantenha só `apiVersion`, `kind`, `metadata.name` e `spec`. Os outros campos de `metadata` (uid, resourceVersion, annotations) são do servidor.
+4. Substitua o arquivo pelo resultado.
+
+`make dashboard-check` (`scripts/check-dashboard.sh`) valida o dashboard no ambiente que estiver de pé, Compose ou kind. O script gera tráfego pelo BFF e um pedido simulado pelo Kafka. Depois confere, pela API do Grafana, o provisionamento, as consultas de todos os painéis, as arestas HTTP e Kafka entre os serviços, as métricas de hardware e a ordem das colunas. Leva cerca de um minuto e sai com erro se algo falhar. O `prometheus.yml` do chart (`k8s/helm/omni-market/files/prometheus.yml`) é próprio do Kubernetes e não é copiado.

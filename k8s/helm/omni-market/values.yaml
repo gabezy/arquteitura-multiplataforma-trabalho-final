@@ -152,6 +152,8 @@ infrastructure:
       - { name: GF_SERVER_HTTP_PORT, value: "3000" }
     mounts:
       - { key: grafana-datasources.yaml, path: /etc/grafana/provisioning/datasources/datasources.yaml }
+      - { key: grafana-dashboards.yaml, path: /etc/grafana/provisioning/dashboards/dashboards.yaml }
+      - { key: grafana-dashboard-omni-market.json, path: /etc/grafana/dashboards/omni-market.json }
   - name: loki
     image: grafana/loki:3.7.0
     port: 3100
@@ -170,7 +172,9 @@ infrastructure:
   - name: prometheus
     image: prom/prometheus:v3.5.0
     port: 9090
-    command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.retention.time=48h"]
+    command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.retention.time=48h", "--enable-feature=exemplar-storage,created-timestamp-zero-ingestion"]
+    # Reads the cAdvisor of the kubelet (templates/prometheus-rbac.yaml).
+    serviceAccount: prometheus
     mounts:
       - { key: prometheus.yml, path: /etc/prometheus/prometheus.yml }
   - name: otel-collector

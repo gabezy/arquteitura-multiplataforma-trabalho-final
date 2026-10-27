@@ -1,8 +1,27 @@
 global:
   scrape_interval: 15s
 
+# Docker Compose. The Kubernetes version (kubelet cAdvisor instead of the cadvisor container) is
+# k8s/helm/omni-market/files/prometheus.yml; both give the container metrics the same `service` label.
 scrape_configs:
   - job_name: otel-collector
     honor_labels: true
+    # Protobuf carries the creation time of each counter, and created-timestamp-zero-ingestion
+    # (Prometheus flag) turns it into a 0 sample. Without it rate() misses the first increment of a new
+    # series: a new operation or edge, or every series after the collector restarts.
+    scrape_protocols: [PrometheusProto, OpenMetricsText1.0.0, PrometheusText0.0.4]
     static_configs:
       - targets: ["otel-collector:8889"]
+
+  - job_name: cadvisor
+    static_configs:
+      - targets: ["cadvisor:8080"]
+    metric_relabel_configs:
+      - source_labels: [container_label_com_docker_compose_service]
+        target_label: service
+      # Keeps only the containers of the compose project (drops the cgroups of the host).
+      - source_labels: [service]
+        regex: ""
+        action: drop
+      - regex: container_label_.+
+        action: labeldrop

@@ -20,6 +20,9 @@ spec:
         checksum/config: {{ include (print $root.Template.BasePath "/configmaps.yaml") $root | sha256sum }}
 {{- end }}
     spec:
+{{- if .serviceAccount }}
+      serviceAccountName: {{ .serviceAccount }}
+{{- end }}
       containers:
         - name: {{ .name }}
           image: {{ .image }}

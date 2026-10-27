@@ -70,6 +70,10 @@ Topics are created by the one-shot `kafka-init` service, which runs `docker/kafk
 
 **Observability**: apps send OTLP over HTTP to the collector on http://localhost:4318. Grafana runs on http://localhost:3000 (`admin`/`admin`).
 
+- The dashboard `Omni Market - Serviços` (`docker/grafana/dashboards/omni-market.json`, Grafana 13 v2 resource format `dashboard.grafana.app/v2`, provisioned; `make dashboard-check` validates it against a running environment) shows latency percentiles between services and per operation, errors, DLQ messages (producer spans to `*.dlq`), the compliance metrics and hardware per service, in Compose and in kind.
+- Latency/traffic/error metrics come from the traces: the `span_metrics` and `service_graph` connectors of the otel-collector (`traces_span_metrics_*`, `traces_service_graph_*`). The `transform/http-semconv` processor copies the HTTP attributes of Spring and FastAPI to the current semantic conventions, so every service has the same labels.
+- Hardware metrics come from cAdvisor (the `cadvisor` container in Compose, the kubelet in Kubernetes) with a `service` label. The chart's `files/prometheus.yml` is Kubernetes-specific and not copied by `make k8s-config`; Prometheus reads the kubelet with the `prometheus` ServiceAccount (`templates/prometheus-rbac.yaml`).
+
 ## Conventions (all services)
 
 - Each service follows Clean Architecture (framework-free `core`, adapters in `infra`) and Clean Code. The rules are detailed per service.

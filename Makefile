@@ -8,7 +8,7 @@ HELM := $(shell command -v helm 2>/dev/null)
 K8S_CONTEXT := kind-omni-market
 
 .DEFAULT_GOAL := help
-.PHONY: help env compose-up compose-up-infra compose-down compose-clean compose-restart compose-ps compose-logs compose-topics compose-vault kind-install k8s-deploy k8s-registry k8s-build k8s-push k8s-load k8s-config k8s-apply k8s-status k8s-destroy act-install act-list act-deploy act-destroy e2e
+.PHONY: help env compose-up compose-up-infra compose-down compose-clean compose-restart compose-ps compose-logs compose-topics compose-vault dashboard-check kind-install k8s-deploy k8s-registry k8s-build k8s-push k8s-load k8s-config k8s-apply k8s-status k8s-destroy act-install act-list act-deploy act-destroy e2e
 
 help: ## lista os comandos disponíveis
 	@grep -E '^[a-zA-Z0-9_-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -43,6 +43,9 @@ compose-topics: env ## cria os tópicos novos do Kafka (create-topics.sh)
 
 compose-vault: env ## regrava secrets e AppRoles no Vault (necessário após reiniciar o Vault)
 	$(COMPOSE) up -d --force-recreate vault-init
+
+dashboard-check: env ## smoke test do dashboard do Grafana no ambiente de pé (Compose ou kind)
+	bash scripts/check-dashboard.sh
 
 kind-install: ## instala kind em ~/.local/bin
 	sh scripts/install-kind.sh
@@ -86,10 +89,11 @@ k8s-config: ## sincroniza os arquivos de configuração do Docker Compose com o 
 	cp docker/vault/bootstrap.sh k8s/helm/omni-market/files/vault-bootstrap.sh
 	cp docker/kafka/create-topics.sh k8s/helm/omni-market/files/create-topics.sh
 	cp docker/grafana/datasources.yaml k8s/helm/omni-market/files/grafana-datasources.yaml
+	cp docker/grafana/dashboards.yaml k8s/helm/omni-market/files/grafana-dashboards.yaml
+	cp docker/grafana/dashboards/omni-market.json k8s/helm/omni-market/files/grafana-dashboard-omni-market.json
 	cp docker/loki/config.yaml k8s/helm/omni-market/files/loki-config.yaml
 	cp docker/tempo/config.yaml k8s/helm/omni-market/files/tempo-config.yaml
 	cp docker/otel-collector/config.yaml k8s/helm/omni-market/files/otel-collector-config.yaml
-	cp docker/prometheus/prometheus.yml k8s/helm/omni-market/files/prometheus.yml
 
 k8s-apply: env k8s-config ## aplica os manifests e aguarda os workloads em kind existente
 	$(KUBECTL) --context $(K8S_CONTEXT) apply -f k8s/namespace.yaml
