@@ -2,7 +2,8 @@
 # Smoke test do dashboard "Omni Market - Serviços" contra um ambiente já de pé (make compose-up
 # ou make k8s-deploy: os dois expõem Grafana, BFF, Keycloak e WireMock nas mesmas portas).
 #
-# Gera tráfego pelo BFF (respostas 2xx, 4xx e um pedido simulado que passa pelo Kafka), espera as
+# Gera tráfego pelo BFF (respostas 2xx, 4xx e um pedido simulado que passa pelo Kafka) e importa
+# dois produtos no catalog (um aprovado e um reprovado pelo compliance), espera as
 # métricas chegarem e verifica pela API do Grafana:
 #   - o dashboard e os datasources provisionados;
 #   - cada consulta de cada painel, como o Grafana a executa, com dados;
@@ -17,13 +18,14 @@ GRAFANA_URL="${GRAFANA_URL:-http://localhost:${GRAFANA_PORT:-3000}}"
 GRAFANA_AUTH="${GRAFANA_AUTH:-admin:admin}"
 BFF_URL="${BFF_URL:-http://localhost:${BFF_PORT:-8080}}"
 KEYCLOAK_URL="${KEYCLOAK_URL:-http://localhost:8085}"
+CATALOG_URL="${CATALOG_URL:-http://localhost:8082}"
 DASHBOARD_NAME="omni-market-overview"
 APPS=(bff-gateway catalog-service compliance-service order-service billing-service marketplace-gateway)
 # Segundos de espera pelas métricas: flush dos connectors (15 s) + scrape do Prometheus (15 s) + folga.
 WAIT_SECONDS="${WAIT_SECONDS:-120}"
-# Painéis que podem ficar sem dados num ambiente saudável: falhas só aparecem com falhas, e no kind
-# (containerd) não há métricas de disco por container.
-ALLOW_EMPTY="${ALLOW_EMPTY:-Falhas por segundo entre serviços|Disco (leitura + / escrita −)}"
+# Painéis que podem ficar sem dados num ambiente saudável: falhas e DLQ só aparecem com falhas, e no
+# kind (containerd) não há métricas de disco por container.
+ALLOW_EMPTY="${ALLOW_EMPTY:-Falhas por segundo entre serviços|Disco (leitura + / escrita −)|Envios para DLQ (mensagens por minuto)|DLQ por tópico no período}"
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 failures=0
@@ -57,6 +59,11 @@ prom_count() {
   prom_query "$1" | jq '[.results.A.frames[]? | .data.values[-1] // [] | length] | add // 0'
 }
 
+# Valor de uma consulta que devolve um número só, ou "nenhum" se não houver série.
+prom_value() {
+  prom_query "$1" | jq -r '.results.A.frames[0].data.values[-1][0] // "nenhum"'
+}
+
 # ---------------------------------------------------------------- pré-requisitos
 section "Ambiente"
 curl -fsS -o /dev/null "$GRAFANA_URL/api/health" || { echo "Grafana fora do ar em $GRAFANA_URL" >&2; exit 1; }
@@ -88,6 +95,18 @@ done
 
 # ---------------------------------------------------------------- tráfego
 section "Tráfego"
+# Contadores que o tráfego abaixo tem de mudar. Comparar com o valor anterior, e não usar rate(),
+# funciona mesmo quando o collector reiniciou e o contador voltou ao mesmo valor da execução passada.
+HTTP_EDGE='sum(traces_service_graph_request_total{client="bff-gateway", server="order-service"})'
+KAFKA_EDGE='sum(traces_service_graph_request_total{client="marketplace-gateway", server="order-service", connection_type="messaging_system"})'
+APPROVED='sum(compliance_analyses_total{status="APPROVED"})'
+REJECTED='sum(compliance_analyses_total{status="REJECTED"})'
+VIOLATIONS='sum(compliance_rule_violations_total)'
+declare -A before
+for expr in "$HTTP_EDGE" "$KAFKA_EDGE" "$APPROVED" "$REJECTED" "$VIOLATIONS"; do
+  before[$expr]="$(prom_value "$expr")"
+done
+
 token="$(curl -fsS -X POST "$KEYCLOAK_URL/realms/omni-market/protocol/openid-connect/token" \
   -d grant_type=password -d client_id=bff-gateway -d client_secret="$BFF_CLIENT_SECRET" \
   -d username=admin -d password=admin | jq -r .access_token)"
@@ -105,6 +124,13 @@ done
 pass "$((15 * ${#paths[@]})) requisições ao BFF (2xx, 404 e 400)"
 "$ROOT/scripts/simulate-order.sh" amazon --qty 1 > /dev/null
 pass "pedido simulado na Amazon (marketplace-gateway → Kafka → order-service)"
+# SKU único a cada execução: o catalog recusa um SKU que já existe. O preço acima do teto reprova.
+sku="SMOKE-$(date +%s)"
+curl -fsS -o /dev/null -X POST "$CATALOG_URL/products/import" -H 'Content-Type: application/json' -d "$(jq -nc --arg sku "$sku" '{items: [
+  {sku: ($sku + "-OK"), name: "Oxímetro de dedo", description: "Oxímetro portátil para medir a saturação", price: 199.90, stock: 10},
+  {sku: ($sku + "-NOK"), name: "Monitor multiparamétrico", description: "Monitor de sinais vitais", price: 250000.00, stock: 1}
+]}')"
+pass "produtos $sku-OK e $sku-NOK importados no catalog (catalog → Kafka → compliance)"
 
 # ---------------------------------------------------------------- espera
 section "Métricas (até ${WAIT_SECONDS}s)"
@@ -119,16 +145,29 @@ wait_for() {
   done
   pass "$description"
 }
+wait_change() {
+  local description="$1" expr="$2" deadline=$((SECONDS + WAIT_SECONDS))
+  until [[ "$(prom_value "$expr")" != "${before[$expr]}" ]]; do
+    if ((SECONDS >= deadline)); then
+      fail "$description (continua em ${before[$expr]})"
+      return
+    fi
+    sleep 5
+  done
+  pass "$description"
+}
 wait_for "span metrics do BFF" \
   'sum(rate(traces_span_metrics_calls_total{service_name="bff-gateway", span_kind="SPAN_KIND_SERVER"}[2m])) > 0'
-wait_for "aresta HTTP bff-gateway → order-service" \
-  'sum(rate(traces_service_graph_request_total{client="bff-gateway", server="order-service"}[2m])) > 0'
-wait_for "aresta Kafka marketplace-gateway → order-service" \
-  'traces_service_graph_request_total{client="marketplace-gateway", server="order-service", connection_type="messaging_system"}'
+wait_change "aresta HTTP bff-gateway → order-service" "$HTTP_EDGE"
+wait_change "aresta Kafka marketplace-gateway → order-service" "$KAFKA_EDGE"
 wait_for "status HTTP normalizado no Spring (404 no BFF)" \
   'traces_span_metrics_calls_total{service_name="bff-gateway", span_kind="SPAN_KIND_SERVER", http_response_status_code="404"}'
 wait_for "status HTTP normalizado no FastAPI (compliance-service)" \
   'traces_span_metrics_calls_total{service_name="compliance-service", http_response_status_code=~"[0-9]{3}"}'
+
+wait_change "análise aprovada no compliance" "$APPROVED"
+wait_change "análise reprovada no compliance" "$REJECTED"
+wait_change "violação de regra no compliance" "$VIOLATIONS"
 
 for app in "${APPS[@]}"; do
   [[ "$(prom_count "container_memory_working_set_bytes{service=\"$app\"}")" -gt 0 ]] \
