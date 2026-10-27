@@ -17,6 +17,8 @@ spec:
       labels:
         app.kubernetes.io/name: {{ .name }}
     spec:
+      # Service links inject variables like REDIS_PORT=tcp://..., which collide with the app config.
+      enableServiceLinks: false
       containers:
         - name: {{ .name }}
           image: {{ .image }}
