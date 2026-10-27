@@ -142,11 +142,14 @@ Cada etapa imprime `[OK]` ou `[FALHA] <etapa>: <motivo>`, e uma falha encerra o 
 
 | Variável | Padrão | Efeito |
 | --- | --- | --- |
-| `E2E_SKIP_UP` | — | `1` não roda `docker compose up` (ambiente já no ar) |
+| `E2E_TARGET` | `compose` | `compose` ou `kind` (cluster local do `make k8s-deploy`) |
+| `E2E_SKIP_UP` | — | `1` não roda `docker compose up` nem `make k8s-deploy` (ambiente já no ar) |
 | `E2E_TIMEOUT` | `300` | segundos de espera até os serviços ficarem `healthy` |
 | `BFF_PORT` | `8080` | porta do BFF, a mesma variável do compose |
 | `BFF_CLIENT_SECRET` | o do `.env` | client secret do BFF no Keycloak |
 | `E2E_ORDER_QUANTITY` | `1` | unidades do pedido pago (usado pelos testes do próprio teste) |
+
+`make e2e-k8s` (ou `E2E_TARGET=kind bash scripts/e2e-smoke.sh`) roda as mesmas etapas no cluster kind local: implanta com `make k8s-deploy` (ou só confere o cluster com `E2E_SKIP_UP=1`), espera os deployments ficarem prontos pelo `kubectl` e lê o `BFF_CLIENT_SECRET` do Secret `omni-market-secrets`. O kind publica as mesmas portas do compose (`k8s/kind.yaml`), então as chamadas são as mesmas; precisa também de `kubectl` (e de `kind` e `helm` quando implanta). `BFF_PORT` não se aplica: o BFF fica sempre na 8080.
 
 `bash scripts/e2e-smoke.test.sh` testa o próprio teste: roda os cenários da spec (`.specs/features/e2e-smoke/spec.md`) contra o ambiente no ar, provocando uma falha por vez (serviço fora da rede do compose, simulador em modo de falha, PSP que recusa ou aprova tudo) e desfazendo cada uma no fim.
 

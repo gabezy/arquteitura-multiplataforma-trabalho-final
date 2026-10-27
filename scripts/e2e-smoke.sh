@@ -2,22 +2,36 @@
 # End-to-end smoke test of the omni-market flow (#37, spec in .specs/features/e2e-smoke/spec.md).
 #
 #   make e2e                      # or: bash scripts/e2e-smoke.sh
-#   E2E_SKIP_UP=1                 # do not run docker compose up (stack already running)
+#   make e2e-k8s                  # or: E2E_TARGET=kind bash scripts/e2e-smoke.sh
+#   E2E_TARGET=compose            # compose (docker compose) or kind (the local cluster of make k8s-deploy)
+#   E2E_SKIP_UP=1                 # do not run docker compose up / make k8s-deploy (stack already running)
 #   E2E_TIMEOUT=300               # seconds to wait for the stack to be healthy
-#   BFF_PORT=8080                 # same variable as the compose file
-#   BFF_CLIENT_SECRET=...         # default: read from .env, which make env generates
+#   BFF_PORT=8080                 # same variable as the compose file (compose only)
+#   BFF_CLIENT_SECRET=...         # default: read from .env, which make env generates (kind: from the
+#                                 # omni-market-secrets Secret first)
 #   E2E_ORDER_QUANTITY=1          # units of the paid order (a test hook for the harness)
 #
-# Needs bash, curl and Docker. It never deletes containers, volumes or data.
+# k8s/kind.yaml publishes the NodePorts on the same localhost ports as the compose file, so both
+# targets share every call below; they differ only in how the stack comes up and is checked.
+#
+# Needs bash, curl and Docker, plus kubectl for kind (and kind and helm when it deploys). It never
+# deletes containers, pods, volumes or data.
 set -uo pipefail
 cd "$(dirname "$0")/.."
 
-BFF="http://localhost:${BFF_PORT:-8080}"
+TARGET=${E2E_TARGET:-compose}
+case "$TARGET" in
+  compose) BFF="http://localhost:${BFF_PORT:-8080}" ;;
+  kind) BFF=http://localhost:8080 ;;
+  *) echo "E2E_TARGET invalido: '$TARGET' (use compose ou kind)" >&2; exit 2 ;;
+esac
 CATALOG=http://localhost:8082
 KEYCLOAK=http://localhost:8085/realms/omni-market/protocol/openid-connect/token
 WIREMOCK=http://localhost:8089/__admin/mappings
 STACK_TIMEOUT=${E2E_TIMEOUT:-300}
 STEP_TIMEOUT=60
+CONTEXT=kind-omni-market
+NAMESPACE=omni-market
 APPS=(keycloak bff-gateway catalog-service compliance-service order-service billing-service marketplace-gateway)
 # Always 15 digits (10 of the epoch, 5 of $RANDOM), so the slices below are never short.
 RUN="$(date +%s)$(printf '%05d' "$RANDOM")"
@@ -92,17 +106,36 @@ register_order() {
       \"paging\": { \"total\": 1, \"offset\": 0, \"limit\": 50 } } } }"
 }
 
+kube() { kubectl --context "$CONTEXT" --namespace "$NAMESPACE" "$@"; }
+
+# compose: the container health check. kind: every replica of the current revision passes the readiness probe.
 unhealthy_apps() {
-  local app status
+  local app status updated ready wanted
   for app in "${APPS[@]}"; do
-    status=$(docker inspect -f '{{if ne .State.Status "running"}}{{.State.Status}}{{else if .State.Health}}{{.State.Health.Status}}{{else}}running{{end}}' "$app" 2>/dev/null) || status=ausente
-    [ "$status" = healthy ] || printf '%s=%s ' "$app" "$status"
+    if [ "$TARGET" = kind ]; then
+      status=$(kube get deployment "$app" -o jsonpath='{.status.updatedReplicas}/{.status.readyReplicas}/{.spec.replicas}' 2>/dev/null) || status=ausente
+      IFS=/ read -r updated ready wanted <<< "$status"
+      [ "${wanted:-0}" -gt 0 ] && [ "$updated" = "$wanted" ] && [ "$ready" = "$wanted" ] || printf '%s=%s ' "$app" "$status"
+    else
+      status=$(docker inspect -f '{{if ne .State.Status "running"}}{{.State.Status}}{{else if .State.Health}}{{.State.Health.Status}}{{else}}running{{end}}' "$app" 2>/dev/null) || status=ausente
+      [ "$status" = healthy ] || printf '%s=%s ' "$app" "$status"
+    fi
   done
 }
 
 echo "Execucao: $RUN"
+echo "Alvo: $TARGET"
 
-if [ "${E2E_SKIP_UP:-}" != 1 ]; then
+if [ "$TARGET" = kind ]; then
+  command -v kubectl > /dev/null || fail ambiente "kubectl nao encontrado"
+  if [ "${E2E_SKIP_UP:-}" != 1 ]; then
+    # Creates the cluster when missing, rebuilds and pushes the images and upgrades the chart; it runs make env.
+    echo "Implantando no kind (make k8s-deploy)"
+    make k8s-deploy > "$tmp/up.log" 2>&1 || fail ambiente "make k8s-deploy falhou: $(tail -5 "$tmp/up.log")"
+  fi
+  kube get namespace "$NAMESPACE" > /dev/null 2>&1 \
+    || fail ambiente "namespace $NAMESPACE ausente no contexto $CONTEXT (rode make k8s-deploy)"
+elif [ "${E2E_SKIP_UP:-}" != 1 ]; then
   echo "Subindo o ambiente (docker compose up -d --build)"
   # The compose file refuses to start without the secrets in .env; this keeps the existing ones.
   sh scripts/generate-env.sh > "$tmp/env.log" 2>&1 || fail ambiente "nao foi possivel gerar o .env: $(tail -3 "$tmp/env.log")"
@@ -115,8 +148,13 @@ until [ -z "$(unhealthy_apps)" ]; do
 done
 ok ambiente
 
-# The client secret is generated into .env (Vault, ADR-0003); the variable wins when it is set.
-CLIENT_SECRET=${BFF_CLIENT_SECRET:-$(sed -n 's/^BFF_CLIENT_SECRET=//p' .env 2> /dev/null | tr -d '\r')}
+# The client secret is generated into .env (Vault, ADR-0003); the variable wins when it is set. On kind,
+# make k8s-apply copies .env into the omni-market-secrets Secret, which is what the cluster really uses.
+CLIENT_SECRET=${BFF_CLIENT_SECRET:-}
+if [ -z "$CLIENT_SECRET" ] && [ "$TARGET" = kind ]; then
+  CLIENT_SECRET=$(kube get secret omni-market-secrets -o jsonpath='{.data.BFF_CLIENT_SECRET}' 2> /dev/null | base64 -d 2> /dev/null)
+fi
+CLIENT_SECRET=${CLIENT_SECRET:-$(sed -n 's/^BFF_CLIENT_SECRET=//p' .env 2> /dev/null | tr -d '\r')}
 [ -n "$CLIENT_SECRET" ] || fail autenticacao "BFF_CLIENT_SECRET ausente no ambiente e no .env (rode make env)"
 # A few attempts: a token request now and then gets no answer from a busy Keycloak.
 for attempt in 1 2 3 4 5; do

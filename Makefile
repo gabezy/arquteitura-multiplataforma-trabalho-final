@@ -8,7 +8,7 @@ HELM := $(shell command -v helm 2>/dev/null)
 K8S_CONTEXT := kind-omni-market
 
 .DEFAULT_GOAL := help
-.PHONY: help env compose-up compose-up-infra compose-down compose-clean compose-restart compose-ps compose-logs compose-topics compose-vault dashboard-check kind-install k8s-deploy k8s-registry k8s-build k8s-push k8s-load k8s-config k8s-apply k8s-status k8s-destroy act-install act-list act-deploy act-destroy e2e
+.PHONY: help env compose-up compose-up-infra compose-down compose-clean compose-restart compose-ps compose-logs compose-topics compose-vault dashboard-check kind-install k8s-deploy k8s-registry k8s-build k8s-push k8s-load k8s-config k8s-apply k8s-status k8s-destroy act-install act-list act-deploy act-destroy e2e e2e-k8s
 
 help: ## lista os comandos disponíveis
 	@grep -E '^[a-zA-Z0-9_-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -123,3 +123,6 @@ act-destroy: ## executa localmente com act o workflow de destroy
 
 e2e: env ## roda o teste ponta a ponta no ambiente Docker Compose (scripts/e2e-smoke.sh)
 	bash scripts/e2e-smoke.sh
+
+e2e-k8s: env ## roda o teste ponta a ponta no cluster kind local (E2E_TARGET=kind scripts/e2e-smoke.sh)
+	E2E_TARGET=kind bash scripts/e2e-smoke.sh
