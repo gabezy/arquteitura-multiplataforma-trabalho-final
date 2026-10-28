@@ -2,7 +2,7 @@
 
 ## Status
 
-`Proposto`
+`Aceito`
 
 **Data:** 2026-10-24
 **Autor:** Paulo Henrique Nunes Vanderley

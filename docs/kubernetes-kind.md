@@ -57,4 +57,3 @@ Os dados de bancos, Kafka, Vault e observabilidade usam volumes efêmeros no clu
 - O ambiente é para desenvolvimento e apresentação local; Vault roda em dev mode e as imagens não são endurecidas para produção.
 - `registry:3` é intencionalmente simples. Use Harbor se a demo precisar de interface, autenticação, projetos, políticas ou varredura de vulnerabilidades.
 - As portas de host precisam estar livres. Se Docker Compose estiver usando as mesmas portas, pare-o antes de criar o cluster.
-- O fluxo da ordem depende de os consumidores do `order-service` estarem concluídos e disponíveis.

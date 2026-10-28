@@ -1,6 +1,6 @@
 # Personas, papéis e matriz de permissões
 
-O `bff-gateway` é a porta de entrada da API: valida o JWT do Keycloak e autoriza cada rota por **papel**. Os papéis do realm chegam no claim `realm_access.roles`, viram `ROLE_<papel>` no BFF e são aplicados rota a rota com `@PreAuthorize`. Os serviços internos não validam token ([ADR-0009](adr/0009-chamada-entre-servicos-sem-token-na-rede-interna.md)).
+O `bff-gateway` é a porta de entrada da API: valida o JWT do Keycloak e autoriza cada rota por **papel**. Os papéis do realm chegam no claim `realm_access.roles`, viram `ROLE_<papel>` no BFF e são aplicados rota a rota com `@PreAuthorize`. Os serviços internos não validam token ([ADR-0013](adr/0013-chamada-entre-servicos-sem-token-na-rede-interna.md)).
 
 ## Personas, papéis e usuários de demonstração
 

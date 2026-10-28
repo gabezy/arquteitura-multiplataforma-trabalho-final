@@ -22,7 +22,7 @@ The order-service has a running skeleton (config, health, Postgres, outbox relay
 | Buyer and shipping data | The `marketplace.order.received.v1` contract leaves them out until a service needs them (`docs/eventos.md`) |
 | Reservation expiry and a timeout for a stock answer | ADR-0004: the order waits for the catalog; the answer is guaranteed by at-least-once delivery and the outbox |
 | Refund of a paid order that is cancelled later | The billing-service keeps the invoice paid and logs a warning (ADR-0005) |
-| Authentication and authorization | The BFF is the resource server; internal services do not check tokens (`docs/adr/0009-chamada-entre-servicos-sem-token-na-rede-interna.md`) |
+| Authentication and authorization | The BFF is the resource server; internal services do not check tokens (`docs/adr/0013-chamada-entre-servicos-sem-token-na-rede-interna.md`) |
 
 ---
 

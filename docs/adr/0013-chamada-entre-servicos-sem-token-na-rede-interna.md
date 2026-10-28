@@ -1,8 +1,8 @@
-# ADR-0009: Chamada entre serviços sem token, confiando na rede interna
+# ADR-0013: Chamada entre serviços sem token, confiando na rede interna
 
 ## Status
 
-`Proposto`
+`Aceito`
 
 **Data:** 2026-10-24
 **Autor:** Henrique Miguel de Jesus

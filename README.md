@@ -2,6 +2,32 @@
 
 Monorepo do sistema **omni-market**, trabalho final de Arquitetura Multiplataforma (PUC).
 
+## Visão geral
+
+O Omni Market integra o catálogo de uma loja de produtos hospitalares a três marketplaces: Amazon, Mercado Livre e Shopee. A loja importa o catálogo por planilha, cada produto passa por uma análise de conformidade, e o aprovado é anunciado nos três marketplaces. O pedido que chega de um marketplace reserva o estoque, gera a fatura com a comissão do canal e é cobrado num provedor de pagamento (PSP). Os marketplaces e o PSP são simulados no WireMock.
+
+Cada persona do [C4](#arquitetura-c4) vira um papel no Keycloak (`store`, `specialist`, `fiscal`, `csm` e `admin`), e a [matriz de permissões](docs/matriz-de-permissoes.md) diz o que cada papel acessa no BFF.
+
+| Tema da disciplina | Onde aparece no Omni Market |
+| --- | --- |
+| Arquitetura multiplataforma | Serviços em Java (Spring Boot), Node.js/TypeScript, Python (FastAPI) e Go, em containers, no kind ou no Docker Compose |
+| C4 | Contexto, Container, Componentes (catalog, order, billing e marketplace-gateway) e Deployment, em [`docs/c4/`](docs/c4/) |
+| IdP | Keycloak com o realm `omni-market` e um papel por persona; o BFF é o resource server OAuth2 |
+| Clean Architecture | `core` sem framework e adaptadores em `infra` em todos os serviços (diagramas de componentes) |
+| DDD | Um bounded context por serviço, agregados com ciclo de vida (pedido, fatura, anúncio) e a anti-corruption layer dos marketplaces ([ADR-0008](docs/adr/0008-anticorruption-layer-um-adapter-por-marketplace.md)) |
+| Bancos de dados | Um Postgres por serviço, Redis no BFF ([ADR-0012](docs/adr/0012-cache-distribuido-no-bff-gateway.md)) e Kafka para os eventos |
+| Padrões de projeto | BFF; transactional outbox ([ADR-0002](docs/adr/0002-outbox-para-eventos-do-catalog-service.md)) e inbox; DLQ por consumidor; saga por coreografia ([ADR-0004](docs/adr/0004-catalog-dono-do-estoque-com-reserva-por-coreografia.md)); chain of responsibility nas regras do compliance; adapter e strategy por marketplace e na comissão; decorator com retry e circuit breaker ([ADR-0007](docs/adr/0007-integracao-assincrona-com-o-psp.md), [ADR-0009](docs/adr/0009-resiliencia-nas-chamadas-aos-marketplaces.md)) |
+
+## Entregáveis
+
+A tag `v1.0.0`, na `main`, é a versão apresentada no vídeo.
+
+| Entregável | Onde |
+| --- | --- |
+| Apresentação em vídeo, com as demos (cerca de 15 min) | [YouTube](https://youtu.be/GPpAagQ819k) |
+| Slides (`.pptx`) e o vídeo em 720p | Anexos da [release v1.0.0](https://github.com/gabezy/arquteitura-multiplataforma-trabalho-final/releases/tag/v1.0.0) |
+| Issues, responsáveis e andamento | [GitHub Project](https://github.com/users/gabezy/projects/2) |
+
 ## Equipe
 
 | Nome | Matrícula | Username |
@@ -19,11 +45,11 @@ Monorepo do sistema **omni-market**, trabalho final de Arquitetura Multiplatafor
 | Serviço | Stack | Porta | Descrição |
 | --- | --- | --- | --- |
 | [`bff-gateway`](bff-gateway/) | Java, Spring Boot | 8080 | Backend-for-frontend / gateway, OAuth2 resource server (Keycloak) |
-| [`catalog-service`](catalog-service/) | Node.js, TypeScript, Express | 8082 | Catálogo de produtos; publica `catalog.product.created.v1` |
-| [`compliance-service`](compliance-service/) | Python, FastAPI, uv | 8083 | Análise de conformidade dos produtos; publica `produto.analisado.v1` |
-| [`order-service`](order-service/) | Node.js, TypeScript, Express | 8084 | Pedidos dos marketplaces; publica eventos de pedido via outbox (em construção: #20, #29, #31) |
+| [`catalog-service`](catalog-service/) | Node.js, TypeScript, Express | 8082 | Catálogo de produtos, preço e estoque: dono do estoque, reserva e devolve unidades pelos eventos do pedido; publica `catalog.*` via outbox |
+| [`compliance-service`](compliance-service/) | Python, FastAPI, uv | 8083 | Análise de conformidade dos produtos por uma cadeia de regras; publica `produto.analisado.v1` |
+| [`order-service`](order-service/) | Node.js, TypeScript, Express | 8084 | Pedidos dos marketplaces e relatório de vendas por marketplace; publica `order.*` via outbox |
 | [`billing-service`](billing-service/) | Go | 8086 | Cobrança dos pedidos confirmados: fatura com a comissão do marketplace e pagamento pelo PSP simulado; publica `billing.*` via outbox |
-| [`marketplace-gateway`](marketplace-gateway/) | Node.js, TypeScript, Express | 8087 | Integração com Amazon, Mercado Livre e Shopee (simulados no WireMock): publica anúncios (status em `GET /listings`), recebe pedidos e sincroniza o estoque dos anúncios |
+| [`marketplace-gateway`](marketplace-gateway/) | Node.js, TypeScript, Express | 8087 | Integração com Amazon, Mercado Livre e Shopee (simulados no WireMock): publica anúncios (status em `GET /listings`), recebe pedidos por polling e sincroniza o estoque e o preço dos anúncios |
 
 Cada serviço tem build próprio e um `CLAUDE.md` com comandos e arquitetura. Todos seguem Clean Architecture (core sem framework, adapters em `infra`).
 
@@ -155,11 +181,16 @@ Cada etapa imprime `[OK]` ou `[FALHA] <etapa>: <motivo>`, e uma falha encerra o 
 
 ## Fluxo de eventos
 
-1. `catalog-service` cria o produto e publica `catalog.product.created.v1`.
-2. `compliance-service` consome o evento, aplica as regras e publica `APPROVED`/`REJECTED` em `produto.analisado.v1`.
-3. `catalog-service` consome o resultado e atualiza o produto.
+1. A loja importa a planilha pelo BFF. O `catalog-service` grava os produtos e publica `catalog.product.created.v1`.
+2. O `compliance-service` aplica as regras e publica `APPROVED` ou `REJECTED` em `produto.analisado.v1`. O catalog atualiza o produto e publica `catalog.product.approved.v1` ou `catalog.product.rejected.v1`.
+3. O `marketplace-gateway` consome o aprovado, lê o produto no catalog ([ADR-0011](docs/adr/0011-dados-do-produto-por-consulta-ao-catalog.md)) e o anuncia nos três marketplaces.
+4. O gateway busca os pedidos novos de cada marketplace por polling ([ADR-0010](docs/adr/0010-pedidos-dos-marketplaces-por-polling.md)) e publica `marketplace.order.received.v1`.
+5. O `order-service` registra o pedido e publica `order.order.placed.v1`. O catalog reserva o estoque e responde `catalog.stock.reserved.v1` ou `catalog.stock.insufficient.v1` ([ADR-0004](docs/adr/0004-catalog-dono-do-estoque-com-reserva-por-coreografia.md)).
+6. Com a reserva, o pedido é confirmado em `order.order.confirmed.v1`. O `billing-service` emite a fatura com a comissão do marketplace e cobra no PSP ([ADR-0005](docs/adr/0005-escopo-da-cobranca.md), [ADR-0007](docs/adr/0007-integracao-assincrona-com-o-psp.md)).
+7. O billing publica `billing.payment.confirmed.v1` ou `billing.payment.failed.v1`. O pedido fica `PAID` ou é cancelado em `order.order.cancelled.v1`, e o catalog devolve o estoque.
+8. Toda mudança de estoque ou de preço sai em `catalog.product.stock-changed.v1` ou `catalog.product.price-changed.v1`, e o gateway atualiza os anúncios.
 
-Os eventos usam CloudEvents (binary mode), e cada consumidor tem a sua DLQ. Todos os tópicos, payloads, DLQs e chamadas REST entre os serviços, inclusive o fluxo de pedido e cobrança, estão no [catálogo de eventos](docs/eventos.md).
+Os eventos usam CloudEvents (binary mode). O catalog, o order-service, o billing e o marketplace-gateway publicam por transactional outbox, e cada consumidor deduplica a mensagem e tem a sua DLQ. Todos os tópicos, payloads, DLQs e chamadas REST entre os serviços estão no [catálogo de eventos](docs/eventos.md).
 
 ## Arquitetura (C4)
 
@@ -186,11 +217,36 @@ O modelo C4 fica em [`docs/c4/Omni Market - C4 Model Contexto.drawio`](docs/c4/O
 
 ## Documentação
 
-- `docs/adr/` — decisões de arquitetura
-- `docs/c4/` — modelo C4 (contexto, containers, componentes e deployment)
-- `docs/demo/` — roteiro da demo ponta a ponta
-- `docs/eventos.md` — catálogo de eventos e contratos entre os serviços
-- `docs/superpowers/specs/` — especificações de design
+| Documento | Conteúdo |
+| --- | --- |
+| [`docs/eventos.md`](docs/eventos.md) | Catálogo de eventos: tópicos, chaves, payloads, DLQs, chamadas REST entre os serviços e contrato do PSP |
+| [`docs/c4/`](docs/c4/) | Modelo C4: contexto, containers, componentes e deployment |
+| [`docs/adr/`](docs/adr/) | Decisões de arquitetura (índice abaixo) |
+| [`docs/matriz-de-permissoes.md`](docs/matriz-de-permissoes.md) | Personas, papéis e a matriz rota × papel do BFF |
+| [`docs/api-do-bff.md`](docs/api-do-bff.md) | API do BFF, com a coleção [`api-do-bff.http`](docs/api-do-bff.http) |
+| [`docs/demo/`](docs/demo/README.md) | Roteiro da demo ponta a ponta, coleção de requisições e planilha |
+| [`docs/demo-estoque.md`](docs/demo-estoque.md), [`docs/demo-pedidos.md`](docs/demo-pedidos.md), [`docs/demo-cobranca.md`](docs/demo-cobranca.md) | Cenários de estoque, de pedido e de cobrança, um serviço por vez |
+| [`docs/simuladores-marketplaces.md`](docs/simuladores-marketplaces.md) | Simuladores dos marketplaces e do PSP no WireMock, com os cenários de falha |
+| [`docs/kubernetes-kind.md`](docs/kubernetes-kind.md) | Deploy local no kind, com o act e o registry local |
+| [`docs/specs/`](docs/specs/), [`.specs/`](.specs/) e [`docs/superpowers/`](docs/superpowers/) | Especificações, designs e planos das features |
+
+### Decisões de arquitetura
+
+| ADR | Decisão |
+| --- | --- |
+| [0001](docs/adr/0001-monorepo-para-os-servicos.md) | Monorepo, com um diretório autocontido por serviço |
+| [0002](docs/adr/0002-outbox-para-eventos-do-catalog-service.md) | Transactional outbox para os eventos |
+| [0003](docs/adr/0003-vault-para-secrets-das-aplicacoes.md) | HashiCorp Vault para os secrets das aplicações |
+| [0004](docs/adr/0004-catalog-dono-do-estoque-com-reserva-por-coreografia.md) | catalog-service como dono do estoque, com reserva no pedido por coreografia |
+| [0005](docs/adr/0005-escopo-da-cobranca.md) | Escopo da cobrança: fatura do pedido confirmado com a comissão do marketplace |
+| [0006](docs/adr/0006-go-no-billing-service.md) | Go no billing-service |
+| [0007](docs/adr/0007-integracao-assincrona-com-o-psp.md) | Integração assíncrona com o PSP: worker, webhook e conciliação |
+| [0008](docs/adr/0008-anticorruption-layer-um-adapter-por-marketplace.md) | Anti-corruption layer, com um adapter por marketplace |
+| [0009](docs/adr/0009-resiliencia-nas-chamadas-aos-marketplaces.md) | Resiliência nas chamadas aos marketplaces |
+| [0010](docs/adr/0010-pedidos-dos-marketplaces-por-polling.md) | Pedidos dos marketplaces por polling |
+| [0011](docs/adr/0011-dados-do-produto-por-consulta-ao-catalog.md) | Dados do produto por consulta ao catalog |
+| [0012](docs/adr/0012-cache-distribuido-no-bff-gateway.md) | Cache distribuído e rate limit com Redis no BFF |
+| [0013](docs/adr/0013-chamada-entre-servicos-sem-token-na-rede-interna.md) | Chamada entre serviços sem token, confiando na rede interna |
 
 ## Convenções
 

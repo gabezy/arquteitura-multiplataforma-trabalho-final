@@ -19,7 +19,7 @@ Cada contrato tem um estado:
   - `traceparent` (W3C) segue nos headers, para o trace atravessar os serviços.
 - **Nome do tópico:** `<serviço>.<agregado>.<evento>.vN`, um tópico por tipo de evento. A única exceção é `produto.analisado.v1` (ver [Divergências](#divergências-conhecidas)).
 - **Chave da mensagem:** o id do agregado que gerou o evento. A ordem é garantida por agregado dentro de um mesmo tópico, nunca entre tópicos diferentes.
-- **Publicação:** sempre por transactional outbox ([ADR-0002](adr/0002-outbox-para-eventos-do-catalog-service.md)). O evento existe se e somente se a transação do agregado commitou.
+- **Publicação:** por transactional outbox ([ADR-0002](adr/0002-outbox-para-eventos-do-catalog-service.md)) no catalog-service, no order-service, no billing-service e no marketplace-gateway. O evento existe se e somente se a transação do agregado commitou. O compliance-service publica direto (ver [Divergências](#divergências-conhecidas)).
 - **Entrega:** *at-least-once*. Todo consumidor é idempotente: deduplica por `ce_id` (inbox, como a tabela `processed_events`) ou pelo estado do agregado.
 - **Falhas:** uma DLQ por consumer group, chamada `<serviço consumidor>.<assunto>.dlq`, com 1 partição e retenção de 14 dias.
   - Vai para a DLQ só a mensagem que **nunca** vai ser processada: fora do contrato, ou que gera um erro de domínio.
@@ -34,7 +34,7 @@ Cada contrato tem um estado:
 |---|---|---|---|---|
 | [`catalog.product.created.v1`](#catalogproductcreatedv1) | catalog-service | compliance-service | `productId` | Implementado |
 | [`produto.analisado.v1`](#produtoanalisadov1) | compliance-service | catalog-service | `productId` | Implementado |
-| [`catalog.product.approved.v1`](#catalogproductapprovedv1) | catalog-service | marketplace-gateway (#21) | `productId` | Provisório |
+| [`catalog.product.approved.v1`](#catalogproductapprovedv1) | catalog-service | marketplace-gateway (#21) | `productId` | Implementado |
 | [`catalog.product.rejected.v1`](#catalogproductrejectedv1) | catalog-service | nenhum | `productId` | Implementado |
 | [`catalog.product.stock-changed.v1`](#catalogproductstock-changedv1) | catalog-service | marketplace-gateway (#33) | `productId` | Implementado |
 | [`catalog.product.price-changed.v1`](#catalogproductprice-changedv1) | catalog-service | marketplace-gateway (#33) | `productId` | Implementado |
@@ -44,9 +44,9 @@ Cada contrato tem um estado:
 | [`order.order.confirmed.v1`](#orderorderconfirmedv1) | order-service (#20) | billing-service (#23) | `orderId` | Implementado |
 | [`order.order.cancelled.v1`](#orderordercancelledv1) | order-service (#20) | catalog-service, marketplace-gateway, billing-service (#23) | `orderId` | Implementado |
 | [`marketplace.order.received.v1`](#marketplaceorderreceivedv1) | marketplace-gateway (#22) | order-service (#20) | `<marketplace>:<externalOrderId>` | Implementado |
-| [`marketplace.listing.published.v1`](#marketplacelistingpublishedv1-e-marketplacelistingfailedv1) | marketplace-gateway (#21) | nenhum (consulta pela API, #35) | `productId` | Proposto |
-| [`marketplace.listing.failed.v1`](#marketplacelistingpublishedv1-e-marketplacelistingfailedv1) | marketplace-gateway (#21) | nenhum (consulta pela API, #35) | `productId` | Proposto |
-| [`billing.invoice.issued.v1`](#billinginvoiceissuedv1) | billing-service (#23) | nenhum | `invoiceId` | Proposto |
+| [`marketplace.listing.published.v1`](#marketplacelistingpublishedv1-e-marketplacelistingfailedv1) | marketplace-gateway (#21) | nenhum (consulta pela API, #35) | `productId` | Implementado |
+| [`marketplace.listing.failed.v1`](#marketplacelistingpublishedv1-e-marketplacelistingfailedv1) | marketplace-gateway (#21) | nenhum (consulta pela API, #35) | `productId` | Implementado |
+| [`billing.invoice.issued.v1`](#billinginvoiceissuedv1) | billing-service (#23) | nenhum (consulta pela API, #34) | `invoiceId` | Implementado |
 | [`billing.payment.confirmed.v1`](#billingpaymentconfirmedv1-e-billingpaymentfailedv1) | billing-service (#32) | order-service | `invoiceId` | Implementado |
 | [`billing.payment.failed.v1`](#billingpaymentconfirmedv1-e-billingpaymentfailedv1) | billing-service (#32) | order-service | `invoiceId` | Implementado |
 
@@ -80,7 +80,7 @@ sequenceDiagram
         CAT-->>CAT: catalog.product.rejected.v1 (fim)
     end
 
-    MP->>MKT: pedido (webhook ou polling, conforme a ADR do marketplace)
+    MKT->>MP: busca os pedidos novos (polling a cada 5 s)
     MKT-->>ORD: marketplace.order.received.v1
     ORD-->>CAT: order.order.placed.v1
     alt estoque suficiente
@@ -89,13 +89,17 @@ sequenceDiagram
         MKT->>MP: atualiza o estoque anunciado
         ORD-->>BIL: order.order.confirmed.v1
         BIL-->>BIL: billing.invoice.issued.v1
-        BIL->>PSP: cobra
+        BIL->>PSP: POST /psp/v1/charges
+        PSP->>BIL: POST /webhooks/psp (resultado)
+        Note over BIL,PSP: sem webhook, a conciliação consulta GET /psp/v1/charges/{id}
         alt pagamento aprovado
             BIL-->>ORD: billing.payment.confirmed.v1
+            Note over ORD: pedido PAID, sem evento
         else pagamento recusado
             BIL-->>ORD: billing.payment.failed.v1
             ORD-->>CAT: order.order.cancelled.v1 (PAYMENT_FAILED)
             CAT-->>MKT: catalog.product.stock-changed.v1 (estoque devolvido)
+            MKT->>MP: atualiza o estoque anunciado
             ORD-->>MKT: order.order.cancelled.v1
             MKT->>MP: cancela o pedido
         end
@@ -104,13 +108,18 @@ sequenceDiagram
         ORD-->>MKT: order.order.cancelled.v1 (OUT_OF_STOCK)
         MKT->>MP: cancela o pedido
     end
+
+    Loja->>BFF: PATCH /catalog/products/{sku}/price (JWT)
+    BFF->>CAT: PATCH /products/sku/:sku/price
+    CAT-->>MKT: catalog.product.price-changed.v1
+    MKT->>MP: atualiza o preço anunciado
 ```
 
-Setas tracejadas são eventos no Kafka; setas contínuas são chamadas síncronas. O trecho a partir do pedido segue a [ADR-0004](adr/0004-catalog-dono-do-estoque-com-reserva-por-coreografia.md). O trecho de cobrança segue a ADR-0005 (escopo da cobrança, PR #51).
+Setas tracejadas são eventos no Kafka; setas contínuas são chamadas síncronas. O trecho a partir do pedido segue a [ADR-0004](adr/0004-catalog-dono-do-estoque-com-reserva-por-coreografia.md), e o de cobrança, a [ADR-0005](adr/0005-escopo-da-cobranca.md) e a [ADR-0007](adr/0007-integracao-assincrona-com-o-psp.md). O `order.order.cancelled.v1` também chega ao catalog e ao billing: o catalog devolve só o que reservou, e o billing cancela a fatura ainda não paga.
 
 ---
 
-## Contratos implementados e provisórios
+## Contratos
 
 ### `catalog.product.created.v1`
 
@@ -170,7 +179,7 @@ Resultado da cadeia de regras de conformidade: termos proibidos (bloqueante), te
 
 ### `catalog.product.approved.v1`
 
-**Estado:** Provisório (publicado, sem consumidor) · **Produtor:** catalog-service · **Consumidor previsto:** marketplace-gateway (#21)
+**Estado:** Implementado · **Produtor:** catalog-service · **Consumidor:** marketplace-gateway (group `marketplace-gateway-catalog-product`, #21)
 
 Publicado uma vez, quando a análise passa de `PENDING` para `APPROVED`. A partir daí o produto pode ser anunciado e vendido.
 
@@ -183,7 +192,7 @@ Publicado uma vez, quando a análise passa de `PENDING` para `APPROVED`. A parti
 { "productId": "0b8f2c1e-6a4d-4d1e-9a51-3f0f1b2c7d10", "sku": "NB-001" }
 ```
 
-O evento não traz nome, preço nem estoque. O marketplace-gateway busca esses dados em `GET /products/sku/:sku` ou mantém uma projeção a partir de `catalog.product.created.v1`; a escolha é da ADR #12.
+O evento não traz nome, preço nem estoque. O marketplace-gateway busca esses dados em `GET /products/sku/:sku` na hora de publicar ([ADR-0011](adr/0011-dados-do-produto-por-consulta-ao-catalog.md)).
 
 ### `catalog.product.rejected.v1`
 
@@ -225,7 +234,7 @@ Publicado quando `PATCH /products/sku/:sku/price` altera o preço de um produto 
 { "productId": "0b8f2c1e-6a4d-4d1e-9a51-3f0f1b2c7d10", "sku": "NB-001", "price": 4999.9 }
 ```
 
-- A rota responde `204` e exige `{ "price": <number> }`; preço inválido responde `422`.
+- A rota responde `204` e exige `{ "price": <number> }`. Um corpo fora desse formato responde `400`, e um preço que o domínio recusa (negativo) responde `422`.
 - Repetir o preço vigente, ou alterar um SKU desconhecido, não gera evento.
 - O preço é absoluto, então o consumidor que receba eventos repetidos converge para o último valor aplicado.
 
@@ -237,13 +246,13 @@ Publicado quando o order-service persiste um pedido novo. Pede a reserva do esto
 
 | Campo | Tipo | Regra | Estado |
 |---|---|---|---|
-| `orderId` | string (UUID) | obrigatório | Provisório |
-| `items` | array, mín. 1 | obrigatório | Provisório |
-| `items[].sku` | string | não vazio | Provisório |
-| `items[].quantity` | integer | > 0 | Provisório |
-| `items[].unitPrice` | number | preço unitário de venda | Proposto (opcional) |
-| `marketplace` | `"AMAZON"` \| `"MERCADO_LIVRE"` \| `"SHOPEE"` | origem do pedido | Proposto (opcional) |
-| `externalOrderId` | string | id do pedido no marketplace | Proposto (opcional) |
+| `orderId` | string (UUID) | obrigatório | Implementado |
+| `items` | array, mín. 1 | obrigatório | Implementado |
+| `items[].sku` | string | não vazio | Implementado |
+| `items[].quantity` | integer | > 0 | Implementado |
+| `items[].unitPrice` | number | preço unitário de venda | Implementado (sempre enviado; o catalog não usa) |
+| `marketplace` | `"AMAZON"` \| `"MERCADO_LIVRE"` \| `"SHOPEE"` | origem do pedido | Implementado (sempre enviado; o catalog não usa) |
+| `externalOrderId` | string | id do pedido no marketplace | Implementado (sempre enviado; o catalog não usa) |
 
 ```json
 {
@@ -254,7 +263,7 @@ Publicado quando o order-service persiste um pedido novo. Pede a reserva do esto
 }
 ```
 
-- Os campos propostos são opcionais porque o catalog ignora campos desconhecidos. Incluí-los não quebra o consumidor atual e ajuda nos traces e nos relatórios.
+- O order-service sempre envia `unitPrice`, `marketplace` e `externalOrderId`. O catalog ignora esses campos, e eles ajudam nos traces e nos relatórios.
 - Regras no catalog (#30):
   - O pedido é reservado inteiro ou não é reservado.
   - Linhas do mesmo SKU são somadas, e `nb-001` e `NB-001` são o mesmo SKU.
@@ -268,10 +277,10 @@ Publicado quando o order-service persiste um pedido novo. Pede a reserva do esto
 
 | Campo | Tipo | Regra | Estado |
 |---|---|---|---|
-| `orderId` | string (UUID) | obrigatório | Provisório |
-| `reason` | string | `OUT_OF_STOCK` \| `PAYMENT_FAILED` \| `MARKETPLACE_CANCELLED` | Provisório (opcional; valores propostos) |
-| `marketplace` | string | como no `placed` | Proposto (obrigatório para o cancelamento chegar ao marketplace) |
-| `externalOrderId` | string | como no `placed` | Proposto (obrigatório para o cancelamento chegar ao marketplace) |
+| `orderId` | string (UUID) | obrigatório | Implementado |
+| `reason` | string | `OUT_OF_STOCK` \| `PAYMENT_FAILED` | Implementado (sempre enviado) |
+| `marketplace` | string | como no `placed` | Implementado (sempre enviado; o gateway precisa dele para cancelar no marketplace) |
+| `externalOrderId` | string | como no `placed` | Implementado (sempre enviado; o gateway precisa dele para cancelar no marketplace) |
 
 ```json
 {
@@ -282,8 +291,8 @@ Publicado quando o order-service persiste um pedido novo. Pede a reserva do esto
 }
 ```
 
-- `OUT_OF_STOCK` vem da resposta `insufficient` (ADR-0004). `PAYMENT_FAILED` vem do billing. `MARKETPLACE_CANCELLED` é o cancelamento feito pelo comprador no marketplace, que depende da #22.
-- O marketplace-gateway precisa de `marketplace` e `externalOrderId` para cancelar no marketplace certo; por isso o order-service deve incluí-los sempre, e o gateway manda o cancelamento que chegar sem eles para a DLQ `marketplace.order-cancelled.dlq` (como o PR #63 implementa). O catalog e o billing não usam esses dois campos.
+- `OUT_OF_STOCK` vem da resposta `insufficient` (ADR-0004), e `PAYMENT_FAILED` vem do billing. `MARKETPLACE_CANCELLED` seria o cancelamento feito pelo comprador no marketplace: o valor existe no modelo do order-service, mas nenhum fluxo o produz.
+- O marketplace-gateway precisa de `marketplace` e `externalOrderId` para cancelar no marketplace certo; por isso o order-service os inclui sempre, e o gateway manda o cancelamento que chegar sem eles para a DLQ `marketplace.order-cancelled.dlq`. O catalog e o billing não usam esses dois campos.
 - No catalog:
   - só uma reserva ainda `RESERVED` devolve estoque, e repetir o cancelamento não muda nada;
   - um cancelamento que chega antes do `placed` grava um tombstone, e o `placed` que chegar depois é ignorado.
@@ -331,15 +340,9 @@ No order-service, as duas respostas seguem as mesmas regras:
 - Uma resposta que contradiz o pedido (ex.: `insufficient` para um pedido `CONFIRMED`) ou que cita um pedido desconhecido vira `warn` e é ignorada, sem DLQ.
 - Só a mensagem fora do contrato vai para `order.stock-response.dlq`.
 
----
-
-## Contratos propostos
-
-Precisam da aprovação do dono indicado. Os nomes de campo seguem as convenções acima. Os detalhes que dependem de uma ADR ainda aberta estão marcados.
-
 ### `marketplace.order.received.v1`
 
-**Estado:** Implementado · **Produtor:** marketplace-gateway (#22) · **Consumidor:** order-service (#20) · **Origem:** ADR #12 (webhook ou polling)
+**Estado:** Implementado · **Produtor:** marketplace-gateway (#22) · **Consumidor:** order-service (#20) · **Origem:** [ADR-0008](adr/0008-anticorruption-layer-um-adapter-por-marketplace.md) e [ADR-0010](adr/0010-pedidos-dos-marketplaces-por-polling.md) (polling)
 
 Pedido recebido de um marketplace, já traduzido para o formato canônico pela anti-corruption layer do marketplace-gateway.
 
@@ -401,7 +404,7 @@ O billing recalcula o total pelos itens. Vai para a DLQ a mensagem com `marketpl
 
 ### `marketplace.listing.published.v1` e `marketplace.listing.failed.v1`
 
-**Estado:** Proposto · **A aprovar:** @diegodiogenes (#21) · **Depende de:** ADR #12
+**Estado:** Implementado (sem consumidor) · **Produtor:** marketplace-gateway (#21) · **Origem:** [ADR-0008](adr/0008-anticorruption-layer-um-adapter-por-marketplace.md) e [ADR-0009](adr/0009-resiliencia-nas-chamadas-aos-marketplaces.md)
 
 Resultado da publicação de um produto aprovado em **um** marketplace. Um produto gera um evento por marketplace.
 
@@ -419,11 +422,11 @@ Resultado da publicação de um produto aprovado em **um** marketplace. Um produ
 { "productId": "0b8f2c1e-6a4d-4d1e-9a51-3f0f1b2c7d10", "sku": "NB-001", "marketplace": "SHOPEE", "reason": "HTTP 503", "attempts": 3 }
 ```
 
-Ainda não há consumidor: o status dos anúncios é consultado pela API do marketplace-gateway (#35). Os eventos ficam para auditoria e para o dashboard (#36).
+Não há consumidor: o status dos anúncios é consultado pela API do marketplace-gateway (`GET /listings`, #35). Os eventos ficam para auditoria.
 
 ### `billing.invoice.issued.v1`
 
-**Estado:** Proposto · **Produtor:** billing-service (#23), que aprova esta ficha · **Origem:** ADR-0005 (escopo da cobrança, PR #51)
+**Estado:** Implementado (sem consumidor) · **Produtor:** billing-service (#23) · **Origem:** [ADR-0005](adr/0005-escopo-da-cobranca.md)
 
 Publicado quando a fatura nasce de um `order.order.confirmed.v1`. O `amount` é o total cobrado do pedido. A comissão do Omni Market vem da taxa do marketplace (Amazon 12%, Mercado Livre 11% e Shopee 14%, configuráveis), e o `netAmount` é o que cabe à loja.
 
@@ -435,7 +438,7 @@ Publicado quando a fatura nasce de um `order.order.confirmed.v1`. O `amount` é 
 | `marketplace` | string | como no `confirmed` |
 | `amount` | number | total do pedido |
 | `commissionPercent` | number | taxa aplicada, ex.: `11.00` |
-| `commissionAmount` | number | `amount × taxa`, arredondado para cima no centavo (half-up) |
+| `commissionAmount` | number | `amount × taxa`, arredondado no centavo (half-up) |
 | `netAmount` | number | `amount − commissionAmount` |
 | `issuedAt` | string (ISO-8601) | |
 
@@ -453,7 +456,7 @@ Publicado quando a fatura nasce de um `order.order.confirmed.v1`. O `amount` é 
 }
 ```
 
-Ainda não há consumidor: a fatura é consultada pela API do billing (#34).
+Não há consumidor: a fatura é consultada pela API do billing (`GET /invoices`, #34).
 
 ### `billing.payment.confirmed.v1` e `billing.payment.failed.v1`
 
@@ -508,11 +511,11 @@ Ainda não há consumidor: a fatura é consultada pela API do billing (#34).
 | `order.marketplace-order.dlq` | `order-service-marketplace-orders` | `marketplace.order.received.v1` | Implementado |
 | `order.stock-response.dlq` | `order-service-stock-response` | `catalog.stock.reserved.v1`, `catalog.stock.insufficient.v1` | Implementado |
 | `order.billing-payment.dlq` | `order-service-billing-payment` | `billing.payment.confirmed.v1`, `billing.payment.failed.v1` | Implementado |
-| `marketplace.catalog-product.dlq` | marketplace-gateway | `catalog.product.approved.v1`, `catalog.product.stock-changed.v1`, `catalog.product.price-changed.v1` | Implementado |
-| `marketplace.order-cancelled.dlq` | marketplace-gateway | `order.order.cancelled.v1` | Proposto |
-| `billing.order-events.dlq` | `billing-service` | `order.order.confirmed.v1`, `order.order.cancelled.v1` | Proposto |
+| `marketplace.catalog-product.dlq` | `marketplace-gateway-catalog-product` | `catalog.product.approved.v1`, `catalog.product.stock-changed.v1`, `catalog.product.price-changed.v1` | Implementado |
+| `marketplace.order-cancelled.dlq` | `marketplace-gateway-order-cancelled` | `order.order.cancelled.v1` | Implementado |
+| `billing.order-events.dlq` | `billing-service` | `order.order.confirmed.v1`, `order.order.cancelled.v1` | Implementado |
 
-Os nomes das DLQs propostas seguem o padrão das existentes. Se um serviço novo usar um consumer group por tópico, ele terá uma DLQ por tópico.
+Um serviço novo segue o mesmo padrão: uma DLQ por consumer group.
 
 ## Chamadas REST entre serviços
 
@@ -522,20 +525,20 @@ Os serviços internos não validam token: a autenticação e a autorização por
 |---|---|---|---|---|
 | bff-gateway | catalog-service | `POST /products/import` com `{ items: [{ sku, name, description, price, stock }] }` (1 a 1000 itens) | importação da planilha (`POST /catalog/import/xlsx` no BFF) | Implementado |
 | bff-gateway | catalog-service | `PATCH /products/sku/:sku/price` com `{ price }` → `204`, ou 404 se o SKU não existe | alteração de preço (`PATCH /catalog/products/{sku}/price` no BFF, #79) | Implementado |
-| bff-gateway, marketplace-gateway | catalog-service | `GET /products/sku/:sku` → `{ id, sku, name, description, price, stock, analysisStatus }` | consulta do produto e dos dados para o anúncio | Implementado (o uso pelo marketplace depende da ADR #12) |
+| marketplace-gateway | catalog-service | `GET /products/sku/:sku` → `{ id, sku, name, description, price, stock, analysisStatus }` | dados do produto para o anúncio ([ADR-0011](adr/0011-dados-do-produto-por-consulta-ao-catalog.md)); o BFF ainda não tem rota de consulta de produto | Implementado |
 | bff-gateway | order-service | `GET /orders` (filtros `marketplace`, `status`, `limit` até 100, `offset`) → `{ orders, limit, offset }`, `GET /orders/{id}` e `GET /reports/sales-by-marketplace?from=YYYY-MM-DD&to=YYYY-MM-DD` → `{ from, to, marketplaces: [{ marketplace, orders, units, totalAmount }] }` | listar e detalhar pedidos e relatório de vendas por marketplace (mesmas rotas no BFF, #24, #31) | Implementado |
-| bff-gateway | billing-service | `GET /invoices` (filtros `orderId`, `status`, `marketplace`, `limit`, `offset`) e `GET /invoices/{id}` | #34 | Proposto |
-| bff-gateway | marketplace-gateway | status dos anúncios por marketplace | #35 | Proposto |
-| marketplace-gateway | marketplaces (WireMock) | publicar anúncio, atualizar estoque, receber e cancelar pedidos | #18, #21, #22, #33 | Proposto (ADR #12) |
-| billing-service | PSP (WireMock) | `POST /psp/v1/charges` e `GET /psp/v1/charges/{id}`; o PSP chama de volta `POST /webhooks/psp` | #26, #32 | Proposto ([contrato do PSP](#contrato-do-psp-simulado)) |
+| bff-gateway | billing-service | `GET /invoices` (filtros `orderId`, `status`, `marketplace`, `limit`, `offset`) → `{ invoices, limit, offset }` e `GET /invoices/{id}` | listar e detalhar as faturas (mesmas rotas no BFF, #34) | Implementado |
+| bff-gateway | marketplace-gateway | `GET /listings` (filtros `sku`, `marketplace`, `status`, `limit` até 100, `offset`) → `{ listings, limit, offset }` e `GET /listings/{id}` | status dos anúncios em cada marketplace (mesmas rotas no BFF, #35) | Implementado |
+| marketplace-gateway | marketplaces (WireMock) | publicar o anúncio, atualizar estoque e preço, buscar os pedidos novos (polling) e cancelar pedidos | #18, #21, #22, #33 ([ADR-0008](adr/0008-anticorruption-layer-um-adapter-por-marketplace.md) a [ADR-0010](adr/0010-pedidos-dos-marketplaces-por-polling.md)) | Implementado |
+| billing-service | PSP (WireMock) | `POST /psp/v1/charges` e `GET /psp/v1/charges/{id}`; o PSP chama de volta `POST /webhooks/psp` | #26, #32 ([contrato do PSP](#contrato-do-psp-simulado)) | Implementado |
 
-O catalog responde erros em `application/problem+json`: 422 para validação, 404 para não encontrado e 409 para conflito (ex.: SKU repetido na importação).
+O catalog responde erros em `application/problem+json`: 400 para corpo fora do formato, 422 para regra de domínio violada, 404 para não encontrado e 409 para conflito (ex.: SKU repetido na importação).
 
 O relatório do order-service conta como venda o pedido `CONFIRMED` ou `PAID` cuja data da venda no marketplace (`orderedAt`) cai no período, com os dois dias incluídos e lidos em UTC. Ele traz sempre uma linha por marketplace (`AMAZON`, `MERCADO_LIVRE` e `SHOPEE`), com zeros quando não houve venda: `orders` é a quantidade de pedidos, `units` a soma das quantidades dos itens e `totalAmount` a soma dos totais, em reais. Um período inválido (dia que não existe ou `to` antes de `from`) responde 400 em `application/problem+json`, assim como os filtros inválidos de `GET /orders`. `GET /orders/{id}` responde 404 para pedido desconhecido.
 
 ## Contrato do PSP (simulado)
 
-O billing cobra de forma assíncrona: pede a cobrança e recebe o resultado por webhook, com a consulta de status como reserva. No ambiente local o PSP é o WireMock (`http://wiremock:8080` na rede do compose, `http://localhost:8089` na máquina). Os mappings entram no PR da #32, que cobre o que a #26 pede.
+O billing cobra de forma assíncrona: pede a cobrança e recebe o resultado por webhook, com a consulta de status como reserva. No ambiente local o PSP é o WireMock (`http://wiremock:8080` na rede do compose, `http://localhost:8089` na máquina). Os mappings ficam em `docker/wiremock/mappings/psp.json`.
 
 **Criar a cobrança**
 
@@ -610,35 +613,11 @@ GET /psp/v1/charges/ch_paid_a3c1d5e2-7b4f-4c8a-9e10-2d3f4a5b6c7d
 
 | # | Divergência | Impacto | Sugestão |
 |---|---|---|---|
-| 1 | O compliance publica com `ce_source=compliance-service`. Os outros serviços usam `/catalog-service` e `/order-service` | Só cosmético hoje; filtros por `ce_source` precisam tratar os dois formatos | Trocar para `/compliance-service` (follow-up do compliance) |
+| 1 | O compliance publica com `ce_source=compliance-service`. Os outros serviços usam `/catalog-service`, `/order-service`, `/billing-service` e `/marketplace-gateway` | Só cosmético hoje; filtros por `ce_source` precisam tratar os dois formatos | Trocar para `/compliance-service` (follow-up do compliance) |
 | 2 | O compliance gera um `ce_id` novo a cada publicação de `produto.analisado.v1`, então uma reanálise reentregue sai com outro id | Um consumidor que deduplique só por `ce_id` processaria duas vezes. O catalog não sofre, porque é idempotente pelo estado do produto | Derivar o `ce_id` do evento de entrada (ex.: UUIDv5 do `ce_id` consumido), ou gravar o resultado e publicá-lo via outbox |
 | 3 | `produto.analisado.v1` foge do padrão de nome (português, sem o serviço) | Só de convenção | Manter até a entrega. Se mudar, publicar `compliance.product.analyzed.v1` em paralelo e migrar o catalog |
 | 4 | `catalog.product.rejected.v1` não tem consumidor | Nenhum | Manter para auditoria (Fiscal) e relatórios |
-
-## Tópicos novos para o `create-topics.sh` (#14)
-
-Já estão no script todos os tópicos **implementados**, inclusive `order.order.placed.v1` e `order.order.cancelled.v1`. Os tópicos abaixo entram quando os contratos forem aprovados, pela #14 (@zeciola) ou no PR do serviço que os usar:
-
-```sh
-# order-service
-create order.order.confirmed.v1 3
-create order.marketplace-order.dlq 1 retention.ms=1209600000 # 14 days to inspect and replay
-create order.stock-response.dlq 1 retention.ms=1209600000 # 14 days to inspect and replay
-create order.billing-payment.dlq 1 retention.ms=1209600000 # 14 days to inspect and replay
-
-# marketplace-gateway
-create marketplace.order.received.v1 3
-create marketplace.listing.published.v1 3
-create marketplace.listing.failed.v1 3
-create marketplace.catalog-product.dlq 1 retention.ms=1209600000 # 14 days to inspect and replay
-create marketplace.order-cancelled.dlq 1 retention.ms=1209600000 # 14 days to inspect and replay
-
-# billing-service
-create billing.invoice.issued.v1 3
-create billing.payment.confirmed.v1 3
-create billing.payment.failed.v1 3
-create billing.order-events.dlq 1 retention.ms=1209600000 # 14 days to inspect and replay
-```
+| 5 | O compliance não usa outbox: publica `produto.analisado.v1`, espera o ack do Kafka e só então grava a análise e o `processed_events`, na mesma transação | Uma falha entre a publicação e o commit republica o mesmo resultado na reentrega, que o catalog ignora. Vale porque as regras são determinísticas | Manter até a entrega. Se as regras deixarem de ser determinísticas, publicar via outbox |
 
 ## Como adicionar ou mudar um evento
 
