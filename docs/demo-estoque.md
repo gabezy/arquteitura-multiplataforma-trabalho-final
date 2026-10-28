@@ -8,7 +8,7 @@ O catalog-service é dono do estoque (#30). Ele baixa o estoque quando recebe `o
 | `catalog.stock.insufficient.v1` | `orderId` | algum item não tem estoque (nada é baixado) |
 | `catalog.product.stock-changed.v1` | `productId` | o estoque de um produto mudou (valor absoluto) |
 
-Enquanto o order-service não existe, os eventos de pedido são publicados à mão.
+Aqui os eventos de pedido são publicados à mão, para isolar o catalog. O ciclo completo, com o order-service publicando os pedidos, está em [`demo-pedidos.md`](demo-pedidos.md).
 
 ## Preparação
 

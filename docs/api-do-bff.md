@@ -28,7 +28,7 @@ O token vale 5 minutos (`accessTokenLifespan` do realm).
 - **Paginação:** `limit` (de 1 a 100, padrão 20) e `offset` (a partir de 0, padrão 0). A resposta repete `limit` e `offset`.
 - **Filtros:** `marketplace` aceita `AMAZON`, `MERCADO_LIVRE` e `SHOPEE`, em maiúsculas. Cada rota lista os valores de `status`.
 - **Formatos:** ids são UUID, datas de relatório são `YYYY-MM-DD`, instantes são ISO-8601 em UTC e valores em dinheiro são `number`, em reais. A ordem dos campos no JSON não é garantida.
-- **Usuário nos serviços:** o BFF repassa o `sub` do token ao serviço de destino no header `X-User-Id` ([ADR-0009](adr/0009-chamada-entre-servicos-sem-token-na-rede-interna.md)).
+- **Usuário nos serviços:** o BFF repassa o `sub` do token ao serviço de destino no header `X-User-Id` ([ADR-0013](adr/0013-chamada-entre-servicos-sem-token-na-rede-interna.md)).
 - **Erros:** `application/problem+json` (`ProblemDetail`), com `status`, `title` e `detail`.
 
 | Status | Quando |
@@ -249,7 +249,7 @@ Cada domínio com serviço de destino tem dois gateways, e a propriedade `app.ga
 
 ## O que o BFF espera dos serviços
 
-Os contratos abaixo são propostos: os donos dos serviços ainda os implementam, e qualquer mudança fica isolada em `infra/<domínio>/gateway` do BFF. Os erros dos serviços vêm em `application/problem+json`. O BFF tolera campos novos nas respostas e trata como erro de gateway (502) um valor de enum que ele não conhece.
+Os contratos abaixo são os que os serviços implementam, e qualquer mudança fica isolada em `infra/<domínio>/gateway` do BFF. Os erros dos serviços vêm em `application/problem+json`. O BFF tolera campos novos nas respostas e trata como erro de gateway (502) um valor de enum que ele não conhece.
 
 ### order-service (#20 e #31)
 

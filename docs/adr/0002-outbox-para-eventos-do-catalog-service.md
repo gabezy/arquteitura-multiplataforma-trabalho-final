@@ -2,7 +2,7 @@
 
 ## Status
 
-`Proposto`
+`Aceito`
 
 **Data:** 2026-10-12
 **Autor:** Gabriel Moreira

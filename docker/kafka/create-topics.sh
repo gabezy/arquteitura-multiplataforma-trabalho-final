@@ -25,7 +25,7 @@ create produto.analisado.v1 3
 create catalog.product-analysis.dlq 1 retention.ms=1209600000 # 14 days to inspect and replay
 create catalog.order-stock.dlq 1 retention.ms=1209600000 # 14 days to inspect and replay
 
-# order-service (consumed by catalog-service until order-service exists)
+# order-service
 create order.order.placed.v1 3
 create order.order.cancelled.v1 3
 create order.order.confirmed.v1 3 # consumed by billing-service

@@ -2,10 +2,12 @@
 
 ## Status
 
-`Proposto`
+`Aceito`
 
 **Data:** 2026-10-23
 **Autor:** Gabriel Moreira
+
+**Revisão (2026-10-27, gate do M1, #19):** no Kubernetes, o External Secrets Operator previsto deu lugar à leitura direta do Vault, que o chart do kind já sobe. O `order-service` também lê o seu path (`secret/order-service`).
 
 ## Contexto
 
@@ -21,7 +23,7 @@ Adotaremos o HashiCorp Vault (KV v2 + um AppRole por serviço) como fonte única
 
 - Local: Vault em modo dev no compose; um job `vault-init` grava `secret/<serviço>` e cria policy e AppRole por serviço a partir de um `.env` não versionado.
 - Serviços leem o próprio path na inicialização (Spring Cloud Vault, cliente HTTP no Node, `hvac` no Python) e não sobem sem o Vault.
-- Kubernetes: External Secrets Operator sincroniza os mesmos paths do Vault para Secrets do cluster.
+- Kubernetes (kind): o chart sobe o mesmo Vault em modo dev e o job `vault-init`, e os serviços leem os mesmos paths direto do Vault, como no Compose.
 
 ## Alternativas consideradas
 
@@ -39,13 +41,14 @@ Adotaremos o HashiCorp Vault (KV v2 + um AppRole por serviço) como fonte única
 - Nenhum secret de aplicação no repositório; o `.env.example` traz só placeholders.
 - Cada serviço lê apenas o próprio path (`secret/catalog-service`, `secret/compliance-service`, `secret/bff-gateway`).
 - O path `secret/bff-gateway` acomoda credenciais futuras (ex.: Redis) sem mudar o mecanismo.
-- No Kubernetes, os serviços seguem lendo os mesmos paths (via ESO), sem mudar código.
+- No Kubernetes, os serviços leem os mesmos paths do mesmo jeito, sem mudar código.
 
 **Negativas:**
 - Vault vira dependência de startup: se não estiver de pé, nenhum serviço sobe.
 - "Secret zero": `role_id`/`secret_id` do AppRole e o token root do modo dev ainda vêm do `.env` local.
 - Modo dev é em memória e já desselado: secrets somem a cada restart (o `vault-init` regrava) e não serve como referência de produção.
 - Postgres recebe a senha por variável de ambiente do `.env` (gerada aleatoriamente por `make env`), fora do Vault; apagar o `.env` exige recriar o volume (`make compose-clean`).
+- O `billing-service` e o `marketplace-gateway` ainda não leem o Vault: a senha do banco deles chega por variável de ambiente, com o default `billing` / `marketplace` do compose.
 - Admin do Keycloak e do Grafana seguem fixos (`admin`/`admin`) no `.env.example`: são acesso de ferramenta local, não secret de aplicação.
 - Os usuários de teste do realm (`admin`/`admin`, `customer`/`customer`) permanecem versionados como dados de demonstração.
 

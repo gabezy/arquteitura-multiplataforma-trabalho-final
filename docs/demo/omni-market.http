@@ -1,8 +1,11 @@
 # Coleção da demo ponta a ponta (roteiro em docs/demo/README.md).
 # Formato do VS Code REST Client: rode as requisições na ordem, de cima para baixo.
 # As requisições com "# @name" guardam a resposta para as seguintes (ex.: o token).
+# O token vale 5 minutos: se uma requisição responder 401, rode de novo a do token daquela persona.
+# Os pedidos dos atos 5 e 6 entram pelo scripts/simulate-order.sh, no terminal (ver o roteiro).
 
 @keycloak = http://localhost:8085/realms/omni-market/protocol/openid-connect/token
+# No Compose, troque pela porta do BFF_PORT, se você a mudou.
 @bff = http://localhost:8080
 @catalog = http://localhost:8082
 @kafkaUi = http://localhost:8090/api/clusters/omni-market
@@ -10,19 +13,33 @@
 # O client secret é gerado pelo `make env`: copie o valor de BFF_CLIENT_SECRET do .env da raiz para cá.
 @clientSecret = COLE_AQUI_O_BFF_CLIENT_SECRET_DO_ENV
 
-### Ato 1: token do admin (papéis admin e customer)
-# @name admin
+### Token da Loja (papel store): importa, muda o preço e consulta anúncios, pedidos e cobranças
+# @name loja
 POST {{keycloak}}
 Content-Type: application/x-www-form-urlencoded
 
-grant_type=password&client_id={{clientId}}&client_secret={{clientSecret}}&username=admin&password=admin
+grant_type=password&client_id={{clientId}}&client_secret={{clientSecret}}&username=loja&password=loja
 
-### Ato 1: token do customer (só o papel customer)
-# @name customer
+### Token do CSM (papel csm): pedidos e relatórios, somente leitura
+# @name csm
 POST {{keycloak}}
 Content-Type: application/x-www-form-urlencoded
 
-grant_type=password&client_id={{clientId}}&client_secret={{clientSecret}}&username=customer&password=customer
+grant_type=password&client_id={{clientId}}&client_secret={{clientSecret}}&username=csm&password=csm
+
+### Token do Fiscal (papel fiscal): cobranças, somente leitura
+# @name fiscal
+POST {{keycloak}}
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=password&client_id={{clientId}}&client_secret={{clientSecret}}&username=fiscal&password=fiscal
+
+### Token do Especialista (papel specialist): não vê pedidos
+# @name especialista
+POST {{keycloak}}
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=password&client_id={{clientId}}&client_secret={{clientSecret}}&username=especialista&password=especialista
 
 ### Ato 1: sem token, o BFF responde 401
 POST {{bff}}/catalog/import/xlsx
@@ -35,9 +52,9 @@ Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
 < ./catalog-demo.xlsx
 --demo--
 
-### Ato 1: com o customer, o BFF responde 403 (importar exige o papel admin)
+### Ato 1: com o CSM, o BFF responde 403 (importar exige o papel store ou admin)
 POST {{bff}}/catalog/import/xlsx
-Authorization: Bearer {{customer.response.body.access_token}}
+Authorization: Bearer {{csm.response.body.access_token}}
 Content-Type: multipart/form-data; boundary=demo
 
 --demo
@@ -47,9 +64,13 @@ Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
 < ./catalog-demo.xlsx
 --demo--
 
-### Ato 2: importação da planilha pelo BFF com o admin: {"importedProducts":5}
+### Ato 1: com o Especialista, os pedidos respondem 403
+GET {{bff}}/orders
+Authorization: Bearer {{especialista.response.body.access_token}}
+
+### Ato 2: importação da planilha pela Loja: {"importedProducts":5}
 POST {{bff}}/catalog/import/xlsx
-Authorization: Bearer {{admin.response.body.access_token}}
+Authorization: Bearer {{loja.response.body.access_token}}
 Content-Type: multipart/form-data; boundary=demo
 
 --demo
@@ -74,7 +95,59 @@ GET {{catalog}}/products/sku/RES-004
 ### Ato 3: reprovado por descrição curta (menos de 20 caracteres)
 GET {{catalog}}/products/sku/LUV-005
 
-### Ato 4 (plano B: pedido publicado à mão): venda de 1 OXI-001, estoque 2 → 1, catalog.stock.reserved.v1
+### Ato 4: anúncios do OXI-001 nos três marketplaces (PUBLISHED)
+GET {{bff}}/listings?sku=OXI-001
+Authorization: Bearer {{loja.response.body.access_token}}
+
+### Ato 4: o reprovado não é anunciado (lista vazia)
+GET {{bff}}/listings?sku=EST-003
+Authorization: Bearer {{loja.response.body.access_token}}
+
+### Ato 5 (depois do scripts/simulate-order.sh mercadolivre ...): o pedido PAID
+GET {{bff}}/orders?marketplace=MERCADO_LIVRE
+Authorization: Bearer {{csm.response.body.access_token}}
+
+### Ato 5: a fatura paga, com a comissão do Mercado Livre (11%) e o líquido da loja
+GET {{bff}}/invoices?marketplace=MERCADO_LIVRE
+Authorization: Bearer {{fiscal.response.body.access_token}}
+
+### Ato 5: o estoque do OXI-001 baixou (2 → 1)
+GET {{catalog}}/products/sku/OXI-001
+
+### Ato 6 (depois dos dois scripts/simulate-order.sh): pedidos cancelados por PAYMENT_FAILED e OUT_OF_STOCK
+GET {{bff}}/orders
+Authorization: Bearer {{csm.response.body.access_token}}
+
+### Ato 6: a fatura recusada pelo PSP (INSUFFICIENT_FUNDS)
+GET {{bff}}/invoices?status=PAYMENT_FAILED
+Authorization: Bearer {{fiscal.response.body.access_token}}
+
+### Ato 6: o estoque do MON-002 voltou (5)
+GET {{catalog}}/products/sku/MON-002
+
+### Ato 7: a Loja muda o preço do OXI-001: 204
+PATCH {{bff}}/catalog/products/OXI-001/price
+Authorization: Bearer {{loja.response.body.access_token}}
+Content-Type: application/json
+
+{ "price": 179.90 }
+
+### Ato 7: os três anúncios com o preço novo
+GET {{bff}}/listings?sku=OXI-001
+Authorization: Bearer {{loja.response.body.access_token}}
+
+### Ato 7: vendas por marketplace no mês (só pedidos confirmados ou pagos)
+GET {{bff}}/reports/sales-by-marketplace?from=2026-10-01&to=2026-10-31
+Authorization: Bearer {{csm.response.body.access_token}}
+
+# ---------------------------------------------------------------------------------------------
+# Plano B: eventos de pedido publicados à mão, para mostrar só o estoque do catalog
+# (docs/demo-estoque.md). Use um SKU aprovado que ainda tenha estoque.
+# O cancelamento à mão não traz marketplace nem externalOrderId, então o marketplace-gateway o
+# manda para a DLQ marketplace.order-cancelled.dlq; o catalog devolve o estoque normalmente.
+# ---------------------------------------------------------------------------------------------
+
+### Plano B: venda de 1 MON-002, catalog.stock.reserved.v1
 POST {{kafkaUi}}/topics/order.order.placed.v1/messages
 Content-Type: application/json
 
@@ -83,13 +156,10 @@ Content-Type: application/json
   "keySerde": "String",
   "valueSerde": "String",
   "key": "6f1c2b8e-0000-4000-8000-000000000001",
-  "value": "{\"orderId\":\"6f1c2b8e-0000-4000-8000-000000000001\",\"items\":[{\"sku\":\"OXI-001\",\"quantity\":1}]}"
+  "value": "{\"orderId\":\"6f1c2b8e-0000-4000-8000-000000000001\",\"items\":[{\"sku\":\"MON-002\",\"quantity\":1}]}"
 }
 
-### Ato 4: confere o estoque (1)
-GET {{catalog}}/products/sku/OXI-001
-
-### Ato 4: falta estoque, pede 2 com 1 disponível; nada muda, catalog.stock.insufficient.v1
+### Plano B: falta estoque, pede 50 MON-002; nada muda, catalog.stock.insufficient.v1
 POST {{kafkaUi}}/topics/order.order.placed.v1/messages
 Content-Type: application/json
 
@@ -98,10 +168,10 @@ Content-Type: application/json
   "keySerde": "String",
   "valueSerde": "String",
   "key": "6f1c2b8e-0000-4000-8000-000000000002",
-  "value": "{\"orderId\":\"6f1c2b8e-0000-4000-8000-000000000002\",\"items\":[{\"sku\":\"OXI-001\",\"quantity\":2}]}"
+  "value": "{\"orderId\":\"6f1c2b8e-0000-4000-8000-000000000002\",\"items\":[{\"sku\":\"MON-002\",\"quantity\":50}]}"
 }
 
-### Ato 4: produto reprovado não pode ser vendido (available 0), catalog.stock.insufficient.v1
+### Plano B: produto reprovado não pode ser vendido (available 0), catalog.stock.insufficient.v1
 POST {{kafkaUi}}/topics/order.order.placed.v1/messages
 Content-Type: application/json
 
@@ -113,7 +183,7 @@ Content-Type: application/json
   "value": "{\"orderId\":\"6f1c2b8e-0000-4000-8000-000000000003\",\"items\":[{\"sku\":\"EST-003\",\"quantity\":1}]}"
 }
 
-### Ato 4: cancelamento do primeiro pedido devolve o estoque (1 → 2), catalog.product.stock-changed.v1
+### Plano B: o cancelamento do primeiro pedido devolve o estoque, catalog.product.stock-changed.v1
 POST {{kafkaUi}}/topics/order.order.cancelled.v1/messages
 Content-Type: application/json
 
@@ -125,5 +195,5 @@ Content-Type: application/json
   "value": "{\"orderId\":\"6f1c2b8e-0000-4000-8000-000000000001\",\"reason\":\"PAYMENT_FAILED\"}"
 }
 
-### Ato 4: confere o estoque (2)
-GET {{catalog}}/products/sku/OXI-001
+### Plano B: confere o estoque do MON-002
+GET {{catalog}}/products/sku/MON-002
