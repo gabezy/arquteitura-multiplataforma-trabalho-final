@@ -50,8 +50,14 @@ Desktop.ini
 *.pem
 *.key
 
-# Claude Code local settings (shared skills in .claude/skills stay tracked)
+# Claude Code local settings and agent worktrees (shared skills in .claude/skills stay tracked)
 **/.claude/settings.local.json
+.claude/worktrees/
+
+# Presentation: the deck goes to the GitHub release and the video to YouTube; the local build of the
+# video (tools, venv, renders, about 2 GB) stays out of the repository
+/docs/pptx/
+/video/
 
 # Python bytecode (e.g. from the scripts of the skills in .claude/skills)
 __pycache__/
