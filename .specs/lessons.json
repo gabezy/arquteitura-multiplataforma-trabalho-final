@@ -1,0 +1,498 @@
+{
+  "schema": 1,
+  "promote_threshold": 2,
+  "window_days": 45,
+  "quarantine_threshold": 2,
+  "next_id": 28,
+  "lessons": [
+    {
+      "id": "L-001",
+      "key": "surviving_mutant::assert a kafka consumer s offset commits against a real consumer group client advanced after success or dead letter untouched after a failure",
+      "text": "Assert a Kafka consumer's offset commits against a real consumer group client: advanced after success or dead letter, untouched after a failure.",
+      "signal": "surviving_mutant",
+      "scope": "kafka-consumer",
+      "status": "candidate",
+      "features": [
+        "billing-service"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "M27, M28: billing-service/internal/infra/messaging/consumer.go:73-79 (INV-06, INV-07) (kafka-consumer)"
+      ],
+      "created": "2026-10-24T08:14:15Z",
+      "last_seen": "2026-10-24T08:14:15Z"
+    },
+    {
+      "id": "L-002",
+      "key": "surviving_mutant::cover the composition root so that dropping or mis wiring any background worker fails a test",
+      "text": "Cover the composition root so that dropping or mis-wiring any background worker fails a test.",
+      "signal": "surviving_mutant",
+      "scope": "composition-root",
+      "status": "candidate",
+      "features": [
+        "billing-service"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "M78, M82: billing-service/internal/app/app.go:93,114 (REC-01) (composition-root)"
+      ],
+      "created": "2026-10-24T08:14:15Z",
+      "last_seen": "2026-10-24T08:14:15Z"
+    },
+    {
+      "id": "L-003",
+      "key": "surviving_mutant::expose every time window and interval of a background worker as configuration so an end to end test can shorten it",
+      "text": "Expose every time window and interval of a background worker as configuration so an end-to-end test can shorten it.",
+      "signal": "surviving_mutant",
+      "scope": "worker",
+      "status": "candidate",
+      "features": [
+        "billing-service"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "M83: billing-service/internal/app/app.go:76 (REC-01) (worker)"
+      ],
+      "created": "2026-10-24T08:14:15Z",
+      "last_seen": "2026-10-24T08:14:15Z"
+    },
+    {
+      "id": "L-004",
+      "key": "surviving_mutant::test a strict time boundary with a row exactly at the cutoff",
+      "text": "Test a strict time boundary with a row exactly at the cutoff.",
+      "signal": "surviving_mutant",
+      "scope": "persistence",
+      "status": "candidate",
+      "features": [
+        "billing-service"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "M48: billing-service/internal/infra/persistence/invoice_repository.go:169 (REC-01) (persistence)"
+      ],
+      "created": "2026-10-24T08:14:15Z",
+      "last_seen": "2026-10-24T08:14:15Z"
+    },
+    {
+      "id": "L-005",
+      "key": "surviving_mutant::keep end to end wait timeouts close to the expected latency so a mis wired interval fails the test",
+      "text": "Keep end-to-end wait timeouts close to the expected latency so a mis-wired interval fails the test.",
+      "signal": "surviving_mutant",
+      "scope": "e2e-tests",
+      "status": "candidate",
+      "features": [
+        "billing-service"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "M81: billing-service/internal/app/app.go:92 (PAY-01) (e2e-tests)"
+      ],
+      "created": "2026-10-24T08:14:15Z",
+      "last_seen": "2026-10-24T08:14:15Z"
+    },
+    {
+      "id": "L-006",
+      "key": "ac_gap::assert the log level that a spec decision names such as a warning in a test of the code that logs it",
+      "text": "Assert the log level that a spec decision names, such as a warning, in a test of the code that logs it.",
+      "signal": "ac_gap",
+      "scope": "logging",
+      "status": "candidate",
+      "features": [
+        "billing-service"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "INV-11: .specs/features/billing-service/spec.md:56 (warning logged for a paid invoice) (logging)"
+      ],
+      "created": "2026-10-24T08:14:15Z",
+      "last_seen": "2026-10-24T08:14:15Z"
+    },
+    {
+      "id": "L-007",
+      "key": "spec_precision_gap::name every required cloudevents header in the spec instead of saying a required header",
+      "text": "Name every required CloudEvents header in the spec instead of saying a required header.",
+      "signal": "spec_precision_gap",
+      "scope": "spec",
+      "status": "candidate",
+      "features": [
+        "billing-service"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "INV-06: .specs/features/billing-service/spec.md:119 (spec)"
+      ],
+      "created": "2026-10-24T08:14:15Z",
+      "last_seen": "2026-10-24T08:14:15Z"
+    },
+    {
+      "id": "L-008",
+      "key": "spec_precision_gap::state in the spec whether a retry delay formula counts the failure being scheduled",
+      "text": "State in the spec whether a retry delay formula counts the failure being scheduled.",
+      "signal": "spec_precision_gap",
+      "scope": "spec",
+      "status": "candidate",
+      "features": [
+        "billing-service"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "PAY-10: .specs/features/billing-service/spec.md:164 (spec)"
+      ],
+      "created": "2026-10-24T08:14:15Z",
+      "last_seen": "2026-10-24T08:14:15Z"
+    },
+    {
+      "id": "L-009",
+      "key": "spec_precision_gap::define in the spec which work in progress a graceful shutdown must finish",
+      "text": "Define in the spec which work in progress a graceful shutdown must finish.",
+      "signal": "spec_precision_gap",
+      "scope": "spec",
+      "status": "candidate",
+      "features": [
+        "billing-service"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "BOOT-06: .specs/features/billing-service/spec.md:96 (spec)"
+      ],
+      "created": "2026-10-24T08:14:15Z",
+      "last_seen": "2026-10-24T08:14:15Z"
+    },
+    {
+      "id": "L-010",
+      "key": "surviving_mutant::give each rejection branch of a message parser its own malformed input in the test table including a missing field and data after the json value",
+      "text": "Give each rejection branch of a message parser its own malformed input in the test table, including a missing field and data after the JSON value.",
+      "signal": "surviving_mutant",
+      "scope": "message-parser",
+      "status": "candidate",
+      "features": [
+        "billing-service"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "F6, F7: billing-service/internal/infra/messaging/order_events.go:125,182 (INV-06) (message-parser)"
+      ],
+      "created": "2026-10-24T09:34:31Z",
+      "last_seen": "2026-10-24T09:34:31Z"
+    },
+    {
+      "id": "L-011",
+      "key": "surviving_mutant::assert the wait actually applied between retry attempts not only the configured delays",
+      "text": "Assert the wait actually applied between retry attempts, not only the configured delays.",
+      "signal": "surviving_mutant",
+      "scope": "retry",
+      "status": "candidate",
+      "features": [
+        "billing-service"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "J12: billing-service/internal/infra/psp/client.go:228 (PAY-09) (retry)"
+      ],
+      "created": "2026-10-24T09:34:31Z",
+      "last_seen": "2026-10-24T09:34:31Z"
+    },
+    {
+      "id": "L-012",
+      "key": "surviving_mutant::cover the composition root so that mis wiring a configured adapter such as a retry policy or a health probe fails a test",
+      "text": "Cover the composition root so that mis-wiring a configured adapter, such as a retry policy or a health probe, fails a test.",
+      "signal": "surviving_mutant",
+      "scope": "composition-root",
+      "status": "candidate",
+      "features": [
+        "billing-service"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "L8, L9: billing-service/internal/app/app.go:74,96 (PAY-09, BOOT-02) (composition-root)"
+      ],
+      "created": "2026-10-24T09:34:31Z",
+      "last_seen": "2026-10-24T09:34:31Z"
+    },
+    {
+      "id": "L-013",
+      "key": "surviving_mutant::test a health check client against an unhealthy answer not only against a healthy service and a stopped one",
+      "text": "Test a health check client against an unhealthy answer, not only against a healthy service and a stopped one.",
+      "signal": "surviving_mutant",
+      "scope": "healthcheck",
+      "status": "candidate",
+      "features": [
+        "billing-service"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "S3: billing-service/cmd/billing-service/main.go:88 (BOOT-07) (healthcheck)"
+      ],
+      "created": "2026-10-24T09:34:31Z",
+      "last_seen": "2026-10-24T09:34:31Z"
+    },
+    {
+      "id": "L-014",
+      "key": "surviving_mutant::test a graceful shutdown with a request that never finishes and assert the process still exits inside its time budget",
+      "text": "Test a graceful shutdown with a request that never finishes and assert the process still exits inside its time budget.",
+      "signal": "surviving_mutant",
+      "scope": "shutdown",
+      "status": "candidate",
+      "features": [
+        "billing-service"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "S1, S2: billing-service/internal/app/app.go:30,49,119 (BOOT-06) (shutdown)"
+      ],
+      "created": "2026-10-24T09:34:31Z",
+      "last_seen": "2026-10-24T09:34:31Z"
+    },
+    {
+      "id": "L-015",
+      "key": "ac_gap::give every clause of a compound acceptance criterion its own asserting test",
+      "text": "Give every clause of a compound acceptance criterion its own asserting test.",
+      "signal": "ac_gap",
+      "scope": "acceptance-tests",
+      "status": "confirmed",
+      "features": [
+        "billing-service",
+        "e2e-smoke"
+      ],
+      "recurrence": 2,
+      "harmful": 0,
+      "evidence": [
+        "BOOT-06: .specs/features/billing-service/spec.md:96 (clauses of the shutdown criterion without a test) (acceptance-tests)",
+        "scripts/e2e-smoke.sh:119-120 (M2, E2E-09: reserved message half had no failing scenario) (acceptance-tests)"
+      ],
+      "created": "2026-10-24T09:34:31Z",
+      "last_seen": "2026-10-24T17:39:02Z"
+    },
+    {
+      "id": "L-016",
+      "key": "spec_precision_gap::state in the spec what a graceful shutdown does with the unsent rest of a batch",
+      "text": "State in the spec what a graceful shutdown does with the unsent rest of a batch.",
+      "signal": "spec_precision_gap",
+      "scope": "spec",
+      "status": "candidate",
+      "features": [
+        "billing-service"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "BOOT-06: .specs/features/billing-service/spec.md:96 (finish the outbox batch) (spec)"
+      ],
+      "created": "2026-10-24T09:34:31Z",
+      "last_seen": "2026-10-24T09:34:31Z"
+    },
+    {
+      "id": "L-017",
+      "key": "spec_precision_gap::name the required fields of a request body in the spec instead of saying a field",
+      "text": "Name the required fields of a request body in the spec instead of saying a field.",
+      "signal": "spec_precision_gap",
+      "scope": "spec",
+      "status": "candidate",
+      "features": [
+        "billing-service"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "Edge case webhook body: .specs/features/billing-service/spec.md:193 (misses a field) (spec)"
+      ],
+      "created": "2026-10-24T09:34:31Z",
+      "last_seen": "2026-10-24T09:34:31Z"
+    },
+    {
+      "id": "L-018",
+      "key": "surviving_mutant::assert a time budget that the spec states in seconds with its absolute value not through the constant under test",
+      "text": "Assert a time budget that the spec states in seconds with its absolute value, not through the constant under test.",
+      "signal": "surviving_mutant",
+      "scope": "shutdown",
+      "status": "candidate",
+      "features": [
+        "billing-service"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "B17: billing-service/internal/app/app.go:31 (BOOT-06) (shutdown)"
+      ],
+      "created": "2026-10-24T10:20:16Z",
+      "last_seen": "2026-10-24T10:20:16Z"
+    },
+    {
+      "id": "L-019",
+      "key": "surviving_mutant::test that a batch loop stops at the next item after cancellation with a collaborator that ignores its context",
+      "text": "Test that a batch loop stops at the next item after cancellation with a collaborator that ignores its context.",
+      "signal": "surviving_mutant",
+      "scope": "outbox-relay",
+      "status": "candidate",
+      "features": [
+        "billing-service"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "B09: billing-service/internal/infra/outbox/relay.go:130 (BOOT-06) (outbox-relay)"
+      ],
+      "created": "2026-10-24T10:20:16Z",
+      "last_seen": "2026-10-24T10:20:16Z"
+    },
+    {
+      "id": "L-020",
+      "key": "surviving_mutant::assert the period of a ticker driven loop from below and from above not only that it runs several times",
+      "text": "Assert the period of a ticker-driven loop from below and from above, not only that it runs several times.",
+      "signal": "surviving_mutant",
+      "scope": "worker",
+      "status": "candidate",
+      "features": [
+        "billing-service"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "B20: billing-service/internal/infra/worker/worker.go:18 (REC-01) (worker)"
+      ],
+      "created": "2026-10-24T10:20:16Z",
+      "last_seen": "2026-10-24T10:20:16Z"
+    },
+    {
+      "id": "L-021",
+      "key": "surviving_mutant::assert the resource attribute of each exported telemetry signal separately because another field such as the scope name can satisfy a substring check",
+      "text": "Assert the resource attribute of each exported telemetry signal separately, because another field such as the scope name can satisfy a substring check.",
+      "signal": "surviving_mutant",
+      "scope": "observability",
+      "status": "candidate",
+      "features": [
+        "billing-service"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "C04: billing-service/internal/infra/observability/telemetry.go:78 (BOOT-05) (observability)"
+      ],
+      "created": "2026-10-24T10:20:16Z",
+      "last_seen": "2026-10-24T10:20:16Z"
+    },
+    {
+      "id": "L-022",
+      "key": "surviving_mutant::for every check an end to end script makes the scenario harness must include a fault that makes that check fail or the check can be deleted unnoticed",
+      "text": "For every check an end-to-end script makes, the scenario harness must include a fault that makes that check fail, or the check can be deleted unnoticed",
+      "signal": "surviving_mutant",
+      "scope": "e2e",
+      "status": "candidate",
+      "features": [
+        "e2e-smoke"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "scripts/e2e-smoke.sh:83 (M1, E2E-06) (e2e)",
+        "scripts/e2e-smoke.sh:92 (M7, E2E-07, iteration 2) (e2e)"
+      ],
+      "created": "2026-10-24T17:39:02Z",
+      "last_seen": "2026-10-24T17:39:02Z"
+    },
+    {
+      "id": "L-023",
+      "key": "surviving_mutant::when a required step is a no op on an already prepared environment the harness needs a scenario that starts from an unprepared state or the spec must declare the step verified by inspection",
+      "text": "When a required step is a no-op on an already prepared environment, the harness needs a scenario that starts from an unprepared state, or the spec must declare the step verified by inspection",
+      "signal": "surviving_mutant",
+      "scope": "e2e",
+      "status": "candidate",
+      "features": [
+        "e2e-smoke"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "scripts/e2e-smoke.sh:71 (MB, E2E-02, post-merge) (e2e)"
+      ],
+      "created": "2026-10-24T18:34:05Z",
+      "last_seen": "2026-10-24T18:34:05Z"
+    },
+    {
+      "id": "L-024",
+      "key": "ac_gap::build run unique ids with fixed width formatting never slice a variable length random suffix or pass zero padded digits to printf d",
+      "text": "Build run-unique ids with fixed-width formatting; never slice a variable-length random suffix or pass zero-padded digits to printf %d",
+      "signal": "ac_gap",
+      "scope": "e2e",
+      "status": "candidate",
+      "features": [
+        "e2e-smoke"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "scripts/e2e-smoke.sh:22,29-32 (E2E-15, v2) (e2e)"
+      ],
+      "created": "2026-10-25T15:42:54Z",
+      "last_seen": "2026-10-25T15:42:54Z"
+    },
+    {
+      "id": "L-025",
+      "key": "surviving_mutant::a resilience behavior declared only in assumptions such as a retry needs one harness check or an explicit verified by inspection note in the spec",
+      "text": "A resilience behavior declared only in Assumptions, such as a retry, needs one harness check or an explicit verified-by-inspection note in the spec",
+      "signal": "surviving_mutant",
+      "scope": "e2e",
+      "status": "candidate",
+      "features": [
+        "e2e-smoke"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "scripts/e2e-smoke.sh:125 (N7, v2) (e2e)"
+      ],
+      "created": "2026-10-25T15:42:54Z",
+      "last_seen": "2026-10-25T15:42:54Z"
+    },
+    {
+      "id": "L-026",
+      "key": "gate_fail::when a harness checks a retry or timeout count the attempts in the output instead of asserting on wall clock time",
+      "text": "When a harness checks a retry or timeout, count the attempts in the output instead of asserting on wall-clock time",
+      "signal": "gate_fail",
+      "scope": "e2e",
+      "status": "candidate",
+      "features": [
+        "e2e-smoke"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "scripts/e2e-smoke.test.sh:127 (retry check failed 3/3 alone on unmodified code: 32, 37, 37 s) (e2e)"
+      ],
+      "created": "2026-10-25T16:20:46Z",
+      "last_seen": "2026-10-25T16:20:46Z"
+    },
+    {
+      "id": "L-027",
+      "key": "surviving_mutant::when a test counts attempts from log lines log every attempt including the last so the count pins the number of attempts",
+      "text": "When a test counts attempts from log lines, log every attempt including the last so the count pins the number of attempts",
+      "signal": "surviving_mutant",
+      "scope": "e2e",
+      "status": "candidate",
+      "features": [
+        "e2e-smoke"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "scripts/e2e-smoke.sh:122 (N10, v2-3: 4 attempts print the same 4 lines as 5) (e2e)"
+      ],
+      "created": "2026-10-25T16:44:17Z",
+      "last_seen": "2026-10-25T16:44:17Z"
+    }
+  ]
+}

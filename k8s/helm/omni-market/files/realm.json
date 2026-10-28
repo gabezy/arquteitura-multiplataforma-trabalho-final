@@ -1,0 +1,119 @@
+{
+  "realm": "omni-market",
+  "displayName": "Omni Market",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "accessTokenLifespan": 300,
+  "roles": {
+    "realm": [
+      { "name": "customer", "description": "Cliente do marketplace" },
+      { "name": "admin", "description": "Administrador do marketplace" },
+      { "name": "store", "description": "Loja de produtos hospitalares" },
+      { "name": "specialist", "description": "Especialista do negócio" },
+      { "name": "fiscal", "description": "Fiscal (auditoria, somente leitura)" },
+      { "name": "csm", "description": "Customer Success Manager (acompanhamento, somente leitura)" }
+    ]
+  },
+  "defaultRoles": ["customer"],
+  "clients": [
+    {
+      "clientId": "bff-gateway",
+      "name": "BFF Gateway",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "${BFF_CLIENT_SECRET}",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": true,
+      "redirectUris": ["http://localhost:4200/*"],
+      "webOrigins": ["+"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      }
+    },
+    {
+      "clientId": "omni-market-web",
+      "name": "Omni Market Web",
+      "description": "Front-end (SPA): client público, authorization code com PKCE, sem secret",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": ["http://localhost:4200/*"],
+      "webOrigins": ["http://localhost:4200"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:4200/*"
+      }
+    }
+  ],
+  "users": [
+    {
+      "username": "customer",
+      "email": "customer@omni-market.local",
+      "firstName": "Customer",
+      "lastName": "Test",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [{ "type": "password", "value": "customer", "temporary": false }],
+      "realmRoles": ["customer"]
+    },
+    {
+      "username": "admin",
+      "email": "admin@omni-market.local",
+      "firstName": "Admin",
+      "lastName": "Test",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [{ "type": "password", "value": "admin", "temporary": false }],
+      "realmRoles": ["customer", "admin"]
+    },
+    {
+      "username": "loja",
+      "email": "loja@omni-market.local",
+      "firstName": "Loja",
+      "lastName": "Test",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [{ "type": "password", "value": "loja", "temporary": false }],
+      "realmRoles": ["store"]
+    },
+    {
+      "username": "especialista",
+      "email": "especialista@omni-market.local",
+      "firstName": "Especialista",
+      "lastName": "Test",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [{ "type": "password", "value": "especialista", "temporary": false }],
+      "realmRoles": ["specialist"]
+    },
+    {
+      "username": "fiscal",
+      "email": "fiscal@omni-market.local",
+      "firstName": "Fiscal",
+      "lastName": "Test",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [{ "type": "password", "value": "fiscal", "temporary": false }],
+      "realmRoles": ["fiscal"]
+    },
+    {
+      "username": "csm",
+      "email": "csm@omni-market.local",
+      "firstName": "CSM",
+      "lastName": "Test",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [{ "type": "password", "value": "csm", "temporary": false }],
+      "realmRoles": ["csm"]
+    }
+  ]
+}

@@ -70,12 +70,10 @@ describe("KnexProductRepository", () => {
       const product = newProduct();
       await repository.save(product);
 
-      product.addStock(new Quantity(5));
       product.approveAnalysis();
       await repository.save(product);
 
       const found = await repository.findBySku(product.sku);
-      expect(found?.stock.value).toBe(15);
       expect(found?.analysisStatus).toBe(ProductAnalysisStatus.APPROVED);
       expect(await db("products").count({ total: "*" }).first()).toEqual({ total: 1 });
     });
@@ -127,6 +125,57 @@ describe("KnexProductRepository", () => {
       await expect(repository.save(newProduct({ sku: new Sku("NB-DUP") }))).rejects.toThrow(DuplicateSkuError);
 
       expect(await db("outbox").count({ total: "*" }).first()).toEqual({ total: 1 });
+    });
+  });
+
+  describe("price", () => {
+    it("updates the price and writes the price-changed event to the outbox", async () => {
+      const product = newProduct({ price: new Price(4500) });
+      await repository.save(product);
+
+      product.changePrice(new Price(4999.9));
+      await repository.save(product);
+
+      expect((await repository.findBySku(product.sku))?.price.value).toBe(4999.9);
+      const rows = await db("outbox").where({ event_type: "catalog.product.price-changed.v1" });
+      expect(rows).toHaveLength(1);
+      expect(JSON.parse(rows[0].payload)).toEqual({
+        productId: product.id.value,
+        sku: product.sku.value,
+        price: 4999.9,
+      });
+    });
+
+    it("writes no price event when the price does not change", async () => {
+      const product = newProduct({ price: new Price(4500) });
+      await repository.save(product);
+
+      product.changePrice(new Price(4500));
+      await repository.save(product);
+
+      expect(await db("outbox").where({ event_type: "catalog.product.price-changed.v1" }).count({ total: "*" }).first()).toEqual({ total: 0 });
+      expect((await repository.findBySku(product.sku))?.price.value).toBe(4500);
+    });
+
+    it("does not change the price when the outbox write fails", async () => {
+      const product = newProduct({ price: new Price(4500) });
+      await repository.save(product);
+      product.changePrice(new Price(4999.9));
+
+      await db.raw(`
+        CREATE TRIGGER reject_price_outbox BEFORE INSERT ON outbox
+        WHEN NEW.event_type = 'catalog.product.price-changed.v1'
+        BEGIN SELECT RAISE(ABORT, 'broken outbox'); END
+      `);
+
+      try {
+        await expect(repository.save(product)).rejects.toThrow();
+      } finally {
+        await db.raw("DROP TRIGGER reject_price_outbox");
+      }
+
+      expect((await repository.findBySku(product.sku))?.price.value).toBe(4500);
+      expect(await db("outbox").where({ event_type: "catalog.product.price-changed.v1" }).count({ total: "*" }).first()).toEqual({ total: 0 });
     });
   });
 
@@ -195,6 +244,53 @@ describe("KnexProductRepository", () => {
       await expect(
         repository.saveAll([newProduct({ sku: new Sku("NB-DUP") }), newProduct({ sku: new Sku("NB-DUP") })]),
       ).rejects.toThrow(DuplicateSkuError);
+    });
+  });
+
+  describe("stock and version", () => {
+    it("does not overwrite the stored stock when saving an existing product", async () => {
+      const product = newProduct({ stock: new Quantity(10) });
+      await repository.save(product);
+      const loaded = await repository.findBySku(product.sku);
+      await db("products").where({ id: product.id.value }).update({ stock: 3 });
+
+      loaded!.approveAnalysis();
+      await repository.save(loaded!);
+
+      const found = await repository.findBySku(product.sku);
+      expect(found?.stock.value).toBe(3);
+      expect(found?.analysisStatus).toBe(ProductAnalysisStatus.APPROVED);
+    });
+
+    it("starts a new product at version 0", async () => {
+      const product = newProduct();
+      await repository.save(product);
+
+      expect((await repository.findBySku(product.sku))?.version).toBe(0);
+    });
+
+    it("restores the stored version", async () => {
+      const product = newProduct();
+      await repository.save(product);
+      await db("products").where({ id: product.id.value }).update({ version: 4 });
+
+      expect((await repository.findBySku(product.sku))?.version).toBe(4);
+    });
+  });
+
+  describe("findBySkus", () => {
+    it("returns the stored products, ignoring unknown SKUs", async () => {
+      const a = newProduct();
+      const b = newProduct();
+      await repository.saveAll([a, b]);
+
+      const found = await repository.findBySkus([a.sku, b.sku, new Sku("ZZ-999")]);
+
+      expect(found.map((product) => product.sku.value).sort()).toEqual([a.sku.value, b.sku.value].sort());
+    });
+
+    it("returns an empty list for no SKUs", async () => {
+      expect(await repository.findBySkus([])).toEqual([]);
     });
   });
 

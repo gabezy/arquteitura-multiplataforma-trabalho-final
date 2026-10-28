@@ -1,11 +1,19 @@
 package br.com.puc.multiplataforma.bffgateway.infra.catalog.controller;
 
+import br.com.puc.multiplataforma.bffgateway.core.catalog.usecase.changeprice.ChangeProductPrice;
 import br.com.puc.multiplataforma.bffgateway.core.catalog.usecase.importcatalog.ImportExcelCatalog;
+import br.com.puc.multiplataforma.bffgateway.infra.catalog.controller.dto.ChangePriceRequest;
 import br.com.puc.multiplataforma.bffgateway.infra.catalog.controller.dto.ImportCatalogResponse;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
@@ -14,22 +22,37 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.io.InputStream;
 
+@Tag(name = "Catálogo", description = "Produtos do catálogo")
 @RestController
 @RequestMapping(path = "/catalog", produces = MediaType.APPLICATION_JSON_VALUE)
 public class CatalogController {
 
     private final ImportExcelCatalog importExcelCatalog;
+    private final ChangeProductPrice changeProductPrice;
 
-    public CatalogController(ImportExcelCatalog importExcelCatalog) {
+    public CatalogController(ImportExcelCatalog importExcelCatalog, ChangeProductPrice changeProductPrice) {
         this.importExcelCatalog = importExcelCatalog;
+        this.changeProductPrice = changeProductPrice;
     }
 
     @PostMapping(path = "/import/xlsx", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasRole('admin') or hasAuthority('SCOPE_catalog:write')")
+    @Operation(summary = "Importa a planilha do catálogo", description = "Papéis: admin e store, ou o escopo catalog:write. Recebe um .xlsx com sku, name, description, price e stock.")
+    @PreAuthorize("hasAnyRole('admin', 'store') or hasAuthority('SCOPE_catalog:write')")
     public ResponseEntity<ImportCatalogResponse> importCatalog(@RequestPart("file") MultipartFile file) throws IOException {
         try (InputStream spreadsheet = file.getInputStream()) {
             return ResponseEntity.ok(ImportCatalogResponse.from(importExcelCatalog.execute(spreadsheet)));
         }
+    }
+
+    @PatchMapping(path = "/products/{sku}/price", consumes = MediaType.APPLICATION_JSON_VALUE)
+    @Operation(summary = "Altera o preço de um produto", description = "Papéis: admin e store, ou o escopo catalog:write. O catalog-service publica catalog.product.price-changed.v1.")
+    @ApiResponse(responseCode = "204", description = "Preço alterado")
+    @ApiResponse(responseCode = "400", description = "Preço ausente, negativo ou JSON malformado")
+    @ApiResponse(responseCode = "404", description = "SKU desconhecido no catálogo")
+    @PreAuthorize("hasAnyRole('admin', 'store') or hasAuthority('SCOPE_catalog:write')")
+    public ResponseEntity<Void> changePrice(@PathVariable String sku, @RequestBody ChangePriceRequest request) {
+        changeProductPrice.execute(sku, request.price());
+        return ResponseEntity.noContent().build();
     }
 
 }

@@ -1,4 +1,5 @@
 import { ProductEntity } from "./model/product.entity";
+import { ValidationError } from "../shared/domain/domain.error";
 import { AnalysisAlreadyCompletedError, DuplicateSkuError, InvalidProductError, ProductNotFoundError } from "./model/product.errors";
 import { Sku } from "./model/sku.vo";
 import { AddProductPortInput } from "./port/in/create-product.port";
@@ -18,6 +19,10 @@ class InMemoryProductRepository implements ProductRepositoryPort {
 
   async findBySku(sku: Sku): Promise<ProductEntity | null> {
     return [...this.products.values()].find((product) => product.sku.equals(sku)) ?? null;
+  }
+
+  async findBySkus(skus: Sku[]): Promise<ProductEntity[]> {
+    return [...this.products.values()].filter((product) => skus.some((sku) => sku.equals(product.sku)));
   }
 
   async findExistingSkus(skus: Sku[]): Promise<Sku[]> {
@@ -118,6 +123,48 @@ describe("ProductFacade", () => {
 
     it("throws when the product does not exist", async () => {
       await expect(facade.find({ sku: "ARB-2131" })).rejects.toThrow(ProductNotFoundError);
+    });
+  });
+
+  describe("changePrice", () => {
+    it("stores the new price", async () => {
+      await facade.add(productInput());
+
+      await facade.changePrice({ sku: "NB-001", price: 4999.9 });
+
+      expect((await facade.find({ sku: "NB-001" })).price).toBe(4999.9);
+    });
+
+    it("finds the product regardless of the SKU case", async () => {
+      await facade.add(productInput({ sku: "NB-001" }));
+
+      await facade.changePrice({ sku: "nb-001", price: 4999.9 });
+
+      expect((await facade.find({ sku: "NB-001" })).price).toBe(4999.9);
+    });
+
+    it("throws when the product does not exist", async () => {
+      await expect(facade.changePrice({ sku: "ARB-2131", price: 4999.9 })).rejects.toThrow(
+        ProductNotFoundError,
+      );
+    });
+
+    it("rejects an invalid price and keeps the current one", async () => {
+      await facade.add(productInput());
+
+      await expect(facade.changePrice({ sku: "NB-001", price: -1 })).rejects.toThrow(ValidationError);
+      expect((await facade.find({ sku: "NB-001" })).price).toBe(4500);
+    });
+
+    it("records no event when the price is already the current one", async () => {
+      await facade.add(productInput());
+      const stored = [...repository.products.values()][0];
+      stored.pullDomainEvents();
+
+      await facade.changePrice({ sku: "NB-001", price: 4500 });
+
+      expect(stored.pullDomainEvents()).toEqual([]);
+      expect((await facade.find({ sku: "NB-001" })).price).toBe(4500);
     });
   });
 

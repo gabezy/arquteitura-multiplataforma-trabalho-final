@@ -1,4 +1,4 @@
-import { loadConfig } from './infra/config/env';
+import { loadAppConfig } from './infra/config/load-app-config';
 import { createLogger } from './infra/observability/logger';
 import { createApp } from './infra/http/app';
 import { createDatabaseConnection } from './infra/persistence/database';
@@ -8,26 +8,33 @@ import { OutboxRelay } from './infra/messaging/outbox-relay';
 
 const RELAY_INTERVAL_MS = 1000;
 
-const config = loadConfig();
-const logger = createLogger(config.logLevel);
-const db = createDatabaseConnection(config.databaseUrl);
-const { consumer, producer } = configureKafka(config.kafkaBrokers);
-
-const { productController, productAnalysisConsumer } = createProductModule({
-  db,
-  consumer,
-  producer,
-  productAnalysisTopics: {
-    topic: config.produtoAnalisadoTopic,
-    deadLetterTopic: config.productAnalysisDeadLetterTopic,
-  },
-  logger,
-});
-const relay = new OutboxRelay(db, producer);
-
 async function start(): Promise<void> {
+  const config = await loadAppConfig();
+  const logger = createLogger(config.logLevel);
+  const db = createDatabaseConnection(config.databaseUrl);
+  const { consumer, producer, orderStockConsumer: orderStockKafkaConsumer } = configureKafka(config.kafkaBrokers);
+
+  const { productController, productAnalysisConsumer, orderStockConsumer } = createProductModule({
+    db,
+    consumer,
+    producer,
+    productAnalysisTopics: {
+      topic: config.produtoAnalisadoTopic,
+      deadLetterTopic: config.productAnalysisDeadLetterTopic,
+    },
+    orderStockKafkaConsumer,
+    orderStockTopics: {
+      placedTopic: config.orderPlacedTopic,
+      cancelledTopic: config.orderCancelledTopic,
+      deadLetterTopic: config.orderStockDeadLetterTopic,
+    },
+    logger,
+  });
+  const relay = new OutboxRelay(db, producer);
+
   await producer.connect();
   await productAnalysisConsumer.start();
+  await orderStockConsumer.start();
 
   relay.start({
     intervalMs: RELAY_INTERVAL_MS,
@@ -42,6 +49,7 @@ async function start(): Promise<void> {
     logger.info({ signal }, `${config.serviceName} shutting down`);
     server.close();
     await consumer.disconnect();
+    await orderStockKafkaConsumer.disconnect();
     await relay.stop();
     await producer.disconnect();
     await db.destroy();
@@ -53,6 +61,7 @@ async function start(): Promise<void> {
 }
 
 start().catch(err => {
-  logger.error({ err }, `${config.serviceName} failed to start`);
+  // The config may be what failed (e.g. Vault unreachable), so this logger does not depend on it.
+  createLogger(process.env.LOG_LEVEL ?? 'info').error({ err }, 'catalog-service failed to start');
   process.exit(1);
 });

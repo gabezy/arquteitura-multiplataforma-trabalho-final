@@ -1,0 +1,2 @@
+# Shell scripts run inside Linux containers or Git Bash, where CRLF breaks them.
+*.sh text eol=lf

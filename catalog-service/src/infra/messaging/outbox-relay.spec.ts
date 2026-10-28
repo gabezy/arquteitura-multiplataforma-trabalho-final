@@ -9,7 +9,7 @@ import { KnexOutboxRepository } from "../persistence/knex-outbox.repository";
 import { createMigrationSource } from "../persistence/migration-source";
 import { DomainEvent } from "../../core/shared/domain/domain.event";
 
-// Same image as catalog-db in ../compose.yaml: the relay relies on SKIP LOCKED and jsonb.
+// Same image as catalog-db in ../docker-compose.yaml: the relay relies on SKIP LOCKED and jsonb.
 const POSTGRES_IMAGE = "postgres:18-alpine";
 const CONTAINER_STARTUP_MS = 60_000;
 const PRODUCT_ID = "0b9f4c2e-6a1d-4f3b-9c8e-2d7a5e1f4b6c";

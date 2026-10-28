@@ -1,0 +1,146 @@
+name: deploy
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  KIND_CLUSTER: omni-market
+  K8S_CONTEXT: kind-omni-market
+  K8S_NAMESPACE: omni-market
+  REGISTRY_NAME: omni-market-registry
+  REGISTRY_PORT: "5001"
+
+jobs:
+  deploy-local:
+    name: Build and deploy to local cluster
+    runs-on: ubuntu-latest
+    steps:
+      # Fetch the repository contents that all later workflow steps use.
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      # Install the Kubernetes clients in the runner, not on the host running act.
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: v1.34.0
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.18.6
+
+      # Generate local demo credentials. .env is ignored by git and consumed by Helm below.
+      - name: Generate local environment file
+        run: sh scripts/generate-env.sh
+
+      # kind is installed in the runner and creates Kubernetes nodes as Docker containers.
+      - name: Install kind
+        run: |
+          if ! command -v kind >/dev/null 2>&1; then
+            sh scripts/install-kind.sh
+            echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+            export PATH="$HOME/.local/bin:$PATH"
+          fi
+          kind version
+
+      # Create the cluster once and export its kubeconfig for the remaining steps.
+      - name: Create kind cluster
+        run: |
+          if ! kind get clusters | grep -Fxq "$KIND_CLUSTER"; then
+            kind create cluster --name "$KIND_CLUSTER" --config k8s/kind.yaml --wait 240s
+          fi
+          kind export kubeconfig --name "$KIND_CLUSTER"
+          kubectl --context "$K8S_CONTEXT" cluster-info
+
+      # Start the local registry and configure every kind node to pull from it.
+      - name: Start local image registry
+        run: |
+          docker volume create omni-market-registry >/dev/null
+          if ! docker container inspect "$REGISTRY_NAME" >/dev/null 2>&1; then
+            docker run -d --restart=always --name "$REGISTRY_NAME" \
+              -p "127.0.0.1:${REGISTRY_PORT}:5000" \
+              -v omni-market-registry:/var/lib/registry registry:3
+          elif [ "$(docker container inspect -f '{{.State.Running}}' "$REGISTRY_NAME")" != "true" ]; then
+            docker start "$REGISTRY_NAME" >/dev/null
+          fi
+          if ! docker container inspect -f '{{json .NetworkSettings.Networks.kind}}' "$REGISTRY_NAME" | grep -qv '^null$'; then
+            docker network connect kind "$REGISTRY_NAME"
+          fi
+          for node in $(kind get nodes --name "$KIND_CLUSTER"); do
+            docker exec "$node" mkdir -p /etc/containerd/certs.d/localhost:${REGISTRY_PORT}
+            printf '[host."http://omni-market-registry:5000"]\n  capabilities = ["pull", "resolve", "push"]\n' \
+              | docker exec -i "$node" sh -c 'cat > /etc/containerd/certs.d/localhost:5001/hosts.toml'
+          done
+          until curl --fail --silent "http://127.0.0.1:${REGISTRY_PORT}/v2/" >/dev/null; do sleep 1; done
+          kubectl --context "$K8S_CONTEXT" apply -f k8s/local-registry.yaml
+
+      # Build each application and the WireMock fixture image from its checked-out source.
+      - name: Build application and WireMock images
+        run: |
+          docker build -t omni-market/bff-gateway:local ./bff-gateway
+          docker build -t omni-market/catalog-service:local ./catalog-service
+          docker build -t omni-market/compliance-service:local ./compliance-service
+          docker build -t omni-market/order-service:local ./order-service
+          docker build -t omni-market/billing-service:local ./billing-service
+          docker build -t omni-market/marketplace-gateway:local ./marketplace-gateway
+          docker build -t omni-market/wiremock:local -f k8s/wiremock/Dockerfile .
+
+      # Push images to the registry attached to kind so Kubernetes can pull them.
+      - name: Publish images to local registry
+        run: |
+          for image in bff-gateway catalog-service compliance-service order-service billing-service marketplace-gateway wiremock; do
+            docker tag "omni-market/$image:local" "localhost:${REGISTRY_PORT}/omni-market/$image:local"
+            docker push "localhost:${REGISTRY_PORT}/omni-market/$image:local"
+          done
+
+      # Copy shared Docker configuration into the Helm chart's packaged files.
+      - name: Prepare Helm chart configuration
+        run: |
+          cp docker/keycloak/realms/omni-market-realm.json k8s/helm/omni-market/files/realm.json
+          cp docker/vault/bootstrap.sh k8s/helm/omni-market/files/vault-bootstrap.sh
+          cp docker/kafka/create-topics.sh k8s/helm/omni-market/files/create-topics.sh
+          cp docker/grafana/datasources.yaml k8s/helm/omni-market/files/grafana-datasources.yaml
+          cp docker/grafana/dashboards.yaml k8s/helm/omni-market/files/grafana-dashboards.yaml
+          cp docker/grafana/dashboards/omni-market.json k8s/helm/omni-market/files/grafana-dashboard-omni-market.json
+          cp docker/loki/config.yaml k8s/helm/omni-market/files/loki-config.yaml
+          cp docker/tempo/config.yaml k8s/helm/omni-market/files/tempo-config.yaml
+          cp docker/otel-collector/config.yaml k8s/helm/omni-market/files/otel-collector-config.yaml
+
+      # Create namespace and load generated credentials as a Kubernetes Secret.
+      - name: Create namespace and application secrets
+        run: |
+          kubectl --context "$K8S_CONTEXT" apply -f k8s/namespace.yaml
+          kubectl --context "$K8S_CONTEXT" create secret generic omni-market-secrets \
+            --namespace "$K8S_NAMESPACE" --from-env-file=.env --dry-run=client -o yaml \
+            | kubectl --context "$K8S_CONTEXT" apply -f -
+          kubectl --context "$K8S_CONTEXT" delete job vault-init kafka-init \
+            --namespace "$K8S_NAMESPACE" --ignore-not-found
+
+      # Bring up infrastructure and initialization jobs before application services.
+      - name: Deploy infrastructure with Helm
+        run: |
+          helm upgrade --install omni-market ./k8s/helm/omni-market \
+            --namespace "$K8S_NAMESPACE" --kube-context "$K8S_CONTEXT" \
+            --set applicationWorkloads.enabled=false --wait --wait-for-jobs --timeout 20m
+
+      # Enable the application workloads only after dependencies and bootstrap jobs are ready.
+      - name: Deploy application services with Helm
+        run: |
+          helm upgrade omni-market ./k8s/helm/omni-market \
+            --namespace "$K8S_NAMESPACE" --kube-context "$K8S_CONTEXT" \
+            --set applicationWorkloads.enabled=true --wait --timeout 10m
+
+      # Refresh WireMock fixtures and wait for its replacement pod to become ready.
+      - name: Restart WireMock and verify rollout
+        run: |
+          kubectl --context "$K8S_CONTEXT" rollout restart deployment/wiremock --namespace "$K8S_NAMESPACE"
+          kubectl --context "$K8S_CONTEXT" rollout status deployment/wiremock \
+            --namespace "$K8S_NAMESPACE" --timeout=5m
+
+      # Print the deployed resources so the result is visible in GitHub Actions and act logs.
+      - name: Show cluster status
+        run: kubectl --context "$K8S_CONTEXT" get pods,services,jobs --namespace "$K8S_NAMESPACE" -o wide

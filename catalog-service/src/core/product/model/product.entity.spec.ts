@@ -6,6 +6,8 @@ import { NewProductProps, ProductEntity } from "./product.entity";
 import { AnalysisAlreadyCompletedError, InsufficientStockError, InvalidProductError } from "./product.errors";
 import { ProductCreated } from "./product-created.event";
 import { ProductAnalysisApproved, ProductAnalysisRejected } from "./product-analysis.events";
+import { ProductStockChanged } from "./product-stock-changed.event";
+import { ProductPriceChanged } from "./product-price-changed.event";
 import { Sku } from "./sku.vo";
 
 const newProductProps = (overrides: Partial<NewProductProps> = {}): NewProductProps => ({
@@ -25,10 +27,11 @@ const restoreWithId = (id: string, overrides: Partial<NewProductProps> = {}): Pr
     ...newProductProps(overrides),
     id: new Id(id),
     analysisStatus: ProductAnalysisStatus.PENDING,
+    version: 0,
   });
 
 const productWithAnalysis = (analysisStatus: ProductAnalysisStatus): ProductEntity =>
-  ProductEntity.restore({ ...newProductProps(), id: new Id("product-1"), analysisStatus });
+  ProductEntity.restore({ ...newProductProps(), id: new Id("product-1"), analysisStatus, version: 0 });
 
 describe("ProductEntity", () => {
   describe("create", () => {
@@ -117,6 +120,7 @@ describe("ProductEntity", () => {
         ...newProductProps({ sku, price, stock }),
         id,
         analysisStatus: ProductAnalysisStatus.APPROVED,
+        version: 3,
       });
 
       expect(product.id).toBe(id);
@@ -126,6 +130,7 @@ describe("ProductEntity", () => {
       expect(product.price).toBe(price);
       expect(product.stock).toBe(stock);
       expect(product.analysisStatus).toBe(ProductAnalysisStatus.APPROVED);
+      expect(product.version).toBe(3);
     });
 
     it("records no event", () => {
@@ -137,7 +142,35 @@ describe("ProductEntity", () => {
     });
   });
 
+  describe("version", () => {
+    it("starts at 0 for a new product", () => {
+      expect(productWithStock(10).version).toBe(0);
+    });
+  });
+
+  describe("isAvailableForOrders", () => {
+    it.each([
+      [ProductAnalysisStatus.APPROVED, true],
+      [ProductAnalysisStatus.PENDING, false],
+      [ProductAnalysisStatus.REJECTED, false],
+    ])("is %p available: %p", (status, available) => {
+      expect(productWithAnalysis(status).isAvailableForOrders()).toBe(available);
+    });
+  });
+
   describe("addStock", () => {
+    it("records the new stock", () => {
+      const product = productWithStock(10);
+      product.pullDomainEvents();
+
+      product.addStock(new Quantity(5));
+
+      const events = product.pullDomainEvents();
+      expect(events).toHaveLength(1);
+      expect(events[0]).toBeInstanceOf(ProductStockChanged);
+      expect(events[0]).toMatchObject({ aggregateId: product.id.value, sku: "NB-001", stock: 15 });
+    });
+
     it("increases the stock by the given quantity", () => {
       const product = productWithStock(10);
 
@@ -155,6 +188,26 @@ describe("ProductEntity", () => {
   });
 
   describe("removeStock", () => {
+    it("records the new stock", () => {
+      const product = productWithStock(10);
+      product.pullDomainEvents();
+
+      product.removeStock(new Quantity(4));
+
+      const events = product.pullDomainEvents();
+      expect(events).toHaveLength(1);
+      expect(events[0]).toBeInstanceOf(ProductStockChanged);
+      expect(events[0]).toMatchObject({ aggregateId: product.id.value, sku: "NB-001", stock: 6 });
+    });
+
+    it("records nothing when the stock is insufficient", () => {
+      const product = productWithStock(10);
+      product.pullDomainEvents();
+
+      expect(() => product.removeStock(new Quantity(11))).toThrow(InsufficientStockError);
+      expect(product.pullDomainEvents()).toEqual([]);
+    });
+
     it("decreases the stock by the given quantity", () => {
       const product = productWithStock(10);
 
@@ -186,6 +239,46 @@ describe("ProductEntity", () => {
       );
       expect(() => product.removeStock(new Quantity(11))).toThrow(InsufficientStockError);
       expect(product.stock.value).toBe(10);
+    });
+  });
+
+  describe("changePrice", () => {
+    it("records the new absolute price", () => {
+      const product = productWithStock(10);
+      product.pullDomainEvents();
+
+      product.changePrice(new Price(4999.9));
+
+      const events = product.pullDomainEvents();
+      expect(events).toHaveLength(1);
+      expect(events[0]).toBeInstanceOf(ProductPriceChanged);
+      expect(events[0]).toMatchObject({ aggregateId: product.id.value, sku: "NB-001", price: 4999.9 });
+    });
+
+    it("changes the price to the given value", () => {
+      const product = productWithStock(10);
+
+      product.changePrice(new Price(4999.9));
+
+      expect(product.price.value).toBe(4999.9);
+    });
+
+    it("accepts zero", () => {
+      const product = productWithStock(10);
+
+      product.changePrice(new Price(0));
+
+      expect(product.price.value).toBe(0);
+    });
+
+    it("records nothing when the price is already the current one", () => {
+      const product = productWithStock(10);
+      product.pullDomainEvents();
+
+      product.changePrice(new Price(4500));
+
+      expect(product.price.value).toBe(4500);
+      expect(product.pullDomainEvents()).toEqual([]);
     });
   });
 

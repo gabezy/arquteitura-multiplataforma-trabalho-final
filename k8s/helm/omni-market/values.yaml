@@ -1,0 +1,191 @@
+databases:
+  - name: catalog-db
+    database: catalog
+    user: catalog
+    passwordKey: CATALOG_DB_PASSWORD
+  - name: compliance-db
+    database: compliance
+    user: compliance
+    passwordKey: COMPLIANCE_DB_PASSWORD
+  - name: order-db
+    database: orders
+    user: orders
+    passwordKey: ORDER_DB_PASSWORD
+  - name: billing-db
+    database: billing
+    user: billing
+    password: billing
+  - name: marketplace-db
+    database: marketplace
+    user: marketplace
+    password: marketplace
+
+applicationWorkloads:
+  enabled: true
+
+apps:
+  - name: bff-gateway
+    image: localhost:5001/omni-market/bff-gateway:local
+    port: 8080
+    nodePort: 30080
+    healthPath: /actuator/health
+    env:
+      - { name: KEYCLOAK_ISSUER_URI, value: http://localhost:8085/realms/omni-market }
+      - { name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWKSETURI, value: http://keycloak:8080/realms/omni-market/protocol/openid-connect/certs }
+      - { name: CATALOG_SERVICE_URL, value: http://catalog-service:8082 }
+      - { name: ORDER_SERVICE_URL, value: http://order-service:8084 }
+      - { name: BILLING_SERVICE_URL, value: http://billing-service:8086 }
+      - { name: MARKETPLACE_GATEWAY_URL, value: http://marketplace-gateway:8087 }
+      - { name: REDIS_HOST, value: redis }
+      - { name: VAULT_ADDR, value: http://vault:8200 }
+      - name: VAULT_ROLE_ID
+        secretKey: BFF_VAULT_ROLE_ID
+      - name: VAULT_SECRET_ID
+        secretKey: BFF_VAULT_SECRET_ID
+      - { name: OTEL_COLLECTOR_URL, value: http://otel-collector:4318 }
+  - name: catalog-service
+    image: localhost:5001/omni-market/catalog-service:local
+    port: 8082
+    nodePort: 30082
+    healthPath: /health
+    env:
+      - { name: DB_HOST, value: catalog-db }
+      - { name: DB_PORT, value: "5432" }
+      - { name: DB_NAME, value: catalog }
+      - { name: VAULT_ADDR, value: http://vault:8200 }
+      - name: VAULT_ROLE_ID
+        secretKey: CATALOG_VAULT_ROLE_ID
+      - name: VAULT_SECRET_ID
+        secretKey: CATALOG_VAULT_SECRET_ID
+      - { name: KAFKA_BROKERS, value: kafka:19092 }
+      - { name: OTEL_COLLECTOR_URL, value: http://otel-collector:4318 }
+  - name: compliance-service
+    image: localhost:5001/omni-market/compliance-service:local
+    port: 8083
+    nodePort: 30083
+    healthPath: /health
+    env:
+      - { name: DB_HOST, value: compliance-db }
+      - { name: DB_PORT, value: "5432" }
+      - { name: DB_NAME, value: compliance }
+      - { name: VAULT_ADDR, value: http://vault:8200 }
+      - name: VAULT_ROLE_ID
+        secretKey: COMPLIANCE_VAULT_ROLE_ID
+      - name: VAULT_SECRET_ID
+        secretKey: COMPLIANCE_VAULT_SECRET_ID
+      - { name: KAFKA_BROKERS, value: kafka:19092 }
+      - { name: OTEL_COLLECTOR_URL, value: http://otel-collector:4318 }
+  - name: order-service
+    image: localhost:5001/omni-market/order-service:local
+    port: 8084
+    nodePort: 30084
+    healthPath: /health
+    env:
+      - { name: DB_HOST, value: order-db }
+      - { name: DB_PORT, value: "5432" }
+      - { name: DB_NAME, value: orders }
+      - { name: VAULT_ADDR, value: http://vault:8200 }
+      - name: VAULT_ROLE_ID
+        secretKey: ORDER_VAULT_ROLE_ID
+      - name: VAULT_SECRET_ID
+        secretKey: ORDER_VAULT_SECRET_ID
+      - { name: KAFKA_BROKERS, value: kafka:19092 }
+      - { name: OTEL_COLLECTOR_URL, value: http://otel-collector:4318 }
+  - name: billing-service
+    image: localhost:5001/omni-market/billing-service:local
+    port: 8086
+    nodePort: 30086
+    healthPath: /health
+    env:
+      - { name: DATABASE_URL, value: postgresql://billing:billing@billing-db:5432/billing }
+      - { name: KAFKA_BROKERS, value: kafka:19092 }
+      - { name: OTEL_COLLECTOR_URL, value: http://otel-collector:4318 }
+      - { name: PSP_BASE_URL, value: http://wiremock:8080 }
+      - { name: PSP_CALLBACK_URL, value: http://billing-service:8086/webhooks/psp }
+      - { name: PSP_WEBHOOK_TOKEN, value: psp-demo-token }
+  - name: marketplace-gateway
+    image: localhost:5001/omni-market/marketplace-gateway:local
+    port: 8087
+    nodePort: 30087
+    healthPath: /health
+    env:
+      - { name: DATABASE_URL, value: postgresql://marketplace:marketplace@marketplace-db:5432/marketplace }
+      - { name: KAFKA_BROKERS, value: kafka:19092 }
+      - { name: OTEL_COLLECTOR_URL, value: http://otel-collector:4318 }
+      - { name: AMAZON_BASE_URL, value: http://wiremock:8080/amazon }
+      - { name: MERCADO_LIVRE_BASE_URL, value: http://wiremock:8080/mercadolivre }
+      - { name: SHOPEE_BASE_URL, value: http://wiremock:8080/shopee }
+      - { name: CATALOG_SERVICE_URL, value: http://catalog-service:8082 }
+
+infrastructure:
+  # Cache and rate limit of the bff-gateway (ADR-0012). Kubernetes expands $(REDIS_PASSWORD) in the args.
+  - name: redis
+    image: redis:8.2-alpine
+    port: 6379
+    command: ["redis-server", "--requirepass", "$(REDIS_PASSWORD)"]
+    env:
+      - name: REDIS_PASSWORD
+        valueFrom:
+          secretKeyRef: { name: omni-market-secrets, key: REDIS_PASSWORD }
+  - name: kafka-ui
+    image: kafbat/kafka-ui:v1.5.0
+    port: 8080
+    nodePort: 30090
+    hostPort: 8090
+    env:
+      - { name: KAFKA_CLUSTERS_0_NAME, value: omni-market }
+      - { name: KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS, value: kafka:19092 }
+  - name: wiremock
+    image: localhost:5001/omni-market/wiremock:local
+    port: 8080
+    nodePort: 30089
+    hostPort: 8089
+  - name: grafana
+    image: grafana/grafana:13.0
+    port: 3000
+    nodePort: 30300
+    hostPort: 3000
+    healthPath: /api/health
+    env:
+      - { name: GF_SECURITY_ADMIN_USER, value: admin }
+      - { name: GF_SECURITY_ADMIN_PASSWORD, value: admin }
+      - { name: GF_SERVER_HTTP_PORT, value: "3000" }
+    mounts:
+      - { key: grafana-datasources.yaml, path: /etc/grafana/provisioning/datasources/datasources.yaml }
+      - { key: grafana-dashboards.yaml, path: /etc/grafana/provisioning/dashboards/dashboards.yaml }
+      - { key: grafana-dashboard-omni-market.json, path: /etc/grafana/dashboards/omni-market.json }
+  - name: loki
+    image: grafana/loki:3.7.0
+    port: 3100
+    command: ["-config.file=/etc/local-config.yaml"]
+    mounts:
+      - { key: loki-config.yaml, path: /etc/local-config.yaml }
+  - name: tempo
+    image: grafana/tempo:3.0.0
+    port: 3200
+    ports:
+      - { name: grpc, containerPort: 4317, servicePort: 4317 }
+      - { name: http, containerPort: 3200, servicePort: 3200 }
+    command: ["-config.file=/etc/tempo.yaml"]
+    mounts:
+      - { key: tempo-config.yaml, path: /etc/tempo.yaml }
+  - name: prometheus
+    image: prom/prometheus:v3.5.0
+    port: 9090
+    command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.retention.time=48h", "--enable-feature=exemplar-storage,created-timestamp-zero-ingestion"]
+    # Reads the cAdvisor of the kubelet (templates/prometheus-rbac.yaml).
+    serviceAccount: prometheus
+    mounts:
+      - { key: prometheus.yml, path: /etc/prometheus/prometheus.yml }
+  - name: otel-collector
+    image: otel/opentelemetry-collector-contrib:0.162.0
+    port: 4318
+    nodePort: 30418
+    hostPort: 4318
+    ports:
+      - { name: grpc, containerPort: 4317, servicePort: 4317, nodePort: 30417, hostPort: 4317 }
+      - { name: http, containerPort: 4318, servicePort: 4318, nodePort: 30418, hostPort: 4318 }
+      - { name: metrics, containerPort: 8889, servicePort: 8889 }
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    mounts:
+      - { key: otel-collector-config.yaml, path: /etc/otel-collector-config.yaml }

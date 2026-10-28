@@ -1,0 +1,197 @@
+# Coleção das rotas do bff-gateway (referência em docs/api-do-bff.md).
+# Formato do VS Code REST Client: rode os tokens primeiro, depois as rotas.
+# As requisições com "# @name" guardam a resposta para as seguintes (ex.: o token).
+# O client secret é o do README; a senha de cada usuário é igual ao nome dele.
+
+@keycloak = http://localhost:8085/realms/omni-market/protocol/openid-connect/token
+@bff = http://localhost:8080
+@clientId = bff-gateway
+@clientSecret = bff-gateway-secret
+
+### Token: admin (papéis admin e customer)
+# @name admin
+POST {{keycloak}}
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=password&client_id={{clientId}}&client_secret={{clientSecret}}&username=admin&password=admin
+
+### Token: loja (papel store)
+# @name loja
+POST {{keycloak}}
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=password&client_id={{clientId}}&client_secret={{clientSecret}}&username=loja&password=loja
+
+### Token: csm (papel csm)
+# @name csm
+POST {{keycloak}}
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=password&client_id={{clientId}}&client_secret={{clientSecret}}&username=csm&password=csm
+
+### Token: fiscal (papel fiscal)
+# @name fiscal
+POST {{keycloak}}
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=password&client_id={{clientId}}&client_secret={{clientSecret}}&username=fiscal&password=fiscal
+
+### Token: especialista (papel specialist)
+# @name especialista
+POST {{keycloak}}
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=password&client_id={{clientId}}&client_secret={{clientSecret}}&username=especialista&password=especialista
+
+### Pedidos: a página padrão (store, csm e admin)
+GET {{bff}}/orders
+Authorization: Bearer {{csm.response.body.access_token}}
+
+### Pedidos: filtro por marketplace e status, com paginação
+GET {{bff}}/orders?marketplace=AMAZON&status=PAID&limit=5&offset=0
+Authorization: Bearer {{loja.response.body.access_token}}
+
+### Pedidos: só os cancelados (o motivo vem em cancellationReason)
+GET {{bff}}/orders?status=CANCELLED
+Authorization: Bearer {{csm.response.body.access_token}}
+
+### Pedido: detalhe. O id é o do modo mock (APP_GATEWAYS_ORDER=mock); com o order-service real, use um id de GET /orders
+GET {{bff}}/orders/6f1c2b8e-0000-4000-8000-000000000001
+Authorization: Bearer {{csm.response.body.access_token}}
+
+### Pedido: id que não existe, 404
+GET {{bff}}/orders/6f1c2b8e-0000-4000-8000-0000000000ff
+Authorization: Bearer {{csm.response.body.access_token}}
+
+### Pedidos: status inválido, 400
+GET {{bff}}/orders?status=SHIPPED
+Authorization: Bearer {{csm.response.body.access_token}}
+
+### Relatório de vendas por marketplace (csm e admin)
+GET {{bff}}/reports/sales-by-marketplace?from=2026-10-01&to=2026-10-31
+Authorization: Bearer {{csm.response.body.access_token}}
+
+### Relatório: período invertido, 400
+GET {{bff}}/reports/sales-by-marketplace?from=2026-10-31&to=2026-10-01
+Authorization: Bearer {{csm.response.body.access_token}}
+
+### Cobranças: a página padrão (fiscal, store e admin)
+GET {{bff}}/invoices
+Authorization: Bearer {{fiscal.response.body.access_token}}
+
+### Cobranças: as pagas de um marketplace, com paginação
+GET {{bff}}/invoices?status=PAID&marketplace=AMAZON&limit=5&offset=0
+Authorization: Bearer {{loja.response.body.access_token}}
+
+### Cobranças: a fatura de um pedido. O id do pedido é o do modo mock (APP_GATEWAYS_BILLING=mock); com o billing-service real, use um orderId de GET /invoices
+GET {{bff}}/invoices?orderId=6f1c2b8e-0000-4000-8000-000000000001
+Authorization: Bearer {{fiscal.response.body.access_token}}
+
+### Cobranças: os pagamentos recusados (failureReason e pspTransactionId)
+GET {{bff}}/invoices?status=PAYMENT_FAILED
+Authorization: Bearer {{fiscal.response.body.access_token}}
+
+### Cobrança: detalhe. O id é o do modo mock
+GET {{bff}}/invoices/1d7e3a10-0000-4000-8000-000000000001
+Authorization: Bearer {{fiscal.response.body.access_token}}
+
+### Cobrança: id que não existe, 404
+GET {{bff}}/invoices/1d7e3a10-0000-4000-8000-0000000000ff
+Authorization: Bearer {{fiscal.response.body.access_token}}
+
+### Cobranças: status inválido, 400
+GET {{bff}}/invoices?status=REFUNDED
+Authorization: Bearer {{fiscal.response.body.access_token}}
+
+### Anúncios: todos os anúncios (store e admin)
+GET {{bff}}/listings
+Authorization: Bearer {{loja.response.body.access_token}}
+
+### Anúncios: o status de um produto em cada marketplace
+GET {{bff}}/listings?sku=OXI-001
+Authorization: Bearer {{loja.response.body.access_token}}
+
+### Anúncios: os que falharam (failureReason)
+GET {{bff}}/listings?status=FAILED
+Authorization: Bearer {{loja.response.body.access_token}}
+
+### Anúncios: de um marketplace, com paginação
+GET {{bff}}/listings?marketplace=SHOPEE&limit=5&offset=0
+Authorization: Bearer {{loja.response.body.access_token}}
+
+### Anúncio: detalhe. O id é o do modo mock (APP_GATEWAYS_MARKETPLACE=mock); com o marketplace-gateway real, use um id de GET /listings
+GET {{bff}}/listings/7a2b9c10-0000-4000-8000-000000000003
+Authorization: Bearer {{loja.response.body.access_token}}
+
+### Anúncio: id que não existe, 404
+GET {{bff}}/listings/7a2b9c10-0000-4000-8000-0000000000ff
+Authorization: Bearer {{loja.response.body.access_token}}
+
+### Anúncios: status inválido, 400
+GET {{bff}}/listings?status=SUSPENDED
+Authorization: Bearer {{loja.response.body.access_token}}
+
+### Catálogo: altera o preço de um produto (store e admin). O SKU precisa existir no catalog-service
+PATCH {{bff}}/catalog/products/NB-001/price
+Authorization: Bearer {{loja.response.body.access_token}}
+Content-Type: application/json
+
+{ "price": 4999.90 }
+
+### Catálogo: preço negativo, 400
+PATCH {{bff}}/catalog/products/NB-001/price
+Authorization: Bearer {{admin.response.body.access_token}}
+Content-Type: application/json
+
+{ "price": -1 }
+
+### Catálogo: SKU que não existe, 404
+PATCH {{bff}}/catalog/products/NAO-EXISTE/price
+Authorization: Bearer {{admin.response.body.access_token}}
+Content-Type: application/json
+
+{ "price": 10 }
+
+### Permissões: o CSM não altera preço, 403
+PATCH {{bff}}/catalog/products/NB-001/price
+Authorization: Bearer {{csm.response.body.access_token}}
+Content-Type: application/json
+
+{ "price": 10 }
+
+### Permissões: a loja não vê o relatório, 403
+GET {{bff}}/reports/sales-by-marketplace?from=2026-10-01&to=2026-10-31
+Authorization: Bearer {{loja.response.body.access_token}}
+
+### Permissões: o fiscal não vê pedidos, 403
+GET {{bff}}/orders
+Authorization: Bearer {{fiscal.response.body.access_token}}
+
+### Permissões: o especialista não vê pedidos, 403
+GET {{bff}}/orders
+Authorization: Bearer {{especialista.response.body.access_token}}
+
+### Permissões: sem token, 401
+GET {{bff}}/orders
+
+### Permissões: o CSM não vê cobranças, 403
+GET {{bff}}/invoices
+Authorization: Bearer {{csm.response.body.access_token}}
+
+### Permissões: o especialista não vê cobranças, 403
+GET {{bff}}/invoices
+Authorization: Bearer {{especialista.response.body.access_token}}
+
+### Permissões: cobranças sem token, 401
+GET {{bff}}/invoices
+
+### Permissões: o fiscal não vê anúncios, 403
+GET {{bff}}/listings
+Authorization: Bearer {{fiscal.response.body.access_token}}
+
+### Permissões: o CSM não vê anúncios, 403
+GET {{bff}}/listings
+Authorization: Bearer {{csm.response.body.access_token}}
+
+### Permissões: anúncios sem token, 401
+GET {{bff}}/listings
