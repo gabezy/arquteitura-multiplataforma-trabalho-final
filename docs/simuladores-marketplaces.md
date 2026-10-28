@@ -219,6 +219,6 @@ Reiniciar o container do WireMock faz o mesmo.
 
 ## Onde o gateway usa
 
-- Os adapters do gateway ficam em `marketplace-gateway/src/infra/marketplace/` (um por marketplace, atrás da `MarketplacePort`) e entram com as issues #21, #22 e #33.
+- Os adapters do gateway ficam em `marketplace-gateway/src/infra/marketplace/` (um por marketplace, atrás da `MarketplacePort`) e entraram com as issues #21, #22 e #33.
 - Os testes dos adapters rodam contra um WireMock de Testcontainers com **estes mesmos** mappings, então uma mudança aqui que quebre o contrato quebra o CI do gateway.
 - A política de resiliência (timeout de 3 s, 3 tentativas, circuit breaker) está no [ADR-0009](adr/0009-resiliencia-nas-chamadas-aos-marketplaces.md).
